@@ -1,5 +1,5 @@
 
-#include "../include/file_interaction.hpp"
+#include "../include/old_file_interaction.hpp"
 
 /**
  * @brief Writes the data stored within a vector of sim_data_tuples and stores it to a csv file 
@@ -22,7 +22,7 @@ void sim_data_to_csv(std::vector<sim_data_tuple> &data, const std::string &filen
         {
             for(auto x = 1; x < HORIZONTAL_NODES-1; ++x)
             {
-                current_node = lbm_access::get_node_index(x,y);
+                current_node = lbm_access::get_node_index(x,y, HORIZONTAL_NODES);
                 file << time << ',' << x << ',' << y << ',' 
                 << std::get<0>(data[time])[current_node][0] << ',' 
                 << std::get<0>(data[time])[current_node][1] << ',' << std::get<1>(data[time])[current_node] << '\n';
@@ -57,7 +57,7 @@ void parallel_domain_sim_data_to_csv(std::vector<sim_data_tuple> &data, const st
                 if(!(y == 0 || y == VERTICAL_NODES - 1))
                 for(auto x = 1; x < HORIZONTAL_NODES - 1; ++x)
                 {
-                    current_node = lbm_access::get_node_index(x,y);
+                    current_node = lbm_access::get_node_index(x,y, HORIZONTAL_NODES);
                     file << time << ',' << x << ',' << y - subdomain << ',' 
                     << std::get<0>(data[time])[current_node][0] << ',' 
                     << std::get<0>(data[time])[current_node][1] << ',' << std::get<1>(data[time])[current_node] << '\n';

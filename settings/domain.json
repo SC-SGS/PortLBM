@@ -1,0 +1,28 @@
+{
+    "algorithmic": {
+        "algorithm": "gpu-two-lattice",
+        "dataLayout": "stream",
+        "debugMode": true,
+        "relaxationTime": 1.4,
+        "resultsToCsv": false,
+        "timeSteps": 50
+    },
+    "domain": {
+        "horizontalNodes": 10,
+        "verticalNodes": 21
+    },
+    "inlets": {
+        "density": 1.0,
+        "velocity": {
+            "x": 0.1,
+            "y": 0.0
+        }
+    },
+    "outlets": {
+        "density": 1.0,
+        "velocity": {
+            "x": 0.0,
+            "y": 0.0
+        }
+    }
+}

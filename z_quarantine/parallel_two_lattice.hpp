@@ -1,19 +1,24 @@
-#ifndef SEQUENTIAL_TWO_LATTICE_HPP
-#define SEQUENTIAL_TWO_LATTICE_HPP
+#ifndef PARALLEL_TWO_LATTICE_HPP
+#define PARALLEL_TWO_LATTICE_HPP
 
 #include "access.hpp"
 #include "boundaries.hpp"
 #include "collision.hpp"
 #include "defines.hpp"
+#include "old_file_interaction.hpp"
 #include "utils.hpp"
 
+#include "sequential_two_lattice.hpp"
+#include "parallel_framework.hpp"
+
+#include <iostream>
 #include <vector>
-#include <set>
 
 /**
- * @brief This namespace contains all methods for the sequential two-lattice algorithm.
+ * @brief This namespace contains all methods for the non-framework-version of the parallel two-lattice algorithm.
+ *        In this version of the algorithm, HPX takes care of the domain decomposition and scheduling. 
  */
-namespace sequential_two_lattice
+namespace parallel_two_lattice
 {
     /**
      * @brief Performs the combined streaming and collision step for all fluid nodes within the simulation domain.
@@ -30,8 +35,8 @@ namespace sequential_two_lattice
     (
         const std::vector<unsigned int> &fluid_nodes,
         const border_swap_information &bsi,
-        std::vector<double> &source, 
-        std::vector<double> &destination,    
+        std::vector<double> &source,
+        std::vector<double> &destination,
         const access_function access_function
     );
 
@@ -39,7 +44,7 @@ namespace sequential_two_lattice
      * @brief Performs the combined streaming and collision step for all fluid nodes within the simulation domain.
      *        The border conditions are enforced through ghost nodes.
      *        This variant of the combined streaming and collision step will print several debug comments to the console.
-     * 
+     *
      * @param fluid_nodes a vector containing the indices of all fluid nodes within the simulation domain.
      * @param bsi see documentation of border_swap_information
      * @param source a vector containing the distribution values of the previous time step
@@ -97,43 +102,25 @@ namespace sequential_two_lattice
     );
 
     /**
-     * @brief Determines the remaining streaming option for a node based on the specified border 
-     *        information vector.
+     * @brief Updates the ghost nodes that represent inlet and outlet edges.
+     *        When updating, a velocity border condition will be considered for the input
+     *        and a density border condition for the output.
+     *        The inlet velocity is constant throughout all inlet nodes whereas the outlet nodes
+     *        all have the specified density.
+     *        The corresponding values are constants defined in "../include/"defines.hpp".
      * 
-     * @param current_border_info an entry of a border_swap_information object
-     * @return a set containing all remaining streaming directions
+     * @param distribution_values a vector containing the distribution values of all nodes
+     * @param velocities a vector containing the velocities of all nodes
+     * @param densities a vector containing the densities of all nodes
+     * @param access_function the access function used to access the distribution values
      */
-    std::set<unsigned int> determine_streaming_directions
+    void update_velocity_input_density_output
     (
-        const std::vector<unsigned int> &current_border_info
+        std::vector<double> &distribution_values,
+        std::vector<velocity> &velocities,
+        std::vector<double> &densities, 
+        const access_function access_function
     );
-
-    /**
-     * @brief Performs the steaming step in all directions for the fluid node with 
-     *        the specified index.
-     * 
-     * @param source distribution values will be taken from this vector
-     * @param destination distribution values will be rearranged in this vector
-     * @param access_function function that will be used to access the distribution values
-     * @param fluid_node the index of the node for which the streaming step is performed
-     */
-    inline void tl_stream
-    (
-        const std::vector<double> &source,
-        std::vector<double> &destination, 
-        const access_function &access_function, 
-        const unsigned int fluid_node
-    )
-    {
-        for (const auto direction : ALL_DIRECTIONS)
-        {
-            destination[access_function(fluid_node, direction)] =
-                source[
-                    access_function(
-                        lbm_access::get_neighbor(fluid_node, invert_direction(direction)), 
-                        direction)];
-        }
-    }
 }
 
 #endif

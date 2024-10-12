@@ -165,7 +165,7 @@ namespace to_console
         const T &lbm_accessor
     )
     {
-        std::cout << "Trying to print results " << std::endl;
+        std::cout << "Trying to print results \n";
         std::vector<std::vector<unsigned int>> print_dirs = {{6,7,8}, {3,4,5}, {0,1,2}};
         unsigned int current_node_index = 0;
         unsigned int previous_direction = 0;
@@ -179,10 +179,10 @@ namespace to_console
                 auto current_row = print_dirs[i];
                 for(auto x = 0; x < HORIZONTAL_NODES; ++x)
                 {
-                    //std::cout << "Currently at node with coords (" << x << ", " << y << ")" << std::endl;
+                    //std::cout << "Currently at node with coords (" << x << ", " << y << ")\n";
                     if(x == 0 && y == 0) std::cout << "\033[31m";
                     else if(x == (HORIZONTAL_NODES - 1) && y == (VERTICAL_NODES -1)) std::cout << "\033[34m";
-                    current_node_index = lbm_access::get_node_index(x, y);
+                    current_node_index = lbm_access::get_node_index(x, y, HORIZONTAL_NODES);
                     current_values = lbm_access::get_distribution_values_of(distribution_values, current_node_index, lbm_accessor);
 
                     for(auto j = 0; j < 3; ++j)
@@ -199,52 +199,52 @@ namespace to_console
         }
     }
 
-    /**
-     * @brief Prints all distribution values in to the console.
-     *        They are displayed in the original order, i.e. the origin is located at the lower left corner of the printed distribution chart.
-     * 
-     * @param distribution_values a vector containing the distribution values of all nodes 
-     * @param access_function the function used to access the distribution values
-     */
-    inline void print_distribution_values
-    (
-        const std::vector<double> &distribution_values, 
-        const access_function access_function
-    )
-    {
-        std::cout << "Trying to print results " << std::endl;
-        std::vector<std::vector<unsigned int>> print_dirs = {{6,7,8}, {3,4,5}, {0,1,2}};
-        unsigned int current_node_index = 0;
-        unsigned int previous_direction = 0;
-        std::vector<double> current_values(9,0);
-        std::cout << std::setprecision(3) << std::fixed;
+    // /**
+    //  * @brief Prints all distribution values in to the console.
+    //  *        They are displayed in the original order, i.e. the origin is located at the lower left corner of the printed distribution chart.
+    //  * 
+    //  * @param distribution_values a vector containing the distribution values of all nodes 
+    //  * @param access_function the function used to access the distribution values
+    //  */
+    // inline void print_distribution_values
+    // (
+    //     const std::vector<double> &distribution_values, 
+    //     const access_function access_function
+    // )
+    // {
+    //     std::cout << "Trying to print results \n";
+    //     std::vector<std::vector<unsigned int>> print_dirs = {{6,7,8}, {3,4,5}, {0,1,2}};
+    //     unsigned int current_node_index = 0;
+    //     unsigned int previous_direction = 0;
+    //     std::vector<double> current_values(9,0);
+    //     std::cout << std::setprecision(3) << std::fixed;
 
-        for(auto y = VERTICAL_NODES; y-- > 0; )
-        {
-            for(auto i = 0; i < 3; ++i)
-            {
-                auto current_row = print_dirs[i];
-                for(auto x = 0; x < HORIZONTAL_NODES; ++x)
-                {
-                    //std::cout << "Currently at node with coords (" << x << ", " << y << ")" << std::endl;
-                    if(x == 0 && y == 0) std::cout << "\033[31m";
-                    else if(x == (HORIZONTAL_NODES - 1) && y == (VERTICAL_NODES -1)) std::cout << "\033[34m";
-                    current_node_index = lbm_access::get_node_index(x, y);
-                    current_values = lbm_access::get_distribution_values_of(distribution_values, current_node_index, access_function);
+    //     for(auto y = VERTICAL_NODES; y-- > 0; )
+    //     {
+    //         for(auto i = 0; i < 3; ++i)
+    //         {
+    //             auto current_row = print_dirs[i];
+    //             for(auto x = 0; x < HORIZONTAL_NODES; ++x)
+    //             {
+    //                 //std::cout << "Currently at node with coords (" << x << ", " << y << ")\n";
+    //                 if(x == 0 && y == 0) std::cout << "\033[31m";
+    //                 else if(x == (HORIZONTAL_NODES - 1) && y == (VERTICAL_NODES -1)) std::cout << "\033[34m";
+    //                 current_node_index = lbm_access::get_node_index(x, y, HORIZONTAL_NODES);
+    //                 current_values = lbm_access::get_distribution_values_of(distribution_values, current_node_index, access_function);
 
-                    for(auto j = 0; j < 3; ++j)
-                    {
-                        auto direction = current_row[j];
-                        std::cout << current_values[direction] << "  ";
-                    }
-                    std::cout << "\t\033[0m";
-                }
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-            std::cout << std::endl;
-        }
-    }
+    //                 for(auto j = 0; j < 3; ++j)
+    //                 {
+    //                     auto direction = current_row[j];
+    //                     std::cout << current_values[direction] << "  ";
+    //                 }
+    //                 std::cout << "\t\033[0m";
+    //             }
+    //             std::cout << std::endl;
+    //         }
+    //         std::cout << std::endl;
+    //         std::cout << std::endl;
+    //     }
+    // }
 
     /**
      * @brief Prints the greeting message displayed when running an algorithm.
@@ -254,8 +254,8 @@ namespace to_console
      */
     inline void print_run_greeting(const std::string &algorithm_name, const unsigned int iterations)
     {
-        std::cout << "------------------------------------------------------------------------------------------------------------------------" << std::endl;
-        std::cout << "Now running " << algorithm_name << " for " << iterations << " iterations." << std::endl;
+        std::cout << "------------------------------------------------------------------------------------------------------------------------\n";
+        std::cout << "Now running " << algorithm_name << " for " << iterations << " iterations.\n";
         std::cout << std::endl;
     } 
 
@@ -268,25 +268,25 @@ namespace to_console
     {
         unsigned int iterations = results.size();
         std::cout << std::endl;
-        std::cout << "Velocity values: " << std::endl;
+        std::cout << "Velocity values: \n";
         std::cout << std::endl;
         for(auto i = 0; i < iterations; ++i)
         {
             std::cout << "t = " << i << std::endl;
-            std::cout << "-------------------------------------------------------------------------------- " << std::endl;
+            std::cout << "-------------------------------------------------------------------------------- \n";
             to_console::print_velocity_vector(std::get<0>(results[i]));
             std::cout << std::endl;
         }
         std::cout << std::endl;
         std::cout << std::endl;
 
-        std::cout << "Density values: " << std::endl;
+        std::cout << "Density values: \n";
         std::cout << std::endl;
         
         for(auto i = 0; i < iterations; ++i)
         {
             std::cout << "t = " << i << std::endl;
-            std::cout << "-------------------------------------------------------------------------------- " << std::endl;
+            std::cout << "-------------------------------------------------------------------------------- \n";
             to_console::print_vector(std::get<1>(results[i]));
             std::cout << std::endl;
         }
@@ -303,9 +303,9 @@ namespace to_console
                   << "If your command line does not support those codes, your output may be corrupted." 
                   << std::endl;
         std::cout << "In all following prints showing the entire simulation domain, "; 
-        std::cout << "the origin will be marked in \033[31mred\033[0m and the outmost coordinate will be marked in \033[34mblue\033[0m." << std::endl;
-        std::cout << "Milestones will be marked in \033[33myellow\033[0m." << std::endl;
-        std::cout << "In the case of parallel implementations, buffer nodes will be marked in \033[32mgreen\033[0m." << std::endl;
+        std::cout << "the origin will be marked in \033[31mred\033[0m and the outmost coordinate will be marked in \033[34mblue\033[0m.\n";
+        std::cout << "Milestones will be marked in \033[33myellow\033[0m.\n";
+        std::cout << "In the case of parallel implementations, buffer nodes will be marked in \033[32mgreen\033[0m.\n";
         std::cout << std::endl;
     }
 
@@ -388,89 +388,89 @@ namespace to_console
         {
             unsigned int iterations = results.size();
             std::cout << std::endl;
-            std::cout << "Velocity values: " << std::endl;
+            std::cout << "Velocity values: \n";
             std::cout << std::endl;
             for(auto i = 0; i < iterations; ++i)
             {
                 std::cout << "t = " << i << std::endl;
-                std::cout << "-------------------------------------------------------------------------------- " << std::endl;
+                std::cout << "-------------------------------------------------------------------------------- \n";
                 to_console::buffered::print_velocity_vector(std::get<0>(results[i]));
                 std::cout << std::endl;
             }
             std::cout << std::endl;
             std::cout << std::endl;
 
-            std::cout << "Density values: " << std::endl;
+            std::cout << "Density values: \n";
             std::cout << std::endl;
             
             for(auto i = 0; i < iterations; ++i)
             {
                 std::cout << "t = " << i << std::endl;
-                std::cout << "-------------------------------------------------------------------------------- " << std::endl;
+                std::cout << "-------------------------------------------------------------------------------- \n";
                 to_console::buffered::print_vector(std::get<1>(results[i]));
                 std::cout << std::endl;
             }
             std::cout << std::endl;
         }
-
-    /**
-     * @brief Prints all distribution values in to the console.
-     *        They are displayed in the original order, i.e. the origin is located at the lower left corner of the printed distribution chart.
-     * 
-     * @param distribution_values a vector containing the distribution values of all nodes 
-     * @param access_function the function used to access the distribution values
-     */
-    inline void print_distribution_values
-    (
-        const std::vector<double> &distribution_values, 
-        const access_function access_function
-    )
-    {
-        std::vector<std::vector<unsigned int>> print_dirs = {{6,7,8}, {3,4,5}, {0,1,2}};
-        unsigned int current_node_index = 0;
-        unsigned int previous_direction = 0;
-        std::vector<double> current_values(9,0);
-        std::cout << std::setprecision(3) << std::fixed;
-        unsigned int line_counter = 0;
-
-        for(auto y = VERTICAL_NODES ; y-- > 0; )
-        {
-            if(line_counter == SUBDOMAIN_HEIGHT)
-            {
-                std::cout << "\033[32m";
-            }
-            for(auto i = 0; i < 3; ++i)
-            {
-                auto current_row = print_dirs[i];
-                for(auto x = 0; x < HORIZONTAL_NODES; ++x)
-                {
-                    //std::cout << "Currently at node with coords (" << x << ", " << y << ")" << std::endl;
-                    if(x == 0 || x == 1 || x == HORIZONTAL_NODES - 1 || x == HORIZONTAL_NODES - 2) std::cout << std::setprecision(5) << std::fixed;
-                    if(x == 0 && y == 0) std::cout << "\033[31m";
-                    else if(x == (HORIZONTAL_NODES - 1) && y == (VERTICAL_NODES - 1)) std::cout << "\033[34m";
-                    current_node_index = lbm_access::get_node_index(x, y);
-                    current_values = lbm_access::get_distribution_values_of(distribution_values, current_node_index, access_function);
-
-                    for(auto j = 0; j < 3; ++j)
-                    {
-                        auto direction = current_row[j];
-                        std::cout << current_values[direction] << "  ";
-                    }
-                    std::cout << "\t";
-                    if((x == 0 && y == 0) || (x == (HORIZONTAL_NODES - 1) && y == (VERTICAL_NODES - 1))) std::cout << "\033[0m";
-                    if(x == 0 || x == 1 || x == HORIZONTAL_NODES - 1 || x == HORIZONTAL_NODES - 2) std::cout << std::setprecision(3) << std::fixed;
-                }
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-            std::cout << std::endl;
-            if(line_counter == SUBDOMAIN_HEIGHT) line_counter = 0;
-            else line_counter++;
-            std::cout << "\033[0m";
-        }
-        std::cout << std::setprecision(3) << std::fixed;
     }
-    }
+    // /**
+    //  * @brief Prints all distribution values in to the console.
+    //  *        They are displayed in the original order, i.e. the origin is located at the lower left corner of the printed distribution chart.
+    //  * 
+    //  * @param distribution_values a vector containing the distribution values of all nodes 
+    //  * @param access_function the function used to access the distribution values
+    //  */
+    // inline void print_distribution_values
+    // (
+    //     const std::vector<double> &distribution_values, 
+    //     const access_function access_function
+    // )
+    // {
+    //     std::vector<std::vector<unsigned int>> print_dirs = {{6,7,8}, {3,4,5}, {0,1,2}};
+    //     unsigned int current_node_index = 0;
+    //     unsigned int previous_direction = 0;
+    //     std::vector<double> current_values(9,0);
+    //     std::cout << std::setprecision(3) << std::fixed;
+    //     unsigned int line_counter = 0;
+
+    //     for(auto y = VERTICAL_NODES ; y-- > 0; )
+    //     {
+    //         if(line_counter == SUBDOMAIN_HEIGHT)
+    //         {
+    //             std::cout << "\033[32m";
+    //         }
+    //         for(auto i = 0; i < 3; ++i)
+    //         {
+    //             auto current_row = print_dirs[i];
+    //             for(auto x = 0; x < HORIZONTAL_NODES; ++x)
+    //             {
+    //                 //std::cout << "Currently at node with coords (" << x << ", " << y << ")\n";
+    //                 if(x == 0 || x == 1 || x == HORIZONTAL_NODES - 1 || x == HORIZONTAL_NODES - 2) std::cout << std::setprecision(5) << std::fixed;
+    //                 if(x == 0 && y == 0) std::cout << "\033[31m";
+    //                 else if(x == (HORIZONTAL_NODES - 1) && y == (VERTICAL_NODES - 1)) std::cout << "\033[34m";
+    //                 current_node_index = lbm_access::get_node_index(x, y, HORIZONTAL_NODES);
+    //                 current_values = lbm_access::get_distribution_values_of(distribution_values, current_node_index, access_function);
+
+    //                 for(auto j = 0; j < 3; ++j)
+    //                 {
+    //                     auto direction = current_row[j];
+    //                     std::cout << current_values[direction] << "  ";
+    //                 }
+    //                 std::cout << "\t";
+    //                 if((x == 0 && y == 0) || (x == (HORIZONTAL_NODES - 1) && y == (VERTICAL_NODES - 1))) std::cout << "\033[0m";
+    //                 if(x == 0 || x == 1 || x == HORIZONTAL_NODES - 1 || x == HORIZONTAL_NODES - 2) std::cout << std::setprecision(3) << std::fixed;
+    //             }
+    //             std::cout << std::endl;
+    //         }
+    //         std::cout << std::endl;
+    //         std::cout << std::endl;
+    //         if(line_counter == SUBDOMAIN_HEIGHT) line_counter = 0;
+    //         else line_counter++;
+    //         std::cout << "\033[0m";
+    //     }
+    //     std::cout << std::setprecision(3) << std::fixed;
+    // }
+    // }
 }
 
 /**
@@ -535,209 +535,47 @@ namespace math_utils
     }
 }
 
-/**
- * @brief This debug handler determines whether or not the user wishes to enter a debug mode.
- * 
- * @param input user input
- */
-inline bool debug_handler(std::string &input)
-{
-    std::cout << std::endl;
-    if(input == "debug")
-    {
-        return true;
-    }
-    else
-    {
-        std::string selection = input;
-        while(selection != "debug" && selection != "quit")
-        {
-            std::cout << std::endl;
-            std::cout << "You have executed this program with the argument '" << selection << "' which is not supported. "; 
-            std::cout << "The following keywords are supported: " << std::endl;
-            std::cout << "\tType 'debug' to enable debug mode for this program." << std::endl;
-            std::cout << "\tType 'no_debug' to disable debug mode for this program." << std::endl;
-            std::cout << "\tType anything else to exit this program." << std::endl;
-            std::cout << "Please choose one of these options. Running the program without any arguments yields a non-debug run." << std::endl;
-            std::cout << std::endl;
-            std::cout << "Your selection: ";
-            std::cin >> selection;
-        }
-        if(selection == "debug")
-        {
-            return true;
-        }
-        else if(selection == "no_debug")
-        {
-            return false;
-        }
-        else
-        {
-            exit(0);
-        }
-    }
-}
-
-inline std::tuple<bool, bool, unsigned int, unsigned int, double, unsigned int> setup_assistant()
-{
-    // Additions for the future: Access function, boundary conditions
-    bool done = false;
-    std::string done_input = "";
-
-    bool enable_debug_mode = false;
-    std::string debug_mode_input = "";
-
-    bool enable_debug_distributions = false;
-    std::string debug_distributions_input = "";
-
-    unsigned int vertical_nodes = 0;
-    unsigned int horizontal_nodes = 0;
-    unsigned int relaxation_time = 0;
-    unsigned int time_steps = 0;
-    bool answered = false;
-
-    std::tuple<bool, bool, unsigned int, unsigned int, double, unsigned int> result(
-        enable_debug_mode, 
-        enable_debug_distributions, 
-        vertical_nodes, 
-        horizontal_nodes, 
-        relaxation_time, 
-        time_steps);
-
-    std::cout << "You have opted for an assisted setup of the simulation. " << std::endl; 
-    std::cout << "This assistent will help you specify the crucial parameters of the simulation. " << std::endl; 
-    std::cout << "You will be able to confirm that all specifications are okay." << std::endl; 
-    std::cout << "If they are not, you will be given the option to re-enter them from the start." << std::endl; 
-    std::cout << "In case you have stated an incompatible value, you will be asked for an answer again." << std::endl; 
-    std::cout << "-------------------------------------------------------------------------------------------" << std::endl; 
-
-    while(!done)
-    {
-        answered = false;
-    
-        while(!answered)
-        {
-            std::cout << "Enable debug mode? ('y' for 'yes' or 'n' for 'no'): ";
-            std::cin >> debug_mode_input; 
-            if(debug_mode_input == "y")
-            {
-                std::get<0>(result) = true;
-                answered = true;
-            }
-            else if(debug_mode_input == "n")
-            {
-                std::get<0>(result) = false;
-                answered = true;
-            }
-        }
-
-        answered = false;
-
-        while(!answered)
-        {
-            std::cout << "Enable debug distributions? ('y' for 'yes' or 'n' for 'no'): ";
-            std::cin >> debug_distributions_input; 
-            if(debug_distributions_input == "y")
-            {
-                std::get<1>(result) = true;
-                answered = true;
-            }
-            else if(debug_distributions_input == "n")
-            {
-                std::get<1>(result) = false;
-                answered = true;
-            }
-        }
-
-        answered = false;
-        
-        while(!answered)
-        {
-            std::cout << "Vertical nodes (enter an integer value greater than 2): ";
-            std::cin >> vertical_nodes; 
-            if(vertical_nodes > 2)
-            {
-                std::get<2>(result) = vertical_nodes;
-                answered = true;
-            }
-        }
-
-        answered = false;
-
-        while(!answered)
-        {
-            std::cout << "Horizontal nodes (enter an integer value greater than 2): ";
-            std::cin >> horizontal_nodes; 
-            if(horizontal_nodes > 2)
-            {
-                std::get<3>(result) = horizontal_nodes;
-                answered = true;
-            }
-        }
-
-        answered = false;
-
-        while(!answered)
-        {
-            std::cout << "Relaxation time (enter a float value greater than 0, will be cut after 3rd decimal place)" << std::endl;
-            std::cout << "[Recommendation: 1.4] > ";
-            std::cin >> relaxation_time; 
-            if(relaxation_time > 0)
-            {
-                std::get<4>(result) = relaxation_time;
-                answered = true;
-            }
-        }
-            
-        answered = false;
-
-        while(!answered)
-        {
-            std::cout << "Number of iterations (enter an integer value greater than 0): " << std::endl;
-            std::cin >> time_steps; 
-            if(time_steps > 0)
-            {
-                std::get<4>(result) = horizontal_nodes;
-                answered = true;
-            }
-            else if(time_steps <= 0)
-            {
-                std::cout << "Congratulations! You have completed the achievement 'What am I doing here?'" << std::endl;
-            }
-        }
-
-        answered = false;
-
-        while(!answered)
-        {
-            std::cout << "Do you want to start the simulation with these parameters?" << std::endl;
-            std::cout << "Type 'y' to start the simulation." << std::endl;
-            std::cout << "Type 'n' to re-enter all parameters." << std::endl;
-            std::cout << "Type 'q' to quit the program." << std::endl;
-            std::cin >> done_input; 
-            if(done_input == "y")
-            {
-                done = true;
-                answered = true;
-            }
-            else if(done_input == "n")
-            {
-                done = false;
-                answered = true;
-                std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
-            }
-            else if(done_input == "q")
-            {
-                done = true;
-                answered = true;
-                std::cout << "Exiting program..." << std::endl;
-                exit(0);
-            }
-        }
-    }
-    std::cout << std::endl;
-    std::cout << "Preparing simulation..." << std::endl;
-    std::cout << std::endl;
-}
+// /**
+//  * @brief This debug handler determines whether or not the user wishes to enter a debug mode.
+//  * 
+//  * @param input user input
+//  */
+// inline bool debug_handler(std::string &input)
+// {
+//     std::cout << std::endl;
+//     if(input == "debug")
+//     {
+//         return true;
+//     }
+//     else
+//     {
+//         std::string selection = input;
+//         while(selection != "debug" && selection != "quit")
+//         {
+//             std::cout << std::endl;
+//             std::cout << "You have executed this program with the argument '" << selection << "' which is not supported. "; 
+//             std::cout << "The following keywords are supported: \n";
+//             std::cout << "\tType 'debug' to enable debug mode for this program.\n";
+//             std::cout << "\tType 'no_debug' to disable debug mode for this program.\n";
+//             std::cout << "\tType anything else to exit this program.\n";
+//             std::cout << "Please choose one of these options. Running the program without any arguments yields a non-debug run.\n";
+//             std::cout << std::endl;
+//             std::cout << "Your selection: ";
+//             std::cin >> selection;
+//         }
+//         if(selection == "debug")
+//         {
+//             return true;
+//         }
+//         else if(selection == "no_debug")
+//         {
+//             return false;
+//         }
+//         else
+//         {
+//             exit(0);
+//         }
+//     }
+// }
 
 #endif

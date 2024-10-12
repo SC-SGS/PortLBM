@@ -2,7 +2,7 @@
 #include <hpx/execution.hpp>
 #include <string>
 #include "./include/defines.hpp"
-#include "./include/file_interaction.hpp"
+#include "./include/old_file_interaction.hpp"
 // #include "include/parallel_two_lattice_framework.hpp"
 // #include "include/sequential_shift.hpp"
 // #include "include/parallel_shift_framework.hpp"

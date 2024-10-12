@@ -1,83 +1,65 @@
+/**
+ * @file        main_gpu.cpp
+ * 
+ * @author      Marcel Graf
+ * 
+ * @brief       Entry point of the program executing the GPU lattice Boltzmann application.
+ * 
+ * @version     1.0
+ * 
+ * @date        2024-10-09
+ * 
+ * @copyright   Copyright (c) 2024
+ */
+
+#include "include/lbm/file_interaction/file_interaction.hpp"
+#include "include/lbm/core/simulation.hpp"
+#include "include/lbm/gpu/two_lattice/gpu_two_lattice.hpp"
+
 #include <hpx/hpx_init.hpp>
 #include <hpx/execution.hpp>
-#include <string>
-#include "./include/defines.hpp"
-#include "./include/file_interaction.hpp"
-#include "include/lbm_execution.hpp"
-#include "./include/simulation.hpp"
-#include "./include/gpu_two_lattice.hpp"
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
-    std::cout << "Starting LBM on GPU test with two-lattice algorithm..." << std::endl;
-    std::cout << "------------------------------------------------------" << std::endl;
+    fmt::print("Starting LBM on GPU test with two-lattice algorithm...\n\n");
 
-    // Legacy settings
-    Settings settings;
-    settings.debug_mode = 1;
-    settings.results_to_csv = 0;
-    settings.horizontal_nodes = 10;
-    settings.vertical_nodes_excluding_buffers = 21;
-    settings.vertical_nodes = 21;
-    settings.time_steps = 100;
-    settings.subdomain_count = 0;
-    settings.access_pattern = "stream";
-    std::cout << "settings.vertical_nodes = " << settings.vertical_nodes << std::endl;
-    std::cout << "settings.horizontal_nodes = " << settings.horizontal_nodes << std::endl;
-    write_csv_config_file(settings);
-    settings = retrieve_settings_from_csv("config.csv");
-    setup_global_variables(settings);
+    lbm::console::print_ansi_color_message();
+    lbm::console::print_color_legend();
 
+    std::shared_ptr<lbm::Properties> properties = lbm::file_interaction::json_to_properties();
 
-    std::cout << "HORIZONTAL_NODES = " << HORIZONTAL_NODES << std::endl;
-    std::cout << "VERTICAL_NODES = " << VERTICAL_NODES << std::endl;
-
-    // New settings 
-    Properties properties
+    fmt::print
     (
-        true,
-        false,
-        settings.relaxation_time,
-        settings.time_steps,
-        settings.vertical_nodes_excluding_buffers,
-        settings.horizontal_nodes,
-        settings.total_nodes_excluding_buffers,
-        settings.total_node_count,
-        0,
-        0,
-        0,
-        0,
-        settings.inlet_velocity[0],
-        settings.inlet_velocity[1],
-        settings.outlet_velocity[0],
-        settings.outlet_velocity[1],
-        "stream",
-        "gpu two-lattice"
+        "Simulation properties:\n"
+        "-------------------------------------------------------------------------------\n"
     );
 
-    SimulationResults sim_results(properties);
-    SimulationData<lbm_access::LBMStreamAccessor> sim_data(properties);
+    fmt::print(fmt::runtime(properties->to_string()));
 
-    // Legacy initializations
-    // std::vector<double> distribution_values_0(0, TOTAL_NODE_COUNT * DIRECTION_COUNT);
-    std::vector<unsigned int> nodes(0, TOTAL_NODE_COUNT);
-    std::vector<unsigned int> fluid_nodes(0, TOTAL_NODE_COUNT);
-    // std::vector<bool> phase_information(false, TOTAL_NODE_COUNT);
+    std::shared_ptr<lbm::SimulationResults> simulation_results = std::make_shared<lbm::SimulationResults>(*properties);
+    std::shared_ptr<lbm::SimulationData<lbm::access::LBMStreamAccessor>> simulation_data = std::make_shared<lbm::SimulationData<lbm::access::LBMStreamAccessor>>(*properties);
 
-    border_swap_information swap_info;
-    setup_example_domain(*sim_data.distribution_values_0, nodes, fluid_nodes, *sim_data.phase_information, *sim_data.lbm_accessor, true);
-    *sim_data.distribution_values_1 = *sim_data.distribution_values_0; 
-    swap_info = bounce_back::retrieve_border_swap_info(fluid_nodes, *sim_data.phase_information);
-    LegacyData legacy_data(swap_info, lbm_access::stream);
+    lbm::border_swap_information swap_info;
 
-    if(DEBUG_MODE)
+    lbm::setup_pipe_flow_environment(*properties, *simulation_data);
+
+    *(simulation_data->distribution_values_1) = *(simulation_data->distribution_values_0); 
+
+    swap_info = lbm::bounce_back::retrieve_border_swap_info(*properties, *simulation_data);
+
+    if(properties->debug_mode)
     {
-        debug_prints(*sim_data.distribution_values_0, nodes, fluid_nodes, *sim_data.phase_information, swap_info);
+        lbm::console::debug_prints(*simulation_data, swap_info);
+
+        try
+        {
+            lbm::gpu::two_lattice::run_debug(*properties, swap_info, *simulation_data);
+        }
+        catch(const lbm::exceptions::Exception &exception)
+        {
+            std::cerr << "Exception while executing " << properties->algorithm << "algorithm.\n\n" << exception.to_string();
+        }
     }
-
-    gpu_two_lattice::run(properties, sim_data, legacy_data);
-
-    std::cout << "Control comes back to main \n";
 
     return hpx::local::finalize();
 }

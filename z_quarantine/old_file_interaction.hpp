@@ -1,5 +1,5 @@
-#ifndef FILE_INTERACTION_HPP
-#define FILE_INTERACTION_HPP
+#ifndef OLD_FILE_INTERACTION_HPP
+#define OLD_FILE_INTERACTION_HPP
 
 #include <vector>
 #include "access.hpp"

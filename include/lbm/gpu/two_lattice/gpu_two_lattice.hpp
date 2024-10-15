@@ -144,6 +144,29 @@ namespace lbm
                 lbm::console::print_distribution_values(*simulation_data.distribution_values_1, *simulation_data.lbm_accessor);
             }
 
+        template <class T> void emplace_bounce_back
+        (
+            const Properties &properties,
+            const SimulationData<T> &simulation_data
+        )
+        {
+            static_assert(
+                    std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
+                    "Template class must have base class lbm::access::LBMAccessorObject.");
+                    
+            for(int node = 0; node < properties.buffered_node_count; ++node)
+            {
+                if((*simulation_data.phase_information)[node])
+                {
+                    for(int dir = 0; dir < 9; ++dir)
+                    {
+                        (*simulation_data.distribution_values_0)[simulation_data.lbm_accessor->get_index(node, dir)] =
+                        (*simulation_data.distribution_values_0)[simulation_data.lbm_accessor->get_index(lbm::access::get_neighbor(node, dir, simulation_data.lbm_accessor->horizontal_nodes), invert_direction(dir))];            
+                    }
+                }
+            }
+        }
+
             /**
              * @brief Performs the GPU two-lattice algorithm with the specified properties.
              *        The macroscopic observables are stored in the `SimulationData` structure.
@@ -181,7 +204,8 @@ namespace lbm
                             << "===============================================================================\033[0m\n\n";
 
                     // Bounce-back
-                    lbm::bounce_back::emplace_bounce_back_values(bsi, *simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
+                    // lbm::bounce_back::emplace_bounce_back_values(bsi, *simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
+                    lbm::gpu::two_lattice::emplace_bounce_back(properties, simulation_data);
 
                     std::cout << "\033[33mSource lattice after emplacing bounce-back values: \n"
                             << "-------------------------------------------------------------------------------\033[0m\n";
@@ -205,6 +229,8 @@ namespace lbm
                 std::cout << "\033[33mAll done, exiting simulation. \033[0m\n";
                 lbm::console::print_simulation_results(properties, simulation_results);
             }
+
+
 
         } // ! namespace two_lattice
 

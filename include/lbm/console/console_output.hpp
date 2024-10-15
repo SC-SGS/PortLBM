@@ -244,6 +244,7 @@ namespace lbm
 
         std::cout << "Border swap information: \n"
                 << "-------------------------------------------------------------------------------\n";
+                std::cout << "has size " << swap_info.size() << "\n";
         for(const auto& current : swap_info)
             lbm::console::print_vector(current, current.size());
         std::cout << "\n";

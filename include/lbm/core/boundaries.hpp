@@ -4,6 +4,7 @@
 #include "access.hpp"
 #include "macroscopic.hpp"
 #include "simulation.hpp"
+#include "../console/console_output.hpp"
 
 namespace lbm
 {
@@ -168,18 +169,22 @@ namespace lbm
             {
                 if(!lbm::is_ghost_node(node, properties, (*simulation_data.phase_information)[node]))
                 {
+                    std::cout << "Not ghost node: " << node << "\n";
                     current_adjacencies = {node};
                     for(const auto direction : lbm::constants::streaming_directions)
                     {
                         unsigned int current_neighbor = lbm::access::get_neighbor(node, direction, properties.horizontal_nodes);
                         if(is_non_inout_ghost_node(current_neighbor, properties, (*simulation_data.phase_information)[node]))
                         {
+                            std::cout << "\tFound non inout ghost node: " << current_neighbor << "\n";
                             current_adjacencies.push_back(direction);
                         }
                     }
                     if(current_adjacencies.size() > 1) result.push_back(current_adjacencies);
                 }
             }
+            for(const auto& current : result)
+                lbm::console::print_vector(current, current.size());
             return result;
         }
 
@@ -222,10 +227,10 @@ namespace lbm
             unsigned int current_border_node = 0;
             lbm::velocity v = {properties.inlet_velocity_x, properties.inlet_velocity_y};
             //(auto y = 1; y < properties.vertical_nodes - 1; ++y)
-            for(auto y = 0; y < properties.vertical_nodes; ++y)
+            for(auto y = 2; y < properties.vertical_nodes - 2; ++y)
             {
                 // Update inlets
-                current_border_node = lbm::access::get_node_index(0,y,properties.horizontal_nodes);
+                current_border_node = lbm::access::get_node_index(1,y,properties.horizontal_nodes);
                 current_dist_vals = maxwell_boltzmann_distribution(
                     properties.inlet_velocity_x, properties.inlet_velocity_y, properties.inlet_density);
 
@@ -238,7 +243,7 @@ namespace lbm
                 );
 
                 // Update outlets
-                current_border_node = lbm::access::get_node_index(properties.horizontal_nodes - 1,y,properties.horizontal_nodes);
+                current_border_node = lbm::access::get_node_index(properties.horizontal_nodes - 2,y,properties.horizontal_nodes);
                 v = lbm::macroscopic::flow_velocity(
                     lbm::access::get_distribution_values_of(
                         distribution_values, lbm::access::get_neighbor(current_border_node, 3, properties.horizontal_nodes), lbm_accessor));

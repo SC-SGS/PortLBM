@@ -59,10 +59,10 @@ namespace lbm
         lbm::boundary_conditions::update_velocity_input_density_output(properties, *simulation_data.lbm_accessor, *simulation_data.distribution_values_0);
 
         /* Phase information vector */
-        for(auto x = 0; x < properties.horizontal_nodes; ++x)
+        for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
-            (*simulation_data.phase_information)[lbm::access::get_node_index(x,0, properties.horizontal_nodes)] = true;
-            (*simulation_data.phase_information)[lbm::access::get_node_index(x,properties.vertical_nodes - 1, properties.horizontal_nodes)] = true;
+            (*simulation_data.phase_information)[lbm::access::get_node_index(x,1, properties.horizontal_nodes)] = true;
+            (*simulation_data.phase_information)[lbm::access::get_node_index(x,properties.vertical_nodes - 2, properties.horizontal_nodes)] = true;
         }
     }
 }

@@ -8,13 +8,13 @@
         "timeSteps": 100
     },
     "domain": {
-        "horizontalNodes": 12,
-        "verticalNodes": 23
+        "horizontalNodes": 20,
+        "verticalNodes": 20
     },
     "inlets": {
-        "density": 1.0,
+        "density": 1.01,
         "velocity": {
-            "x": 0.1,
+            "x": 0.0,
             "y": 0.0
         }
     },

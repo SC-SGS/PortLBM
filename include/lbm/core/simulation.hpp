@@ -101,6 +101,9 @@ namespace lbm
         // Total amount of nodes including ghost nodes and buffer nodes
         unsigned int buffered_node_count;
 
+        // Total amount of node within the actual simulation domain, excluding ghost nodes
+        unsigned int domain_node_count;
+
         /* Inlets */
         double inlet_velocity_x;
         double inlet_velocity_y;
@@ -126,8 +129,6 @@ namespace lbm
             // Domain properties
             const unsigned int vertical_nodes,
             const unsigned int horizontal_nodes,
-            const unsigned int non_buffered_node_count,
-            const unsigned int buffered_node_count,
             // Inlets
             const double inlet_velocity_x,
             const double inlet_velocity_y,

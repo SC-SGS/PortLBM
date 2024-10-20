@@ -226,7 +226,6 @@ namespace lbm
             std::vector<double> current_dist_vals(9, 0);
             unsigned int current_border_node = 0;
             lbm::velocity v = {properties.inlet_velocity_x, properties.inlet_velocity_y};
-            //(auto y = 1; y < properties.vertical_nodes - 1; ++y)
             for(auto y = 2; y < properties.vertical_nodes - 2; ++y)
             {
                 // Update inlets
@@ -255,6 +254,77 @@ namespace lbm
                     lbm_accessor,
                     distribution_values
                 );
+            }
+        }
+
+        /**
+         * @brief Updates the distribution values of the inlets and outlets.
+         *        This implementation is inspired by that of Zou and He but was adapted to suit the half-way bounce-back scheme.
+         * 
+         * @tparam T an lbm accessor object, that is, any object whose class inherits from `lbm::access::LBMAccessorObject`
+         * 
+         * @param[in]       properties          the properties structure containing the inlet and outlet density and velocity 
+         * @param[in]       lbm_accessor        the accessor object according to which distribution values are accessed    
+         * @param[in, out]  distribution_values a vector containing the distribution values of all nodes
+         */
+        template <class T> void boundary_update
+        (
+            const lbm::Properties &properties,
+            const T &lbm_accessor,
+            std::vector<double> &distribution_values
+        )
+        {
+            static_assert(
+            std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
+            "Template class must be child of lbm::access::LBMAccessorObject.");
+
+            std::vector<double> f(9, 0);
+            unsigned int current_border_node = 0;
+            double x_velocity = 0.0;
+            unsigned int iteration_node_offset = 0;
+
+            // Update inlets
+            for(auto y = 2; y < properties.vertical_nodes - 2; ++y)
+            {
+                current_border_node = lbm::access::get_node_index(1,y,properties.horizontal_nodes);
+                f[4] = distribution_values[lbm_accessor.get_index(current_border_node, 4)];
+
+                for(auto dir : {0,1,3,6,7})
+                {
+                    f[dir] = distribution_values[lbm_accessor.get_index(lbm::access::get_neighbor(current_border_node, invert_direction(dir), properties.horizontal_nodes), dir)];
+                }
+
+                x_velocity = 1 - (1 / properties.inlet_density) * (f[1] + f[4] + f[7] + 2 * (f[0] + f[3] + f[6]));
+                f[2] = f[6] - 0.5 * (f[1] - f[7]) + 1.0/6 * properties.inlet_density * x_velocity;
+                f[5] = f[3] + (2.0 / 3) * properties.inlet_density * x_velocity;
+                f[8] = f[0] + 0.5 * (f[1] - f[7]) + 1.0/6 * properties.inlet_density * x_velocity;
+
+                for(auto dir : {2,5,8})
+                {
+                    distribution_values[lbm_accessor.get_index(lbm::access::get_neighbor(current_border_node, invert_direction(dir), properties.horizontal_nodes), dir)] = f[dir];
+                }
+            }
+
+            // Update outlets
+            for(auto y = 2; y < properties.vertical_nodes - 2; ++y)
+            {
+                current_border_node = lbm::access::get_node_index(properties.horizontal_nodes - 2,y,properties.horizontal_nodes);
+                f[4] = distribution_values[lbm_accessor.get_index(current_border_node, 4)];
+
+                for(auto dir : {1,2,5,7,8})
+                {
+                    f[dir] = distribution_values[lbm_accessor.get_index(lbm::access::get_neighbor(current_border_node, invert_direction(dir), properties.horizontal_nodes), dir)];
+                }
+
+                x_velocity = 1 - (1 / properties.outlet_density) * (f[1] + f[4] + f[7] + 2 * (f[2] + f[5] + f[8]));
+                f[0] = f[8] - 0.5 * (f[1] - f[7]) + 1.0/6 * properties.outlet_density * x_velocity;
+                f[3] = f[5] + (2.0 / 3) * properties.outlet_density * x_velocity;
+                f[6] = f[2] + 0.5 * (f[1] - f[7]) + 1.0/6 * properties.outlet_density * x_velocity;
+
+                for(auto dir : {0,3,6})
+                {
+                    distribution_values[lbm_accessor.get_index(lbm::access::get_neighbor(current_border_node, invert_direction(dir), properties.horizontal_nodes), dir)] = f[dir];
+                }
             }
         }
 

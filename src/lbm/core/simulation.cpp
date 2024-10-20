@@ -31,8 +31,8 @@ lbm::Properties::Properties
     // Domain properties
     const unsigned int vertical_nodes,
     const unsigned int horizontal_nodes,
-    const unsigned int non_buffered_node_count,
-    const unsigned int buffered_node_count,
+    // const unsigned int non_buffered_node_count,
+    // const unsigned int buffered_node_count,
     // Inlets
     const double inlet_velocity_x,
     const double inlet_velocity_y,
@@ -51,10 +51,11 @@ results_to_csv(results_to_csv),
 relaxation_time(relaxation_time),
 time_steps(time_steps),
 // Domain properties
-vertical_nodes(vertical_nodes),
-horizontal_nodes(horizontal_nodes),
-non_buffered_node_count(non_buffered_node_count),
-buffered_node_count(buffered_node_count),
+vertical_nodes(vertical_nodes+2),
+horizontal_nodes(horizontal_nodes+2),
+non_buffered_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
+buffered_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
+domain_node_count(vertical_nodes * horizontal_nodes),
 // Inlets
 inlet_velocity_x(inlet_velocity_x),
 inlet_velocity_y(inlet_velocity_y),
@@ -125,8 +126,8 @@ lbm::SimulationResults::SimulationResults
     const Properties &properties
 )
 :
-densities(std::make_shared<std::vector<double>>(properties.time_steps * properties.buffered_node_count, -1.0f)),
-pressures(std::make_shared<std::vector<double>>(properties.time_steps * properties.buffered_node_count, -1.0f)),
-x_velocities(std::make_shared<std::vector<double>>(properties.time_steps * properties.buffered_node_count, 0.0f)),
-y_velocities(std::make_shared<std::vector<double>>(properties.time_steps * properties.buffered_node_count, 0.0f))
+densities(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, -1.0f)),
+pressures(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, -1.0f)),
+x_velocities(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, 0.0f)),
+y_velocities(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, 0.0f))
 {};

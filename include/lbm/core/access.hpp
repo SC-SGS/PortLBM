@@ -306,6 +306,29 @@ namespace lbm
             {
                 return node_index + time_step * total_node_count;
             }
+
+            /**
+             * @brief Determines the index of any result array that a macroscopic observable of the node with the
+             *        specified index is mapped to at the specified time if ghost nodes are ignored.
+             *        That is, this function is used if no values are stored for the outer "halo".
+             * 
+             * @param[in] node_index        index of the node in question
+             * @param[in] horizontal_nodes  the total amount of horizontal nodes within the domain including ghost nodes
+             * @param[in] domain_node_count the total amount of nodes belonging to the actual simulation domain, i.e. excluding the halo
+             * @param[in] time_step         the time step to which the value belongs
+             * 
+             * @return the index of the respective value in any vector within the SimulationResults structure     
+             */
+            inline unsigned int get_result_index_no_ghosts
+            (
+                const unsigned int node_index,
+                const unsigned int horizontal_nodes,
+                const unsigned int domain_node_count,
+                const unsigned int time_step
+            )
+            {
+                return ((node_index / horizontal_nodes) * (horizontal_nodes - 2) + node_index % horizontal_nodes) + time_step * domain_node_count;
+            }
         } // ! namespace results
 
     } // ! namespace access

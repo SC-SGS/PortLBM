@@ -45,16 +45,13 @@ void lbm::console::print_velocities
 {
     unsigned int index = 0;
 
-    for(auto y = properties.vertical_nodes; y-- > 0; )
+    for(auto y = properties.vertical_nodes - 1; y-- > 1; )
     {
-        for(auto x = 0; x < properties.horizontal_nodes; ++x)
+        for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
-            index = lbm::access::results::get_result_index(
-                            lbm::access::get_node_index(x, y, properties.horizontal_nodes), 
-                            properties.vertical_nodes * properties.horizontal_nodes, time_step);
-
-            if(x == 0 && y == 0) std::cout << "\033[31m";
-            else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
+            index = lbm::access::results::get_result_index_no_ghosts(
+                            lbm::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
+                            properties.domain_node_count, time_step);
 
             std::cout << "(" << x_velocities[index] << ", " << y_velocities[index] << ")";
             std::cout << "\t  \033[0m";
@@ -73,17 +70,17 @@ void lbm::console::print_densities
 {
     unsigned int node_index = 0;
 
-    for(auto y = properties.vertical_nodes; y-- > 0; )
+    for(auto y = properties.vertical_nodes - 1; y-- > 1; )
     {
-        for(auto x = 0; x < properties.horizontal_nodes; ++x)
+        for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
             if(x == 0 && y == 0) std::cout << "\033[31m";
             else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
 
             std::cout << densities[
-                lbm::access::results::get_result_index(
-                    lbm::access::get_node_index(x, y, properties.horizontal_nodes), 
-                    properties.vertical_nodes * properties.horizontal_nodes, time_step
+                lbm::access::results::get_result_index_no_ghosts(
+                    lbm::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
+                    properties.domain_node_count, time_step
                     )
                 ]; 
             std::cout << "\t\033[0m";

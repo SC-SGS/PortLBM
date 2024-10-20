@@ -31,8 +31,8 @@ void lbm::file_interaction::properties_to_json
     file_data["algorithmic"]["dataLayout"] = properties.data_layout;
     file_data["algorithmic"]["algorithm"] = properties.algorithm;
 
-    file_data["domain"]["verticalNodes"] = properties.vertical_nodes;
-    file_data["domain"]["horizontalNodes"]= properties.horizontal_nodes;
+    file_data["domain"]["verticalNodes"] = properties.vertical_nodes - 2;
+    file_data["domain"]["horizontalNodes"]= properties.horizontal_nodes - 2;
 
     file_data["inlets"]["velocity"]["x"] = properties.inlet_velocity_x;
     file_data["inlets"]["velocity"]["y"] = properties.inlet_velocity_y;
@@ -67,8 +67,6 @@ std::shared_ptr<lbm::Properties> lbm::file_interaction::json_to_properties(const
             // Domain properties
             data.at("domain").at("verticalNodes").get<unsigned int>(),
             data.at("domain").at("horizontalNodes").get<unsigned int>(),
-            data.at("domain").at("verticalNodes").get<unsigned int>() * data.at("domain").at("horizontalNodes").get<unsigned int>(),
-            data.at("domain").at("verticalNodes").get<unsigned int>() * data.at("domain").at("horizontalNodes").get<unsigned int>(),
             // Inlets
             data.at("inlets").at("velocity").at("x").get<double>(),
             data.at("inlets").at("velocity").at("y").get<double>(),

@@ -17,21 +17,6 @@
 namespace lbm
 {
     /**
-     * @brief Create an example domain for testing purposes. The domain is a rectangle with
-     *        dimensions specified in the defines file where the outermost nodes are ghost nodes.
-     *        The upper and lower ghost nodes are solid whereas the leftmost and rightmost columns are fluid
-     *        nodes that mark the inlet and outlet respectively.
-     *        Notice that all data will be written to the parameters which are assumed to be empty initially.
-     * 
-     * @param distribution_values a vector containing all distribution values.
-     * @param nodes a vector containing all node indices, including those of solid nodes and ghost nodes.
-     * @param fluid_nodes a vector containing the indices of all fluid nodes.
-     * @param phase_information a vector containing the phase information of all nodes where true means solid.
-     * @param access_function the domain will be prepared for access with this access function.
-     * @param enable_debug true if debug mode is to be enabled, and false otherwise
-     */
-
-    /**
      * @brief Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state.
      *        The domain consists of solid nodes on the upper and lower boundary and fluid nodes otherwise.
      * 
@@ -64,6 +49,13 @@ namespace lbm
             (*simulation_data.phase_information)[lbm::access::get_node_index(x,1, properties.horizontal_nodes)] = true;
             (*simulation_data.phase_information)[lbm::access::get_node_index(x,properties.vertical_nodes - 2, properties.horizontal_nodes)] = true;
         }
+
+        // /* Add wall */
+        // for(auto y = 2; y < 0.5 * (properties.vertical_nodes - 1); ++y)
+        // {
+        //     (*simulation_data.phase_information)[lbm::access::get_node_index(properties.horizontal_nodes / 2,y, properties.horizontal_nodes)] = true;
+        //     (*simulation_data.phase_information)[lbm::access::get_node_index(properties.horizontal_nodes / 2,y, properties.horizontal_nodes)] = true;
+        // }
     }
 }
 

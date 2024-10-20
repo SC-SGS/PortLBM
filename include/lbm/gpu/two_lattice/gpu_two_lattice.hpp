@@ -101,7 +101,7 @@ namespace lbm
                     if(!lbm::is_ghost_node(node, properties, (*simulation_data.phase_information)[node]))
                     {
                         unsigned int iteration_node_offset = 
-                        lbm::access::results::get_result_index(node, simulation_data.end_node_index_buffered, iteration);
+                        lbm::access::results::get_result_index_no_ghosts(node, properties.horizontal_nodes, properties.domain_node_count, iteration);
                         std::vector<double> current_distributions = 
                             lbm::access::get_distribution_values_of<T>(*simulation_data.distribution_values_1, node, *simulation_data.lbm_accessor);
                         
@@ -115,13 +115,13 @@ namespace lbm
                     }
                 }
 
-                std::cout << "Velocities: \n"
-                        << "-------------------------------------------------------------------------------\n";
-                lbm::console::print_velocities(properties, *simulation_results.x_velocities, *simulation_results.y_velocities, iteration);
+                // std::cout << "Velocities: \n"
+                //         << "-------------------------------------------------------------------------------\n";
+                // lbm::console::print_velocities(properties, *simulation_results.x_velocities, *simulation_results.y_velocities, iteration);
 
-                std::cout << "Densities: \n"
-                        << "-------------------------------------------------------------------------------\n";
-                lbm::console::print_densities(properties, *simulation_results.densities, iteration);
+                // std::cout << "Densities: \n"
+                //         << "-------------------------------------------------------------------------------\n";
+                // lbm::console::print_densities(properties, *simulation_results.densities, iteration);
                         
                 // Collide
                 for(unsigned int node = 0; node < simulation_data.end_node_index_buffered; ++node)
@@ -133,7 +133,7 @@ namespace lbm
                             simulation_data,
                             simulation_results,
                             properties.relaxation_time, 
-                            lbm::access::results::get_result_index(node, simulation_data.end_node_index_buffered, iteration),
+                            lbm::access::results::get_result_index_no_ghosts(node, properties.horizontal_nodes, properties.domain_node_count, iteration),
                             node
                         );
                     }
@@ -144,28 +144,28 @@ namespace lbm
                 lbm::console::print_distribution_values(*simulation_data.distribution_values_1, *simulation_data.lbm_accessor);
             }
 
-        template <class T> void emplace_bounce_back
-        (
-            const Properties &properties,
-            const SimulationData<T> &simulation_data
-        )
-        {
-            static_assert(
-                    std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
-                    "Template class must have base class lbm::access::LBMAccessorObject.");
-                    
-            for(int node = 0; node < properties.buffered_node_count; ++node)
+            template <class T> void emplace_bounce_back
+            (
+                const Properties &properties,
+                const SimulationData<T> &simulation_data
+            )
             {
-                if((*simulation_data.phase_information)[node])
+                static_assert(
+                        std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
+                        "Template class must have base class lbm::access::LBMAccessorObject.");
+                        
+                for(int node = 0; node < properties.buffered_node_count; ++node)
                 {
-                    for(int dir = 0; dir < 9; ++dir)
+                    if((*simulation_data.phase_information)[node])
                     {
-                        (*simulation_data.distribution_values_0)[simulation_data.lbm_accessor->get_index(node, dir)] =
-                        (*simulation_data.distribution_values_0)[simulation_data.lbm_accessor->get_index(lbm::access::get_neighbor(node, dir, simulation_data.lbm_accessor->horizontal_nodes), invert_direction(dir))];            
+                        for(int dir = 0; dir < 9; ++dir)
+                        {
+                            (*simulation_data.distribution_values_0)[simulation_data.lbm_accessor->get_index(node, dir)] =
+                            (*simulation_data.distribution_values_0)[simulation_data.lbm_accessor->get_index(lbm::access::get_neighbor(node, dir, simulation_data.lbm_accessor->horizontal_nodes), invert_direction(dir))];            
+                        }
                     }
                 }
             }
-        }
 
             /**
              * @brief Performs the GPU two-lattice algorithm with the specified properties.
@@ -206,20 +206,21 @@ namespace lbm
                     // Bounce-back
                     // lbm::bounce_back::emplace_bounce_back_values(bsi, *simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
                     lbm::gpu::two_lattice::emplace_bounce_back(properties, simulation_data);
+                    lbm::boundary_conditions::boundary_update(properties, *simulation_data.lbm_accessor, *simulation_data.distribution_values_0);
 
-                    std::cout << "\033[33mSource lattice after emplacing bounce-back values: \n"
-                            << "-------------------------------------------------------------------------------\033[0m\n";
-                    lbm::console::print_distribution_values(*simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
+                    // std::cout << "\033[33mSource lattice after emplacing bounce-back values: \n"
+                    //         << "-------------------------------------------------------------------------------\033[0m\n";
+                    // lbm::console::print_distribution_values(*simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
 
                     // Stream and collide
                     stream_and_collide_debug(simulation_data, simulation_results, properties, step);
 
                     // Inout update
-                    lbm::boundary_conditions::update_velocity_input_density_output(properties, *simulation_data.lbm_accessor, *simulation_data.distribution_values_1);
+                    // lbm::boundary_conditions::update_velocity_input_density_output(properties, *simulation_data.lbm_accessor, *simulation_data.distribution_values_1);
                     
-                    std::cout << "\033[33mDestination lattice after updating inlets and outlets: \n"
-                            << "-------------------------------------------------------------------------------\033[0m\n";
-                    lbm::console::print_distribution_values(*simulation_data.distribution_values_1, *simulation_data.lbm_accessor);
+                    // std::cout << "\033[33mDestination lattice after updating inlets and outlets: \n"
+                    //         << "-------------------------------------------------------------------------------\033[0m\n";
+                    // lbm::console::print_distribution_values(*simulation_data.distribution_values_1, *simulation_data.lbm_accessor);
 
                     std::cout << "\033[33mFinished iteration " << step << "\033[0m \n\n\n";
                     // Swap source and destination lattice
@@ -229,8 +230,6 @@ namespace lbm
                 std::cout << "\033[33mAll done, exiting simulation. \033[0m\n";
                 lbm::console::print_simulation_results(properties, simulation_results);
             }
-
-
 
         } // ! namespace two_lattice
 

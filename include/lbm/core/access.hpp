@@ -23,6 +23,7 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+#include <sycl/sycl.hpp>
 
 namespace lbm
 {
@@ -270,6 +271,62 @@ namespace lbm
             }
             return dist_vals;
         }
+
+        // /**
+        //  * @brief This function returns the distribution values of the node with the specified index 
+        //  *        using the specified accessor object.
+        //  * 
+        //  * @param[in] source        the distribution values will be read from this vector
+        //  * @param[in] node_index    this is the index of the node in the domain
+        //  * @param[in] lbm_accessor  the access pattern defined by this accessor object is used
+        //  * 
+        //  * @return a vector containing the distribution values
+        //  */
+        // template<class T> inline std::vector<double> get_distribution_values_of
+        // (
+        //     const sycl::accessor<double, 1, sycl::access::mode::read> &source,
+        //     const unsigned int node_index, 
+        //     const T &lbm_accessor
+        // )
+        // {
+        //     static_assert(
+        //         std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
+        //         "Template class must have base class lbm::access::LBMAccessorObject.");
+
+        //     std::vector<double> dist_vals(9,0);
+        //     for(auto direction = 0; direction < 9; ++direction)
+        //     {
+        //         dist_vals[direction] = source[lbm_accessor.get_index(node_index, direction)];
+        //     }
+        //     return dist_vals;
+        // }
+
+        // /**
+        //  * @brief This function sets all distribution values of the node with the specified index 
+        //  *        to the specified values according to the access pattern specified by the accessor object.
+        //  * 
+        //  * @param[in] dist_vals     a vector containing the values to which the distribution values shall be set
+        //  * @param[in] node_index    this is the index of the node in the domain
+        //  * @param[in] lbm_accessor  the access pattern defined by this accessor object is used
+        //  * @param[in] destination   the distribution values will be written to this vector
+        //  */
+        // template<class T> inline void set_distribution_values_of
+        // (
+        //     const std::vector<double> &dist_vals, 
+        //     const int node_index, 
+        //     const T &lbm_accessor,
+        //     sycl::accessor<double, 1, sycl::access::mode::write> destination
+        // )
+        // {
+        //     static_assert(
+        //         std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
+        //         "Template class must be child of lbm::access::LBMAccessorObject.");
+            
+        //     for(auto direction = 0; direction < 9; ++direction)
+        //     {
+        //         destination[lbm_accessor.get_index(node_index, direction)] = dist_vals[direction];
+        //     }
+        // }
 
         /**
          * @brief This function sets all distribution values of the node with the specified index 

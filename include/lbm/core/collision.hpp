@@ -4,6 +4,8 @@
 #include "access.hpp"
 #include "simulation.hpp"
 
+#include <sycl/sycl.hpp>
+
 namespace lbm
 {
     /**
@@ -50,6 +52,42 @@ namespace lbm
 
             lbm::access::set_distribution_values_of(result, node, *simulation_data.lbm_accessor, *simulation_data.distribution_values_1);
         }
+
+        // template <class T> inline void collide_bgk
+        // (
+        //     const unsigned int node,
+        //     const T &accessor,
+        //     const double relaxation_time,
+        //     const double x_velocity,
+        //     const double y_velocity,
+        //     const double density,
+        //     sycl::accessor<double, 1, sycl::access::mode::read_write> distribution_values
+        // )
+        // {
+        //     static_assert(
+        //         std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
+        //         "Template class must have base class lbm::access::LBMAccessorObject.");
+
+        //     std::vector<double> values(9,0);
+
+        //     for(auto direction = 0; direction < 9; ++direction)
+        //     {
+        //         values[direction] = distribution_values[lbm_accessor.get_index(node_index, direction)];
+        //     }
+
+        //     std::vector<double> result = maxwell_boltzmann_distribution(x_velocity, y_velocity, density);
+
+        //     for(auto i = 0; i < 9; ++i)
+        //     {
+        //         result[i] = -(1/relaxation_time) * (values[i] - result[i]) + values[i];
+        //     }
+
+        //     for(auto direction = 0; direction < 9; ++direction)
+        //     {
+        //         destination[lbm_accessor.get_index(node_index, direction)] = result[direction];
+        //     }
+        // }
+
     } // ! namespace collision
 
 } // ! namespace lbm

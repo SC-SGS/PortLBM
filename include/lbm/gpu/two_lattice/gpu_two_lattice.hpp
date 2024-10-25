@@ -276,7 +276,7 @@ namespace lbm
 
                             if(!lbm::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_info_accessor[id]))
                             {
-                                for (auto direction : lbm::constants::all_directions)
+                                for (const auto& direction : lbm::constants::all_directions)
                                 {
                                     destination_accessor[lbm_accessor(id, direction)] =
                                         source_accessor[lbm_accessor(lbm::access::get_neighbor(id, invert_direction(direction), horizontal_nodes), direction)];
@@ -345,7 +345,7 @@ namespace lbm
                                 double dist_vals[9];
                                 double density = 0;
 
-                                for(auto direction = 0; direction < 9; ++direction)
+                                for (const auto& direction : lbm::constants::all_directions)
                                 {
                                     dist_vals[direction] = destination_accessor[lbm_accessor(id, direction)];
                                     density += dist_vals[direction];
@@ -369,7 +369,109 @@ namespace lbm
                             }
                         }
                 };
-            }
+
+                template <class LBMAccessor> class CollideKernel
+                {
+                    static_assert(
+                    std::is_base_of<lbm::access::LBMAccessorObject, LBMAccessor>::value, 
+                    "Template class must have base class lbm::access::LBMAccessorObject.");
+
+                    private:
+
+                        static constexpr auto read_mode = sycl::access::mode::read;
+                        static constexpr auto write_mode = sycl::access::mode::write;
+                        static constexpr auto read_write = sycl::access::mode::read_write;
+
+                        sycl::accessor<uint8_t, 1, read_mode> phase_info_accessor;
+                        sycl::accessor<double, 1, read_write> destination_accessor;
+                        sycl::accessor<double, 1, write_mode> densities_accessor;
+                        sycl::accessor<double, 1, write_mode> x_velocities_accessor;
+                        sycl::accessor<double, 1, write_mode> y_velocities_accessor;
+
+                        LBMAccessor lbm_accessor;
+                        unsigned int vertical_nodes;
+                        unsigned int horizontal_nodes;
+                        unsigned int domain_node_count;
+                        unsigned int iteration;
+                        double relaxation_time;
+
+                    public:
+
+                        CollideKernel
+                        (
+                            const sycl::accessor<uint8_t, 1, read_mode> phase_info_accessor,
+                            const sycl::accessor<double, 1, read_write> destination_accessor,
+                            const sycl::accessor<double, 1, write_mode> densities_accessor,
+                            const sycl::accessor<double, 1, write_mode> x_velocities_accessor,
+                            const sycl::accessor<double, 1, write_mode> y_velocities_accessor,
+                            const LBMAccessor &lbm_accessor,
+                            const Properties &properties,
+                            const unsigned int iteration
+                        )
+                        : 
+                        phase_info_accessor(phase_info_accessor), 
+                        destination_accessor(destination_accessor), 
+                        densities_accessor(densities_accessor),
+                        x_velocities_accessor(x_velocities_accessor),
+                        y_velocities_accessor(y_velocities_accessor),
+                        lbm_accessor(lbm_accessor),
+                        vertical_nodes(properties.vertical_nodes),
+                        horizontal_nodes(properties.horizontal_nodes),
+                        domain_node_count(properties.domain_node_count),
+                        iteration(iteration),
+                        relaxation_time(properties.relaxation_time)
+                        {}
+
+                        void operator()(sycl::item<1> item) const
+                        {
+                            auto id = item.get_linear_id();
+
+                            unsigned int iteration_node_offset =
+                                lbm::access::results::get_result_index_no_ghosts(id, horizontal_nodes, domain_node_count, iteration);
+
+                            if(!lbm::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_info_accessor[id]))
+                            {
+                                double& x_velocity = x_velocities_accessor[iteration_node_offset];
+                                double& y_velocity = y_velocities_accessor[iteration_node_offset];
+                                double& density = densities_accessor[iteration_node_offset];
+
+                                int velocity_x_component = 0; 
+                                int velocity_y_component = 0; 
+
+                                double values[9];
+                                double result[9];
+
+                                for (const auto& direction : lbm::constants::all_directions)
+                                {
+                                    values[direction] = destination_accessor[lbm_accessor.get_index(id, direction)];
+                                }
+
+                                for(auto direction = 0; direction < 9; ++direction)
+                                {
+                                    velocity_x_component = (direction % 3) - 1; 
+                                    velocity_y_component = (direction / 3) - 1; 
+
+                                    result[direction] = lbm::constants::weights.at(direction) *
+                                        (
+                                            density + 3 * (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
+                                            + 9.0/2 * std::pow(velocity_x_component * x_velocity + velocity_y_component * y_velocity, 2)
+                                            - 3.0/2 * (x_velocity * x_velocity + y_velocity * y_velocity)
+                                        );
+                                }
+                                for (const auto& direction : lbm::constants::all_directions)
+                                {
+                                    result[direction] = -(1/relaxation_time) * (values[direction] - result[direction]) + values[direction];
+                                }
+
+                                for (const auto& direction : lbm::constants::all_directions)
+                                {
+                                    destination_accessor[lbm_accessor.get_index(id, direction)] = result[direction];
+                                }
+                            }
+                        }
+                };
+                
+            } // ! namespace kernels
 
 
             /**
@@ -465,33 +567,6 @@ namespace lbm
                         }
                     );
                 }
-
-                // // Calculate density and velocity
-                // for(unsigned int node = 0; node < simulation_data.end_node_index_buffered; ++node)
-                // {
-                //     if(!lbm::is_ghost_node(node, properties, (*simulation_data.phase_information)[node]))
-                //     {
-                //         unsigned int iteration_node_offset = 
-                //         lbm::access::results::get_result_index_no_ghosts(node, properties.horizontal_nodes, properties.domain_node_count, iteration);
-                //         std::cout << "Node " << node << " has offset " << iteration_node_offset << "\n";
-                //         std::vector<double> current_distributions = 
-                //             lbm::access::get_distribution_values_of<T>(*simulation_data.distribution_values_1, node, *simulation_data.lbm_accessor);
-                       
-                //         // Density
-                //         (*simulation_results.densities)[iteration_node_offset] = lbm::macroscopic::density(current_distributions);
-
-                //         // Velocity
-                //         lbm::velocity v = lbm::macroscopic::flow_velocity(current_distributions); 
-                //         (*simulation_results.x_velocities)[iteration_node_offset] = v[0];
-                //         (*simulation_results.y_velocities)[iteration_node_offset] = v[1];
-                //     }
-                // }
-
-                // queue.wait_and_throw();
-                // densities_sycl.reset();
-                // x_velocities_sycl.reset();
-                // y_velocities_sycl.reset();
-                // dst_sycl.reset();
             
                 std::cout << "Velocities: \n"
                         << "-------------------------------------------------------------------------------\n";
@@ -501,20 +576,54 @@ namespace lbm
                         << "-------------------------------------------------------------------------------\n";
                 lbm::console::print_densities(properties, *simulation_results.densities, iteration);
                         
-                // Collide
-                for(unsigned int node = 0; node < simulation_data.end_node_index_buffered; ++node)
-                {   
-                    if(!lbm::is_ghost_node(node, properties, (*simulation_data.phase_information)[node]))
-                    {
-                        lbm::collision::collide_bgk<T>
-                        (
-                            simulation_data,
-                            simulation_results,
-                            properties.relaxation_time, 
-                            lbm::access::results::get_result_index_no_ghosts(node, properties.horizontal_nodes, properties.domain_node_count, iteration),
-                            node
-                        );
-                    }
+                // // Collide
+                // for(unsigned int node = 0; node < simulation_data.end_node_index_buffered; ++node)
+                // {   
+                //     if(!lbm::is_ghost_node(node, properties, (*simulation_data.phase_information)[node]))
+                //     {
+                //         lbm::collision::collide_bgk<T>
+                //         (
+                //             simulation_data,
+                //             simulation_results,
+                //             properties.relaxation_time, 
+                //             lbm::access::results::get_result_index_no_ghosts(node, properties.horizontal_nodes, properties.domain_node_count, iteration),
+                //             node
+                //         );
+                //     }
+                // }
+
+                {
+                    sycl::buffer<uint8_t, 1> phase_info_sycl(simulation_data.phase_information->begin(), simulation_data.phase_information->end());
+                    sycl::buffer<double, 1> dst_sycl(simulation_data.distribution_values_1->data(), sycl::range<1>(simulation_data.distribution_values_1->size()));
+                    sycl::buffer<double, 1> densities_sycl(simulation_results.densities->data(), sycl::range<1>(simulation_results.densities->size()));
+                    sycl::buffer<double, 1> x_velocities_sycl(simulation_results.x_velocities->data(), sycl::range<1>(simulation_results.x_velocities->size()));
+                    sycl::buffer<double, 1> y_velocities_sycl(simulation_results.y_velocities->data(), sycl::range<1>(simulation_results.y_velocities->size()));
+
+                    queue.submit
+                    (
+                        [&](sycl::handler &cgh)
+                        {
+                            sycl::accessor<uint8_t, 1, sycl::access::mode::read> phase_info_acc = phase_info_sycl.get_access<sycl::access::mode::read>(cgh);
+                            sycl::accessor<double, 1, sycl::access::mode::read_write> dst_acc = dst_sycl.get_access<sycl::access::mode::read_write>(cgh);
+
+                            sycl::accessor<double, 1, sycl::access::mode::write> densities_acc = densities_sycl.get_access<sycl::access::mode::write>(cgh);
+                            sycl::accessor<double, 1, sycl::access::mode::write> x_velocities_acc = x_velocities_sycl.get_access<sycl::access::mode::write>(cgh);
+                            sycl::accessor<double, 1, sycl::access::mode::write> y_velocities_acc = y_velocities_sycl.get_access<sycl::access::mode::write>(cgh);
+                            
+                            auto kernel = kernels::CollideKernel<T>
+                            (
+                                phase_info_acc,
+                                dst_acc,
+                                densities_acc,
+                                x_velocities_acc,
+                                y_velocities_acc,
+                                *simulation_data.lbm_accessor,
+                                properties,
+                                iteration
+                            );
+                            cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
+                        }
+                    );
                 }
 
                 std::cout << "\033[33mDestination lattice after collision: \n"

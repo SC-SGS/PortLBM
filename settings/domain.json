@@ -5,7 +5,7 @@
         "debugMode": true,
         "relaxationTime": 1.4,
         "resultsToCsv": false,
-        "timeSteps": 100
+        "timeSteps": 10
     },
     "domain": {
         "horizontalNodes": 11,

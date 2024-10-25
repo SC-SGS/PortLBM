@@ -66,6 +66,8 @@ namespace lbm
                 virtual unsigned int get_index(const unsigned int node, const unsigned int direction) const = 0;
 
                 constexpr static std::string_view layout_string = "generic LBM accessor";
+
+                virtual unsigned int operator()(const unsigned int node, const unsigned int direction) const = 0;
         };
 
         /**
@@ -94,6 +96,11 @@ namespace lbm
                  * @return the index of the corresponding distribution value
                  */
                 inline unsigned int get_index(const unsigned int node, const unsigned int direction) const override 
+                {
+                    return 9 * node + direction;  
+                }
+
+                inline unsigned int operator()(const unsigned int node, const unsigned int direction) const override 
                 {
                     return 9 * node + direction;  
                 }
@@ -131,6 +138,11 @@ namespace lbm
                 {
                     return buffered_node_count * direction + node;
                 }
+
+                inline unsigned int operator()(const unsigned int node, const unsigned int direction) const override 
+                {
+                    return buffered_node_count * direction + node;
+                }
         };
 
         /**
@@ -162,6 +174,11 @@ namespace lbm
                  * @return the index of the corresponding distribution value
                  */
                 inline unsigned int get_index(const unsigned int node, const unsigned int direction) const override
+                {
+                    return 3 * (direction / 3) * buffered_node_count + (direction % 3) + 3 * node; 
+                }
+
+                inline unsigned int operator()(const unsigned int node, const unsigned int direction) const override 
                 {
                     return 3 * (direction / 3) * buffered_node_count + (direction % 3) + 3 * node; 
                 }
@@ -327,7 +344,7 @@ namespace lbm
                 const unsigned int time_step
             )
             {
-                return ((node_index / horizontal_nodes) * (horizontal_nodes - 2) + node_index % horizontal_nodes) + time_step * domain_node_count;
+                return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) + (node_index-1) % horizontal_nodes) + time_step * domain_node_count;
             }
         } // ! namespace results
 

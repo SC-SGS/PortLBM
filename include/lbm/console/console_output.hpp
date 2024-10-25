@@ -162,7 +162,7 @@ namespace lbm
          */
         void print_phase_vector
         (
-            const std::vector<bool> &vector,
+            const std::vector<uint8_t> &vector,
             const unsigned int horizontal_nodes
         );
 

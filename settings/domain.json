@@ -8,7 +8,7 @@
         "timeSteps": 100
     },
     "domain": {
-        "horizontalNodes": 20,
+        "horizontalNodes": 11,
         "verticalNodes": 20
     },
     "inlets": {

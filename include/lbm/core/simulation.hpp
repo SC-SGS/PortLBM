@@ -237,8 +237,8 @@ namespace lbm
      */
     template <class T> struct SimulationData
     {
-        std::shared_ptr<std::vector<bool>> phase_information;
-        std::shared_ptr<std::vector<bool>> is_buffer;
+        std::shared_ptr<std::vector<uint8_t>> phase_information;
+        std::shared_ptr<std::vector<uint8_t>> is_buffer;
         std::shared_ptr<std::vector<double>> distribution_values_0;
         std::shared_ptr<std::vector<double>> distribution_values_1;
         std::shared_ptr<std::vector<unsigned int>> boundary_interactions;
@@ -258,8 +258,8 @@ namespace lbm
             const Properties &properties
         )
         :
-        phase_information(std::make_shared<std::vector<bool>>(properties.buffered_node_count, false)),
-        is_buffer(std::make_shared<std::vector<bool>>(properties.buffered_node_count, false)),
+        phase_information(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
+        is_buffer(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
         distribution_values_0(std::make_shared<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
         distribution_values_1(std::make_shared<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
         boundary_interactions(std::make_shared<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),
@@ -275,8 +275,8 @@ namespace lbm
      */
     template<> struct SimulationData<lbm::access::LBMCollisionAccessor>
     {
-        std::shared_ptr<std::vector<bool>> phase_information;
-        std::shared_ptr<std::vector<bool>> is_buffer;
+        std::shared_ptr<std::vector<uint8_t>> phase_information;
+        std::shared_ptr<std::vector<uint8_t>> is_buffer;
         std::shared_ptr<std::vector<double>> distribution_values_0;
         std::shared_ptr<std::vector<double>> distribution_values_1;
         std::shared_ptr<std::vector<unsigned int>> boundary_interactions;
@@ -296,8 +296,8 @@ namespace lbm
             const Properties &properties
         )
         :
-        phase_information(std::make_shared<std::vector<bool>>(properties.buffered_node_count, false)),
-        is_buffer(std::make_shared<std::vector<bool>>(properties.buffered_node_count, false)),
+        phase_information(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
+        is_buffer(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
         distribution_values_0(std::make_shared<std::vector<double>>(properties.buffered_node_count, 0.0f)),
         distribution_values_1(std::make_shared<std::vector<double>>(properties.buffered_node_count, 0.0f)),
         boundary_interactions(std::make_shared<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),

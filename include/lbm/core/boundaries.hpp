@@ -45,7 +45,7 @@ namespace lbm
     (
         const unsigned int node_index, 
         const Properties &properties,
-        const bool phase_information
+        const uint8_t phase_information
     )
     {
         if(phase_information)
@@ -58,6 +58,27 @@ namespace lbm
             unsigned int x = std::get<0>(coordinates);
             unsigned int y = std::get<1>(coordinates);
             return ((x == 0) || (x == (properties.horizontal_nodes - 1))) || ((y == 0) || (y == (properties.vertical_nodes - 1)));
+        }
+    }
+
+    inline bool is_ghost_node
+    (
+        const unsigned int node_index, 
+        const unsigned int vertical_nodes,
+        const unsigned int horizontal_nodes,
+        const uint8_t phase_information
+    )
+    {
+        if(phase_information)
+        {
+            return true;
+        }
+        else
+        {
+            std::tuple<unsigned int, unsigned int> coordinates = lbm::access::get_node_coordinates(node_index, horizontal_nodes);
+            unsigned int x = std::get<0>(coordinates);
+            unsigned int y = std::get<1>(coordinates);
+            return ((x == 0) || (x == (horizontal_nodes - 1))) || ((y == 0) || (y == (vertical_nodes - 1)));
         }
     }
 
@@ -79,7 +100,7 @@ namespace lbm
     (
         unsigned int node_index, 
         const lbm::Properties &properties,
-        const bool phase_information
+        const uint8_t phase_information
     )
     {
         std::tuple<unsigned int, unsigned int> coordinates = lbm::access::get_node_coordinates(node_index, properties.horizontal_nodes);
@@ -169,7 +190,6 @@ namespace lbm
             {
                 if(!lbm::is_ghost_node(node, properties, (*simulation_data.phase_information)[node]))
                 {
-                    std::cout << "Not ghost node: " << node << "\n";
                     current_adjacencies = {node};
                     for(const auto direction : lbm::constants::streaming_directions)
                     {

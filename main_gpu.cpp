@@ -53,7 +53,7 @@ int hpx_main(hpx::program_options::variables_map& vm)
 
         try
         {
-            lbm::gpu::two_lattice::run_debug(*properties, swap_info, *simulation_data);
+            lbm::gpu::two_lattice::run_debug_new(*properties, swap_info, *simulation_data);
         }
         catch(const lbm::exceptions::Exception &exception)
         {

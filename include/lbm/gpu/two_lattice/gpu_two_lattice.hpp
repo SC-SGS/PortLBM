@@ -357,7 +357,7 @@ namespace lbm
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
                                 
-                                for(int i = 0; i < 9; ++i)
+                                for(const auto& i : lbm::constants::all_directions)
                                 {
                                     velocity_x_component = i % 3 - 1; 
                                     velocity_y_component = i / 3 - 1; 
@@ -426,11 +426,11 @@ namespace lbm
                         {
                             auto id = item.get_linear_id();
 
-                            unsigned int iteration_node_offset =
-                                lbm::access::results::get_result_index_no_ghosts(id, horizontal_nodes, domain_node_count, iteration);
-
                             if(!lbm::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_info_accessor[id]))
                             {
+                                unsigned int iteration_node_offset =
+                                    lbm::access::results::get_result_index_no_ghosts(id, horizontal_nodes, domain_node_count, iteration);
+
                                 double& x_velocity = x_velocities_accessor[iteration_node_offset];
                                 double& y_velocity = y_velocities_accessor[iteration_node_offset];
                                 double& density = densities_accessor[iteration_node_offset];
@@ -438,34 +438,25 @@ namespace lbm
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
 
-                                double values[9];
-                                double result[9];
+                                double value;
+                                double result;
 
                                 for (const auto& direction : lbm::constants::all_directions)
                                 {
-                                    values[direction] = destination_accessor[lbm_accessor.get_index(id, direction)];
-                                }
+                                    value = destination_accessor[lbm_accessor.get_index(id, direction)];
 
-                                for(auto direction = 0; direction < 9; ++direction)
-                                {
                                     velocity_x_component = (direction % 3) - 1; 
                                     velocity_y_component = (direction / 3) - 1; 
 
-                                    result[direction] = lbm::constants::weights.at(direction) *
+                                    result = lbm::constants::weights[direction] *
                                         (
                                             density + 3 * (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
                                             + 9.0/2 * std::pow(velocity_x_component * x_velocity + velocity_y_component * y_velocity, 2)
                                             - 3.0/2 * (x_velocity * x_velocity + y_velocity * y_velocity)
                                         );
-                                }
-                                for (const auto& direction : lbm::constants::all_directions)
-                                {
-                                    result[direction] = -(1/relaxation_time) * (values[direction] - result[direction]) + values[direction];
-                                }
 
-                                for (const auto& direction : lbm::constants::all_directions)
-                                {
-                                    destination_accessor[lbm_accessor.get_index(id, direction)] = result[direction];
+                                    result = -(1/relaxation_time) * (value - result) + value;
+                                    destination_accessor[lbm_accessor.get_index(id, direction)] = result;
                                 }
                             }
                         }

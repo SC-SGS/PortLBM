@@ -19,8 +19,6 @@
 #include "access.hpp"
 #include "simulation.hpp"
 
-#include <sycl/sycl.hpp>
-
 namespace lbm
 {
 

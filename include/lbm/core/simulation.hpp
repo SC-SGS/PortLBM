@@ -19,14 +19,13 @@
 #ifndef SIMULATION_HPP
 #define SIMULATION_HPP
 
+#include "../exceptions/exceptions.hpp"
+
 #include "access.hpp"
 #include "constants.hpp"
 #include "defines.hpp"
-#include "../exceptions/exceptions.hpp"
 
 #include <fmt/core.h>
-
-//#include <memory>
 #include <complex>
 
 namespace lbm
@@ -231,6 +230,14 @@ namespace lbm
              * @param properties this structure of properties defines the total buffered node count and the number of time steps.
              */
             explicit SimulationResults(const Properties &properties);
+
+            explicit SimulationResults
+            (
+                const std::vector<double> &densities,
+                const std::vector<double> &pressures,
+                const std::vector<double> &x_velocities,
+                const std::vector<double> &y_velocities
+            );
         };
 
         /**

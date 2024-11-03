@@ -21,10 +21,10 @@
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
-    std::shared_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();
-    std::shared_ptr<lbm::core::SimulationResults> simulation_results = std::make_shared<lbm::core::SimulationResults>(*properties);
-    std::shared_ptr<lbm::core::SimulationData<lbm::core::access::LBMStreamAccessor>> simulation_data = 
-        std::make_shared<lbm::core::SimulationData<lbm::core::access::LBMStreamAccessor>>(*properties);
+    std::unique_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();
+
+    std::unique_ptr<lbm::core::SimulationData<lbm::core::access::LBMStreamAccessor>> simulation_data = 
+        std::make_unique<lbm::core::SimulationData<lbm::core::access::LBMStreamAccessor>>(*properties);
 
     lbm::core::setup_pipe_flow_environment(*properties, *simulation_data);
 

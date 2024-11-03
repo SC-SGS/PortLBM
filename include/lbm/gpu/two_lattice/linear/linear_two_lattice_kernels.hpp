@@ -147,8 +147,6 @@ namespace lbm
 
                             unsigned int vertical_nodes;
                             unsigned int horizontal_nodes;
-                            unsigned int domain_node_count;
-                            unsigned int iteration;
 
                         public:
 
@@ -163,7 +161,6 @@ namespace lbm
                              * @param[in]   y_velocities_accessor   reference to a SYCL accessor to the y velocities vector
                              * @param[in]   lbm_accessor            reference to an instance of an LBM accessor object
                              * @param[in]   properties              reference to a struct containing the simulation properties
-                             * @param[in]   iteration               the iteration in which this kernel is accessed
                              */
                             explicit MacroscopicObservablesKernel
                             (
@@ -173,8 +170,7 @@ namespace lbm
                                 const sycl::accessor<double, 1, constants::write> x_velocities_accessor,
                                 const sycl::accessor<double, 1, constants::write> y_velocities_accessor,
                                 const LBMAccessor &lbm_accessor,
-                                const core::Properties &properties,
-                                const unsigned int iteration
+                                const core::Properties &properties
                             )
                             : 
                             phase_info_accessor(phase_info_accessor), 
@@ -184,9 +180,7 @@ namespace lbm
                             y_velocities_accessor(y_velocities_accessor),
                             lbm_accessor(lbm_accessor),
                             vertical_nodes(properties.vertical_nodes),
-                            horizontal_nodes(properties.horizontal_nodes),
-                            domain_node_count(properties.domain_node_count),
-                            iteration(iteration)
+                            horizontal_nodes(properties.horizontal_nodes)
                             {}
 
                             /**
@@ -201,7 +195,7 @@ namespace lbm
                                 if(!core::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_info_accessor[id]))
                                 {
                                     unsigned int iteration_node_offset =
-                                        lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes, domain_node_count, iteration);
+                                        lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes);
                                     double dist_vals[9];
                                     double density = 0;
 
@@ -258,8 +252,6 @@ namespace lbm
 
                             unsigned int vertical_nodes;
                             unsigned int horizontal_nodes;
-                            unsigned int domain_node_count;
-                            unsigned int iteration;
                             double relaxation_time;
 
                         public:
@@ -275,7 +267,6 @@ namespace lbm
                              * @param[in]   y_velocities_accessor   reference to a SYCL accessor to the y velocities vector
                              * @param[in]   lbm_accessor            reference to an instance of an LBM accessor object
                              * @param[in]   properties              reference to a struct containing the simulation properties
-                             * @param[in]   iteration               the iteration in which this kernel is accessed
                              */
                             explicit CollideKernel
                             (
@@ -285,8 +276,7 @@ namespace lbm
                                 const sycl::accessor<double, 1, constants::write> x_velocities_accessor,
                                 const sycl::accessor<double, 1, constants::write> y_velocities_accessor,
                                 const LBMAccessor &lbm_accessor,
-                                const core::Properties &properties,
-                                const unsigned int iteration
+                                const core::Properties &properties
                             )
                             : 
                             phase_info_accessor(phase_info_accessor), 
@@ -297,8 +287,6 @@ namespace lbm
                             lbm_accessor(lbm_accessor),
                             vertical_nodes(properties.vertical_nodes),
                             horizontal_nodes(properties.horizontal_nodes),
-                            domain_node_count(properties.domain_node_count),
-                            iteration(iteration),
                             relaxation_time(properties.relaxation_time)
                             {}
 
@@ -314,7 +302,7 @@ namespace lbm
                                 if(!lbm::core::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_info_accessor[id]))
                                 {
                                     unsigned int iteration_node_offset =
-                                        lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes, domain_node_count, iteration);
+                                        lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes);
 
                                     double& x_velocity = x_velocities_accessor[iteration_node_offset];
                                     double& y_velocity = y_velocities_accessor[iteration_node_offset];
@@ -376,8 +364,6 @@ namespace lbm
 
                             unsigned int vertical_nodes;
                             unsigned int horizontal_nodes;
-                            unsigned int domain_node_count;
-                            unsigned int iteration;
                             double relaxation_time;
 
                         public:
@@ -393,7 +379,6 @@ namespace lbm
                              * @param[in]   y_velocities_accessor   reference to a SYCL accessor to the y velocities vector
                              * @param[in]   lbm_accessor            reference to an instance of an LBM accessor object
                              * @param[in]   properties              reference to a struct containing the simulation properties
-                             * @param[in]   iteration               the iteration in which this kernel is accessed
                              */
                             StreamCollideKernel
                             (
@@ -404,8 +389,7 @@ namespace lbm
                                 const sycl::accessor<double, 1, constants::read_write> &x_velocities_accessor,
                                 const sycl::accessor<double, 1, constants::read_write> &y_velocities_accessor,
                                 const LBMAccessor &lbm_accessor,
-                                const core::Properties &properties,
-                                const unsigned int iteration
+                                const core::Properties &properties
                             )
                             : 
                             phase_info_accessor(phase_info_accessor), 
@@ -417,8 +401,6 @@ namespace lbm
                             lbm_accessor(lbm_accessor),
                             vertical_nodes(properties.vertical_nodes),
                             horizontal_nodes(properties.horizontal_nodes),
-                            domain_node_count(properties.domain_node_count),
-                            iteration(iteration),
                             relaxation_time(properties.relaxation_time)
                             {}
 
@@ -434,7 +416,7 @@ namespace lbm
                                 if(!lbm::core::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_info_accessor[id]))
                                 {
                                     unsigned int iteration_node_offset =
-                                        lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes, domain_node_count, iteration);
+                                        lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes);
 
                                     // Streaming
                                     for (const auto& direction : core::constants::all_directions)

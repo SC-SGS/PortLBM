@@ -64,7 +64,6 @@ namespace lbm
                  * @tparam  LBMAccessor any child class of `core::access::LBMAccessorObject`
                  * 
                  * @param[in]       properties          the structure containing all relevant simulation properties
-                 * @param[in]       iteration           the current time step
                  * @param[in, out]  simulation_data     the data on which the algorithm operates
                  * @param[in, out]  simulation_results  the macroscopic simulation results produced by the algorithm
                  * @param[in, out]  queue               the SYCL queue used for scheduling the corresponding kernel
@@ -72,7 +71,6 @@ namespace lbm
                 template <class LBMAccessor> void stream_and_collide
                 (
                     const core::Properties &properties,
-                    const unsigned int iteration,
                     const core::SimulationData<LBMAccessor> &simulation_data,
                     const core::SimulationResults &simulation_results,
                     sycl::queue &queue  
@@ -112,8 +110,7 @@ namespace lbm
                                     x_velocities_acc,
                                     y_velocities_acc,
                                     *simulation_data.lbm_accessor,
-                                    properties,
-                                    iteration
+                                    properties
                                 );
                                 cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
                             }
@@ -237,7 +234,7 @@ namespace lbm
                     {
                         emplace_bounce_back(properties, simulation_data, queue);
                         perform_inout_update(properties, simulation_data, queue);
-                        stream_and_collide(properties, step, simulation_data, simulation_results, queue);
+                        stream_and_collide(properties, simulation_data, simulation_results, queue);
 
                         simulation_data.distribution_values_1.swap(simulation_data.distribution_values_0);
                     }
@@ -304,7 +301,6 @@ namespace lbm
                      * @tparam  LBMAccessor any child class of `core::access::LBMAccessorObject`
                      * 
                      * @param[in]       properties          the structure containing all relevant simulation properties
-                     * @param[in]       iteration           the current time step
                      * @param[in, out]  simulation_data     the data on which the algorithm operates
                      * @param[in, out]  simulation_results  the macroscopic simulation results produced by the algorithm
                      * @param[in, out]  queue               the SYCL queue used for scheduling the corresponding kernel
@@ -312,7 +308,6 @@ namespace lbm
                     template <class LBMAccessor> void update_macroscopic_observables
                     (
                         const core::Properties &properties,
-                        const unsigned int iteration,
                         const core::SimulationData<LBMAccessor> &simulation_data,
                         const core::SimulationResults &simulation_results,
                         sycl::queue &queue  
@@ -343,8 +338,7 @@ namespace lbm
                                     x_velocities_acc,
                                     y_velocities_acc,
                                     *simulation_data.lbm_accessor,
-                                    properties,
-                                    iteration
+                                    properties
                                 );
                                 cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
                             }
@@ -357,7 +351,6 @@ namespace lbm
                      * @tparam  LBMAccessor any child class of `core::access::LBMAccessorObject`
                      * 
                      * @param[in]       properties          the structure containing all relevant simulation properties
-                     * @param[in]       iteration           the current time step
                      * @param[in, out]  simulation_data     the data on which the algorithm operates
                      * @param[in, out]  simulation_results  the macroscopic simulation results produced by the algorithm
                      * @param[in, out]  queue               the SYCL queue used for scheduling the corresponding kernel
@@ -365,7 +358,6 @@ namespace lbm
                     template <class LBMAccessor> void collide
                     (
                         const core::Properties &properties,
-                        const unsigned int iteration,
                         const core::SimulationData<LBMAccessor> &simulation_data,
                         const core::SimulationResults &simulation_results,
                         sycl::queue &queue  
@@ -396,8 +388,7 @@ namespace lbm
                                     x_velocities_acc,
                                     y_velocities_acc,
                                     *simulation_data.lbm_accessor,
-                                    properties,
-                                    iteration
+                                    properties
                                 );
                                 cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
                             }
@@ -420,7 +411,6 @@ namespace lbm
                     template <class LBMAccessor> void stream_and_collide
                     (
                         const core::Properties &properties,
-                        const unsigned int iteration,
                         const core::SimulationData<LBMAccessor> &simulation_data,
                         const core::SimulationResults &simulation_results,
                         sycl::queue &queue  
@@ -438,17 +428,17 @@ namespace lbm
                                 << "-------------------------------------------------------------------------------\n\033[0m";
                         lbm::console::print_distribution_values(*simulation_data.distribution_values_1, *simulation_data.lbm_accessor);
                     
-                        update_macroscopic_observables(properties, iteration, simulation_data, simulation_results, queue);
+                        update_macroscopic_observables(properties, simulation_data, simulation_results, queue);
 
                         std::cout << "Velocities: \n"
                                 << "-------------------------------------------------------------------------------\n";
-                        lbm::console::print_velocities(properties, *simulation_results.x_velocities, *simulation_results.y_velocities, iteration);
+                        lbm::console::print_velocities(properties, *simulation_results.x_velocities, *simulation_results.y_velocities, 0);
 
                         std::cout << "Densities: \n"
                                 << "-------------------------------------------------------------------------------\n";
-                        lbm::console::print_densities(properties, *simulation_results.densities, iteration);
+                        lbm::console::print_densities(properties, *simulation_results.densities, 0);
 
-                        collide(properties, iteration, simulation_data, simulation_results, queue);
+                        collide(properties, simulation_data, simulation_results, queue);
 
                         std::cout << "\033[36mDestination lattice after collision: \n"
                                 << "-------------------------------------------------------------------------------\n\033[0m";
@@ -480,7 +470,14 @@ namespace lbm
                         std::cout << "\033[36mNow running GPU two-lattice for " << properties.time_steps << " iterations.\033[0m\n\n";
                         std::cout.flush();
                         
-                        core::SimulationResults simulation_results(properties);
+                        lbm::core::SimulationResults current_simulation_results(properties);
+
+                        lbm::core::SimulationResults all_simulation_results({}, {}, {}, {});
+
+                        all_simulation_results.densities->reserve(properties.time_steps * properties.domain_node_count);
+                        all_simulation_results.pressures->reserve(properties.time_steps * properties.domain_node_count);
+                        all_simulation_results.x_velocities->reserve(properties.time_steps * properties.domain_node_count);
+                        all_simulation_results.y_velocities->reserve(properties.time_steps * properties.domain_node_count);
 
                         sycl::default_selector device_selector; 
                         sycl::queue queue(device_selector);
@@ -505,16 +502,21 @@ namespace lbm
                                     << "-------------------------------------------------------------------------------\033[0m\n";
                             lbm::console::print_distribution_values(*simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
 
-                            stream_and_collide(properties, step, simulation_data, simulation_results, queue);
+                            stream_and_collide(properties, simulation_data, current_simulation_results, queue);
 
                             std::cout << "\033[36mFinished iteration " << step << "\033[0m \n\n\n";
 
                             // Swap source and destination lattice
                             simulation_data.distribution_values_1.swap(simulation_data.distribution_values_0);
+
+                            all_simulation_results.densities->insert(all_simulation_results.densities->end(), current_simulation_results.densities->begin(), current_simulation_results.densities->end());
+                            all_simulation_results.pressures->insert(all_simulation_results.pressures->end(), current_simulation_results.pressures->begin(), current_simulation_results.pressures->end());
+                            all_simulation_results.x_velocities->insert(all_simulation_results.x_velocities->end(), current_simulation_results.x_velocities->begin(), current_simulation_results.x_velocities->end());
+                            all_simulation_results.y_velocities->insert(all_simulation_results.y_velocities->end(), current_simulation_results.y_velocities->begin(), current_simulation_results.y_velocities->end());
                         }
 
                         std::cout << "\033[36mAll done, exiting simulation. \033[0m\n";
-                        lbm::console::print_simulation_results(properties, simulation_results);
+                        lbm::console::print_simulation_results(properties, all_simulation_results);
                     }
 
                 } // ! namespace debug

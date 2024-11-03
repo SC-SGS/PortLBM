@@ -338,6 +338,27 @@ namespace lbm
                     return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) 
                         + (node_index-1) % horizontal_nodes) + time_step * domain_node_count;
                 }
+
+                /**
+                 * @brief Determines the index of any result array that a macroscopic observable of the node with the
+                 *        specified index if ghost nodes are ignored.
+                 *        That is, this function is used if no values are stored for the outer "halo".
+                 * 
+                 * @param[in] node_index        index of the node in question
+                 * @param[in] horizontal_nodes  the total amount of horizontal nodes within the domain including ghost nodes
+                 * @param[in] domain_node_count the total amount of nodes belonging to the actual simulation domain, i.e. excluding the halo
+                 * 
+                 * @return the index of the respective value in any vector within the SimulationResults structure     
+                 */
+                inline unsigned int get_result_index_no_ghosts
+                (
+                    const unsigned int node_index,
+                    const unsigned int horizontal_nodes
+                )
+                {
+                    return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) 
+                        + (node_index-1) % horizontal_nodes);
+                }
                 
             } // ! namespace results
 

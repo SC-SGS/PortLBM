@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the definitions of various functions for console outputs.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        2024-10-10
+ * @date        November 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -27,7 +27,7 @@ void lbm::console::print_phase_vector
     {
         for(auto x = 0; x < horizontal_nodes; ++x)
         {
-            if(vector[lbm::access::get_node_index(x, y, horizontal_nodes)]) std::cout << "\033[32m#\033[0m";
+            if(vector[core::access::get_node_index(x, y, horizontal_nodes)]) std::cout << "\033[32m#\033[0m";
             else std::cout << "\033[34m~\033[0m"; 
             std::cout << " ";
         }
@@ -37,7 +37,7 @@ void lbm::console::print_phase_vector
 
 void lbm::console::print_velocities
 (
-    const lbm::Properties &properties,
+    const core::Properties &properties,
     const std::vector<double> &x_velocities, 
     const std::vector<double> &y_velocities,
     const unsigned int time_step
@@ -49,8 +49,8 @@ void lbm::console::print_velocities
     {
         for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
-            index = lbm::access::results::get_result_index_no_ghosts(
-                            lbm::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
+            index = core::access::results::get_result_index_no_ghosts(
+                            core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
                             properties.domain_node_count, time_step);
 
             std::cout << "(" << x_velocities[index] << ", " << y_velocities[index] << ")";
@@ -63,7 +63,7 @@ void lbm::console::print_velocities
 
 void lbm::console::print_densities
 (
-    const lbm::Properties &properties,
+    const core::Properties &properties,
     const std::vector<double> &densities,
     const unsigned int time_step
 )
@@ -78,8 +78,8 @@ void lbm::console::print_densities
             else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
 
             std::cout << densities[
-                lbm::access::results::get_result_index_no_ghosts(
-                    lbm::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
+                core::access::results::get_result_index_no_ghosts(
+                    core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
                     properties.domain_node_count, time_step
                     )
                 ]; 
@@ -92,8 +92,8 @@ void lbm::console::print_densities
 
 void lbm::console::print_simulation_results
 (
-    const lbm::Properties &properties,
-    const lbm::SimulationResults &simulation_results
+    const core::Properties &properties,
+    const core::SimulationResults &simulation_results
 )
 {
     std::cout << "Velocity values: \n\n";

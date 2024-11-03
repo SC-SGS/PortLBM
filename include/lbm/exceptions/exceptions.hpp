@@ -174,5 +174,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-
-#endif // !EXCEPTIONS_HPP
+#endif // ! EXCEPTIONS_HPP

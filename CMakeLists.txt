@@ -12,5 +12,6 @@ file(GLOB_RECURSE source_files "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE header_files "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
 
 add_executable(gpu_lattice_boltzmann main_gpu.cpp ${source_files} ${header_files})
+target_compile_options(gpu_lattice_boltzmann PUBLIC ${SYCL_FLAGS})
 target_link_libraries(gpu_lattice_boltzmann PUBLIC HPX::hpx HPX::wrap_main nlohmann_json::nlohmann_json fmt::fmt)
 add_sycl_to_target(TARGET gpu_lattice_boltzmann SOURCES ${source_files} ${header_files})

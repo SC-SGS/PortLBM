@@ -6,9 +6,9 @@
  * @brief       This source file contains the definitions of two functions for retrieving the properties of a simulation
  *              from a JSON file and for storing properties to a JSON file.
  * 
- * @version     0.1
+ * @version     1.1
  * 
- * @date        2024-10-05
+ * @date        November 2024
  * 
  * @copyright   Copyright (c) 2024
  */
@@ -18,7 +18,7 @@
 
 void lbm::file_interaction::properties_to_json
 (
-    const lbm::Properties &properties,
+    const lbm::core::Properties &properties,
     const std::string &path
 )
 {
@@ -47,15 +47,15 @@ void lbm::file_interaction::properties_to_json
     file.close();
 }
 
-std::shared_ptr<lbm::Properties> lbm::file_interaction::json_to_properties(const std::string &path)
+std::shared_ptr<lbm::core::Properties> lbm::file_interaction::json_to_properties(const std::string &path)
 {
     std::ifstream file(path);
     nlohmann::json data = nlohmann::json::parse(file);
     file.close();
 
-    return std::make_shared<Properties>
+    return std::make_shared<lbm::core::Properties>
     (
-        lbm::Properties
+        lbm::core::Properties
         (
             // Algorithmic properties
             data.at("algorithmic").at("algorithm").get<std::string>(),

@@ -5,7 +5,7 @@
         "debugMode": true,
         "relaxationTime": 1.4,
         "resultsToCsv": false,
-        "timeSteps": 10
+        "timeSteps": 100
     },
     "domain": {
         "horizontalNodes": 11,
@@ -19,7 +19,7 @@
         }
     },
     "outlets": {
-        "density": 1.0,
+        "density": 1.00,
         "velocity": {
             "x": 0.0,
             "y": 0.0

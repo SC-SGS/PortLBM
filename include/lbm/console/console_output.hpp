@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declarations of various functions for console outputs.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        2024-10-10
+ * @date        November 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -47,7 +47,7 @@ namespace lbm
                 "If your terminal does not support those codes, your output may be corrupted.\n"
                 "Please also make sure that the color scheme of your terminal supports the used colors.\n"
                 "The color names listed below should be colored.\n\n" 
-                "Used colors:\t\033[31mred\033[0m, \033[33myellow\033[0m, \033[32mgreen\033[0m, \033[34mblue\033[0m.\n\n"
+                "Used colors:\t\033[31mred\033[0m, \033[32mgreen\033[0m, \033[36mcyan\033[0m, \033[34mblue\033[0m.\n\n"
                 "Notice:\t\tSince the text is set to its default format (\\033[0m) multiple times in this program,\n"
                 "\t\tformatted text, especially from exceptions or third party code, may not have its typical color.\n\n"
             );
@@ -66,9 +66,9 @@ namespace lbm
                 "Legend:\n"
                 "-------------------------------------------------------------------------------\n"
                 "\033[31mRED\033[0m:\tValues of the node in the origin\n"
-                "\033[33mYELLOW\033[0m:\tMilestones and important events\n"
                 "\033[32mGREEN\033[0m:\t1.) Distribution values of buffer nodes or ghost nodes\n"
                 "\t2.) Phase illustration: \033[32m#\033[0m marks a solid node\n"
+                "\033[36mCYAN\033[0m:\tMilestones and important events\n"
                 "\033[34mBLUE\033[0m:\t1.) Distribution values of the \"outmost\" node\n"
                 "\t2.) Phase illustration: \033[34m~\033[0m marks a fluid node\n\n"
             );
@@ -95,7 +95,7 @@ namespace lbm
                 {
                     if(x == 0 && y == 0) std::cout << "\033[31m";
                     else if(x == (horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
-                    std::cout << vector[lbm::access::get_node_index(x, y, horizontal_nodes)]; 
+                    std::cout << vector[core::access::get_node_index(x, y, horizontal_nodes)]; 
                     std::cout << "\t\033[0m";
                 }
                 std::cout << "\n";
@@ -108,7 +108,7 @@ namespace lbm
          *        They are displayed in the original order, i.e. the origin is located at the lower left corner of the printed distribution chart.
          * 
          * @param distribution_values a vector containing the distribution values of all nodes 
-         * @param access_function the function used to access the distribution values
+         * @param access_function the function used to core::access the distribution values
          */
         template <class T> inline void print_distribution_values
         (
@@ -117,8 +117,8 @@ namespace lbm
         )
         {
             static_assert(
-                std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
-                "Template class must have base class lbm::access::LBMAccessorObject."
+                std::is_base_of<core::access::LBMAccessorObject, T>::value, 
+                "Template class must have base class core::access::LBMAccessorObject."
             );
 
             std::vector<std::vector<unsigned int>> print_dirs = {{6,7,8}, {3,4,5}, {0,1,2}};
@@ -137,8 +137,8 @@ namespace lbm
                     {
                         if(x == 0 && y == 0) std::cout << "\033[31m";
                         else if(x == (lbm_accessor.horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
-                        current_node_index = lbm::access::get_node_index(x, y, lbm_accessor.horizontal_nodes);
-                        current_values = lbm::access::get_distribution_values_of(distribution_values, current_node_index, lbm_accessor);
+                        current_node_index = core::access::get_node_index(x, y, lbm_accessor.horizontal_nodes);
+                        current_values = core::access::get_distribution_values_of(distribution_values, current_node_index, lbm_accessor);
 
                         for(auto j = 0; j < 3; ++j)
                         {
@@ -174,7 +174,7 @@ namespace lbm
          */
         void print_velocities
         (
-            const lbm::Properties &properties,
+            const core::Properties &properties,
             const std::vector<double> &x_velocities, 
             const std::vector<double> &y_velocities,
             const unsigned int time_step
@@ -182,7 +182,7 @@ namespace lbm
 
         void print_densities
         (
-            const lbm::Properties &properties,
+            const core::Properties &properties,
             const std::vector<double> &densities,
             const unsigned int time_step
         );
@@ -194,8 +194,8 @@ namespace lbm
          */
         void print_simulation_results
         (
-            const lbm::Properties &properties,
-            const lbm::SimulationResults &simulation_results
+            const core::Properties &properties,
+            const core::SimulationResults &simulation_results
         );
 
     /**
@@ -210,20 +210,18 @@ namespace lbm
      * 
      *        - Distribution values 0
      * 
-     * @tparam T an lbm accessor object, that is, any object whose class inherits from `lbm::access::LBMAccessorObject`
+     * @tparam T an lbm accessor object, that is, any object whose class inherits from `core::access::LBMAccessorObject`
      * 
      * @param[in] simulation_data   a structure of data on which the simulation operates
-     * @param[in] swap_info         a lbm::border_swap_information
      */
     template <class T> void debug_prints
     (
-        const SimulationData<T> &simulation_data,
-        const lbm::border_swap_information &swap_info
+        const core::SimulationData<T> &simulation_data
     )
     {
         static_assert(
-            std::is_base_of<lbm::access::LBMAccessorObject, T>::value, 
-            "Template class must have base class lbm::access::LBMAccessorObject.");
+            std::is_base_of<core::access::LBMAccessorObject, T>::value, 
+            "Template class must have base class core::access::LBMAccessorObject.");
 
         std::vector<unsigned int> nodes;
         for(auto i = 0; i < simulation_data.end_node_index_buffered; ++i)
@@ -240,13 +238,6 @@ namespace lbm
         std::cout << "Phases: \n"
                 << "-------------------------------------------------------------------------------\n";
         lbm::console::print_phase_vector(*simulation_data.phase_information, simulation_data.lbm_accessor->horizontal_nodes);
-        std::cout << "\n";
-
-        std::cout << "Border swap information: \n"
-                << "-------------------------------------------------------------------------------\n";
-                std::cout << "has size " << swap_info.size() << "\n";
-        for(const auto& current : swap_info)
-            lbm::console::print_vector(current, current.size());
         std::cout << "\n";
 
         std::cout << "Distribution values: \n"

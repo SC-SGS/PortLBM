@@ -9,9 +9,9 @@
  *              Initially, this file only contained operations to set up an example domain.
  *              Additional functionality was added to support the updated structure that suits the GPU implementation better. 
  * 
- * @version     2.0
+ * @version     2.1
  * 
- * @date        2024-09-27
+ * @date        November 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -19,7 +19,7 @@
 
 #include "../../../include/lbm/core/simulation.hpp"
 
-lbm::Properties::Properties
+lbm::core::Properties::Properties
 (
     // Algorithmic properties
     const std::string &&algorithm,
@@ -31,8 +31,6 @@ lbm::Properties::Properties
     // Domain properties
     const unsigned int vertical_nodes,
     const unsigned int horizontal_nodes,
-    // const unsigned int non_buffered_node_count,
-    // const unsigned int buffered_node_count,
     // Inlets
     const double inlet_velocity_x,
     const double inlet_velocity_y,
@@ -66,7 +64,7 @@ outlet_velocity_y(outlet_velocity_y),
 outlet_density(outlet_density)
 {};
 
-std::string lbm::Properties::to_string() const
+std::string lbm::core::Properties::to_string() const
 {
     return fmt::format
     (
@@ -105,7 +103,7 @@ std::string lbm::Properties::to_string() const
         );
 }
 
-lbm::ExpandedDomainData::ExpandedDomainData
+lbm::core::ExpandedDomainData::ExpandedDomainData
 (
     const unsigned int buffered_node_count,
     const unsigned int subdomain_height,
@@ -121,9 +119,9 @@ subdomain_count_vertical(subdomain_count_vertical),
 subdomain_count_horizontal(subdomain_count_horizontal)
 {};
 
-lbm::SimulationResults::SimulationResults
+lbm::core::SimulationResults::SimulationResults
 (
-    const Properties &properties
+    const lbm::core::Properties &properties
 )
 :
 densities(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, -1.0f)),

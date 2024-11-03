@@ -6,9 +6,9 @@
  * @brief       This header file contains the declarations of two functions for retrieving the properties of a simulation
  *              from a JSON file and for storing properties to a JSON file.
  * 
- * @version     0.1
+ * @version     1.1
  * 
- * @date        2024-10-05
+ * @date        November 2024
  * 
  * @copyright   Copyright (c) 2024
  */
@@ -38,7 +38,7 @@ namespace lbm
          */
         void properties_to_json
         (
-            const lbm::Properties &properties,
+            const core::Properties &properties,
             const std::string &path = "../settings/domain.json"
         );
 
@@ -49,7 +49,7 @@ namespace lbm
          * 
          * @return a shared pointer to a `Properties` object
          */
-        std::shared_ptr<Properties> json_to_properties(const std::string &path = "../settings/domain.json");
+        std::shared_ptr<core::Properties> json_to_properties(const std::string &path = "../settings/domain.json");
 
     } // !namespace file_interaction
 

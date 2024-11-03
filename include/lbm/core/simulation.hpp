@@ -26,7 +26,7 @@
 
 #include <fmt/core.h>
 
-#include <memory>
+//#include <memory>
 #include <complex>
 
 namespace lbm
@@ -179,7 +179,7 @@ namespace lbm
          * @brief This structure contains the results of the simulation in a structure-of-arrays representation.
          *        It is a replacement of the sim_data_tuple used in the project work. 
          *        
-         *        Notice that this structure stores shared pointers to vectors and not the vectors themselves.
+         *        Notice that this structure stores unique pointers to vectors and not the vectors themselves.
          *        It is not recommended to resize the vectors as may require reallocation and may thus invalidate 
          *        the pointer. This can lead to poor predictability. If you want to resize the vectors, set the 
          *        pointers to new vectors of the desired size or construct a new SimulationResults object.
@@ -191,37 +191,37 @@ namespace lbm
         struct SimulationResults
         {
             /**
-             * @brief A shared pointer to a vector containing the densities of all nodes in the simulation domain.
+             * @brief A unique pointer to a vector containing the densities of all nodes in the simulation domain.
              *        Solid nodes should always have the value '-1.0' for better distinction from the fluid nodes.
              *        Notice that in the case of an incompressible fluid, the density values still vary since these
              *        "virtual" densities are required by the simulation. Hence, in this case, these density values
              *        are not meaningful. However, they are meaningful for compressible fluids.
              */
-            std::shared_ptr<std::vector<double>> densities;
+            std::unique_ptr<std::vector<double>> densities;
 
             /**
-             * @brief A shared pointer to a vector containing the pressure values of all nodes in the simulation domain.
+             * @brief A unique pointer to a vector containing the pressure values of all nodes in the simulation domain.
              *        Solid nodes should always have the value '-1.0' for better distinction from the fluid nodes.
              *        Notice that unlike the density values, the pressure values are meaningful for both compressible
              *        and incompressible fluids.
              */
-            std::shared_ptr<std::vector<double>> pressures;
+            std::unique_ptr<std::vector<double>> pressures;
 
             /**
-             * @brief A shared pointer to a vector containing the x components of the velocity vectors of all nodes 
+             * @brief A unique pointer to a vector containing the x components of the velocity vectors of all nodes 
              *        in the simulation domain. Solid nodes should always have a zero component and are not differenciated
              *        further regarding their velocities. All differenciation between solid and fluid nodes is realized
              *        through the density values.
              */
-            std::shared_ptr<std::vector<double>> x_velocities;
+            std::unique_ptr<std::vector<double>> x_velocities;
 
             /**
-             * @brief A shared pointer to a vector containing the y components of the velocity vectors of all nodes 
+             * @brief A unique pointer to a vector containing the y components of the velocity vectors of all nodes 
              *        in the simulation domain. Solid nodes should always have a zero component and are not differenciated
              *        further regarding their velocities. All differenciation between solid and fluid nodes is realized
              *        through the density values.
              */
-            std::shared_ptr<std::vector<double>> y_velocities;
+            std::unique_ptr<std::vector<double>> y_velocities;
 
             /**
              * @brief Constructs a new simulation results structure based on the provided properties structure.
@@ -240,16 +240,16 @@ namespace lbm
          */
         template <class T> struct SimulationData
         {
-            std::shared_ptr<std::vector<uint8_t>> phase_information;
-            std::shared_ptr<std::vector<uint8_t>> is_buffer;
-            std::shared_ptr<std::vector<double>> distribution_values_0;
-            std::shared_ptr<std::vector<double>> distribution_values_1;
-            std::shared_ptr<std::vector<unsigned int>> boundary_interactions;
+            std::unique_ptr<std::vector<uint8_t>> phase_information;
+            std::unique_ptr<std::vector<uint8_t>> is_buffer;
+            std::unique_ptr<std::vector<double>> distribution_values_0;
+            std::unique_ptr<std::vector<double>> distribution_values_1;
+            std::unique_ptr<std::vector<unsigned int>> boundary_interactions;
 
             unsigned int end_node_index_non_buffered;
             unsigned int end_node_index_buffered;
 
-            std::shared_ptr<T> lbm_accessor;
+            std::unique_ptr<T> lbm_accessor;
 
             /**
              * @brief Constructs a new SimulationData object with an accessor object of the specified type.
@@ -261,14 +261,14 @@ namespace lbm
                 const Properties &properties
             )
             :
-            phase_information(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            is_buffer(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            distribution_values_0(std::make_shared<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
-            distribution_values_1(std::make_shared<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
-            boundary_interactions(std::make_shared<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),
+            phase_information(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
+            is_buffer(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
+            distribution_values_0(std::make_unique<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
+            distribution_values_1(std::make_unique<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
+            boundary_interactions(std::make_unique<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),
             end_node_index_non_buffered(properties.non_buffered_node_count),
             end_node_index_buffered(properties.buffered_node_count),
-            lbm_accessor(std::make_shared<T>(properties.horizontal_nodes, properties.buffered_node_count))
+            lbm_accessor(std::make_unique<T>(properties.horizontal_nodes, properties.buffered_node_count))
             {};
         };
 
@@ -278,16 +278,16 @@ namespace lbm
          */
         template<> struct SimulationData<access::LBMCollisionAccessor>
         {
-            std::shared_ptr<std::vector<uint8_t>> phase_information;
-            std::shared_ptr<std::vector<uint8_t>> is_buffer;
-            std::shared_ptr<std::vector<double>> distribution_values_0;
-            std::shared_ptr<std::vector<double>> distribution_values_1;
-            std::shared_ptr<std::vector<unsigned int>> boundary_interactions;
+            std::unique_ptr<std::vector<uint8_t>> phase_information;
+            std::unique_ptr<std::vector<uint8_t>> is_buffer;
+            std::unique_ptr<std::vector<double>> distribution_values_0;
+            std::unique_ptr<std::vector<double>> distribution_values_1;
+            std::unique_ptr<std::vector<unsigned int>> boundary_interactions;
 
             unsigned int end_node_index_non_buffered;
             unsigned int end_node_index_buffered;
 
-            std::shared_ptr<access::LBMCollisionAccessor> lbm_accessor;
+            std::unique_ptr<access::LBMCollisionAccessor> lbm_accessor;
 
             /**
              * @brief Constructs a new SimulationData object with an accessor object of the specified type.
@@ -299,14 +299,14 @@ namespace lbm
                 const Properties &properties
             )
             :
-            phase_information(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            is_buffer(std::make_shared<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            distribution_values_0(std::make_shared<std::vector<double>>(properties.buffered_node_count, 0.0f)),
-            distribution_values_1(std::make_shared<std::vector<double>>(properties.buffered_node_count, 0.0f)),
-            boundary_interactions(std::make_shared<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),
+            phase_information(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
+            is_buffer(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
+            distribution_values_0(std::make_unique<std::vector<double>>(properties.buffered_node_count, 0.0f)),
+            distribution_values_1(std::make_unique<std::vector<double>>(properties.buffered_node_count, 0.0f)),
+            boundary_interactions(std::make_unique<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),
             end_node_index_non_buffered(properties.non_buffered_node_count),
             end_node_index_buffered(properties.buffered_node_count),
-            lbm_accessor(std::make_shared<access::LBMCollisionAccessor>(properties.horizontal_nodes))
+            lbm_accessor(std::make_unique<access::LBMCollisionAccessor>(properties.horizontal_nodes))
             {};
         };
 

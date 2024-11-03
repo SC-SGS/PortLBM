@@ -47,13 +47,13 @@ void lbm::file_interaction::properties_to_json
     file.close();
 }
 
-std::shared_ptr<lbm::core::Properties> lbm::file_interaction::json_to_properties(const std::string &path)
+std::unique_ptr<lbm::core::Properties> lbm::file_interaction::json_to_properties(const std::string &path)
 {
     std::ifstream file(path);
     nlohmann::json data = nlohmann::json::parse(file);
     file.close();
 
-    return std::make_shared<lbm::core::Properties>
+    return std::make_unique<lbm::core::Properties>
     (
         lbm::core::Properties
         (

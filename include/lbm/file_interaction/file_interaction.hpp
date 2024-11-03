@@ -47,9 +47,9 @@ namespace lbm
          * 
          * @param[in] path the path to the JSON file
          * 
-         * @return a shared pointer to a `Properties` object
+         * @return a unique pointer to a `Properties` object
          */
-        std::shared_ptr<core::Properties> json_to_properties(const std::string &path = "../settings/domain.json");
+        std::unique_ptr<core::Properties> json_to_properties(const std::string &path = "../settings/domain.json");
 
     } // !namespace file_interaction
 

@@ -124,8 +124,8 @@ lbm::core::SimulationResults::SimulationResults
     const lbm::core::Properties &properties
 )
 :
-densities(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, -1.0f)),
-pressures(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, -1.0f)),
-x_velocities(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, 0.0f)),
-y_velocities(std::make_shared<std::vector<double>>(properties.time_steps * properties.domain_node_count, 0.0f))
+densities(std::make_unique<std::vector<double>>(properties.time_steps * properties.domain_node_count, -1.0f)),
+pressures(std::make_unique<std::vector<double>>(properties.time_steps * properties.domain_node_count, -1.0f)),
+x_velocities(std::make_unique<std::vector<double>>(properties.time_steps * properties.domain_node_count, 0.0f)),
+y_velocities(std::make_unique<std::vector<double>>(properties.time_steps * properties.domain_node_count, 0.0f))
 {};

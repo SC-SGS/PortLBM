@@ -12,9 +12,9 @@
  * @copyright   Copyright (c) 2024
  */
 
-#include "include/lbm/file_interaction/file_interaction.hpp"
-#include "include/lbm/core/simulation.hpp"
-#include "include/lbm/gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
+#include "../include/lbm/file_interaction/file_interaction.hpp"
+#include "../include/lbm/core/simulation.hpp"
+#include "../include/lbm/gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/execution.hpp>

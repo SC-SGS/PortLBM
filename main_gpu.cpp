@@ -21,6 +21,7 @@
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
+    // run<HpxExecutor>("Task-based lattice Boltzmann with HPX");
     std::unique_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();
 
     std::unique_ptr<lbm::core::SimulationData<lbm::core::access::LBMStreamAccessor>> simulation_data = 

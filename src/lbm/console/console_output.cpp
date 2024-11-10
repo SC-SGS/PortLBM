@@ -53,8 +53,13 @@ void lbm::console::print_velocities
                             core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
                             properties.domain_node_count, time_step);
 
-            std::cout << "(" << x_velocities[index] << ", " << y_velocities[index] << ")";
-            std::cout << "\t  \033[0m";
+            
+            std::cout << "(";
+            if(x_velocities[index] >= 0) std::cout << " ";
+            std::cout << x_velocities[index] << ", "; 
+            if(y_velocities[index] >= 0) std::cout << " ";
+            std::cout << y_velocities[index] << ")";
+            std::cout << "\033[0m    ";
         }
         std::cout << "\n";
     }
@@ -69,6 +74,7 @@ void lbm::console::print_densities
 )
 {
     unsigned int node_index = 0;
+    double value = 0;
 
     for(auto y = properties.vertical_nodes - 1; y-- > 1; )
     {
@@ -77,13 +83,15 @@ void lbm::console::print_densities
             if(x == 0 && y == 0) std::cout << "\033[31m";
             else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
 
-            std::cout << densities[
+            value = densities[
                 core::access::results::get_result_index_no_ghosts(
                     core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
                     properties.domain_node_count, time_step
                     )
-                ]; 
-            std::cout << "\t\033[0m";
+                ];
+            if(value >= 0) std::cout << " ";
+            std::cout << value; 
+            std::cout << "\033[0m  ";
         }
         std::cout << "\n";
     }

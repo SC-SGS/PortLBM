@@ -88,6 +88,7 @@ namespace lbm
         )
         {
             unsigned int vertical_nodes = vector.size() / horizontal_nodes;
+            T value = 0;
 
             for(auto y = vertical_nodes; y-- > 0; )
             {
@@ -95,8 +96,8 @@ namespace lbm
                 {
                     if(x == 0 && y == 0) std::cout << "\033[31m";
                     else if(x == (horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
-                    std::cout << vector[core::access::get_node_index(x, y, horizontal_nodes)]; 
-                    std::cout << "\t\033[0m";
+                    value = vector[core::access::get_node_index(x, y, horizontal_nodes)];
+                    std::cout << value << "\t\033[0m"; 
                 }
                 std::cout << "\n";
             }
@@ -143,13 +144,14 @@ namespace lbm
                         for(auto j = 0; j < 3; ++j)
                         {
                             auto direction = current_row[j];
-                            std::cout << current_values[direction] << "  ";
+                            if(current_values[direction] >= 0) std::cout << " ";
+                            std::cout << current_values[direction] << " ";
                         }
-                        std::cout << "\t\033[0m";
+                        std::cout << "\033[0m   ";
                     }
-                    std::cout << "\n";
+                    std::cout <<"\n";
                 }
-                std::cout << "\n\n";
+                std::cout << "\n";
             }
         } 
 

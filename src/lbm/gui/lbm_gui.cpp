@@ -14,7 +14,7 @@
  * 
  */
 
-#include "../../include/gui/lbm_gui.hpp"
+#include "../../../include/lbm/gui/lbm_gui.hpp"
 
 // GuiWindows::GuiWindows() :
 //     show_properties(true),

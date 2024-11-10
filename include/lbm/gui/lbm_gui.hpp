@@ -24,13 +24,13 @@
 #ifndef LBM_GUI_HPP
 #define LBM_GUI_HPP
 
-#include "../imgui/imgui.h"
-#include "../imgui/imgui_internal.h"
-#include "../imgui/imgui_impl_glfw.h"
-#include "../imgui/imgui_impl_opengl3.h"
+#include "../../external/imgui/imgui.h"
+#include "../../external/imgui/imgui_internal.h"
+#include "../../external/imgui/imgui_impl_glfw.h"
+#include "../../external/imgui/imgui_impl_opengl3.h"
 
-#include "../implot/implot.h"
-#include "../implot/implot_internal.h"
+#include "../../external/implot/implot.h"
+#include "../../external/implot/implot_internal.h"
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -38,11 +38,8 @@
 #endif
 #include <GLFW/glfw3.h>
 
-#include "../include/file_interaction.hpp"
-#include "../include/parallel_two_lattice.hpp"
-#include "../include/simulation.hpp"
-
-#include "executor.hpp"
+#include "../file_interaction/file_interaction.hpp"
+#include "../execution/executor.hpp"
 #include "simple_timer.hpp"
 
 #include <memory>
@@ -1305,4 +1302,4 @@
 //     return 0;
 // }
 
-// #endif
+#endif

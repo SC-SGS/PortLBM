@@ -10,7 +10,7 @@ if(WITH_VISUALIZATION)
 set(source_files ${source_files}
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/execution/sycl_executor.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/gui/lbm_gui.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/lbm/execution/simple_timer.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/lbm/gui/simple_timer.cpp"
 )
 
 endif(WITH_VISUALIZATION)

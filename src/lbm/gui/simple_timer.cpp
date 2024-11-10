@@ -11,7 +11,7 @@
  * 
  */
 
-#include "../../include/gui/simple_timer.hpp"
+#include "../../../include/lbm/gui/simple_timer.hpp"
 
 SimpleTimer::SimpleTimer() : 
     start_time_(std::chrono::high_resolution_clock::now()) {};

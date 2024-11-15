@@ -12,7 +12,7 @@
  * @copyright Copyright (c) 2024 Marcel Graf
  */
 
-#include "../../include/gui/sycl_executor.hpp"
+#include "../../../include/lbm/execution/sycl_executor.hpp"
 
 // HpxExecutor::HpxExecutor(GuiSimulationData &gui_simulation_data) : 
 // sim_data_(std::make_unique<hpx::future<sim_data_tuple>>(hpx::async([&]{return gui_simulation_data.current_result;}))) {};

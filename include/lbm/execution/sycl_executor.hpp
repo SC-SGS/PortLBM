@@ -18,7 +18,9 @@
 #define SYCL_EXECUTOR_HPP
 
 #include "executor.hpp"
-#include "lbm_gui.hpp"
+#include "../gui/lbm_gui.hpp"
+
+class HpxExecutor;
 
 // #include "../include/defines.hpp"
 

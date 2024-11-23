@@ -9,7 +9,6 @@
  * 
  * @date        November 2024
  * 
- * 
  * @copyright   Copyright (c) 2024
  * 
  */
@@ -51,14 +50,6 @@ monitor_x_scale(1),
 monitor_y_scale(1),
 display_width(1),
 display_height(1)
-{};
-
-lbm::gui::Algorithmic::Algorithmic() 
-:
-algorithms({"gpu-two-lattice", "gpu-swap"}),
-current_algorithm("gpu-two-lattice"),
-data_layouts({"collision", "stream", "bundle"}),
-current_data_layout("stream")
 {};
 
 lbm::gui::Colormaps::Colormaps() 
@@ -123,78 +114,6 @@ void lbm::gui::PropertiesBuffer::to_json(const std::string &path)
     file.close();
 }
 
-// MOVE THIS METHOD TO HEADER, MAKE TEMPLATE, ADD EXECUTOR SUCH THAT CHANGES CAN DIRECTLY BE APPLIED
-// ALSO, ADD GUI QUIVER DATA?
-void lbm::gui::windows::properties_window
-(
-    const Monitor &gui_monitor,
-    core::Properties &properties,
-    std::unique_ptr<PropertiesBuffer> &properties_buffer,
-    Windows &windows,
-    SimulationControl &gui_simulation_control,
-    Algorithmic &gui_algorithmic
-)
-{
-    if (windows.show_properties)
-    {    
-        ImGui::SetNextWindowSize
-        (
-            {
-                1 * gui_monitor.viewport_work_size.x / 4, 
-                4 * gui_monitor.viewport_work_size.y / 5
-            }
-        );
-
-        ImGui::SetNextWindowPos
-        (
-            {
-                0, 
-                windows.menu_bar_size + gui_monitor.viewport_work_size.y / 5
-            }
-        );
-
-        if(ImGui::Begin("Properties", &windows.show_properties, ImGuiWindowFlags_NoResize))
-        {
-            ImGui::PushItemWidth(ImGui::GetWindowWidth() / 2);
-
-            ImGui::BeginDisabled(gui_simulation_control.is_simulation_active);
-            
-            items::algorithm_selection(*properties_buffer, gui_algorithmic);
-            items::data_layout_selection(*properties_buffer, gui_algorithmic);
-            items::save_results_selection(properties_buffer->results_to_csv, gui_simulation_control);
-            ImGui::Checkbox("Live visualization", &windows.enable_live_visualization);
-            items::properties_simulation_and_domain(*properties_buffer);
-            items::properties_fluid(*properties_buffer);
- 
-            ImGui::SeparatorText("");
-            if (ImGui::Button("Create configuration file", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
-            {
-                properties_buffer->to_json();
-                properties_buffer->changed = false;
-                properties = *lbm::file_interaction::json_to_properties();
-                properties_buffer = std::make_unique<PropertiesBuffer>(properties);
-                windows.show_density = false;
-                windows.show_velocity = false;
-            }
-
-            ImGui::BeginDisabled(!properties_buffer->changed);
-            if (ImGui::Button("Undo changes", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
-            {
-                properties_buffer = std::make_unique<PropertiesBuffer>(properties);
-            }
-            ImGui::EndDisabled();  
-
-            ImGui::EndDisabled();   
-
-            if(gui_simulation_control.is_simulation_active)
-            {
-                ImGui::Text("The properties of an active simulation cannot be changed.");
-            } 
-        }   
-        ImGui::End();                    
-    }
-}
-
 void lbm::gui::windows::read_from_file_window
 (
     const Monitor &gui_monitor, 
@@ -221,7 +140,6 @@ void lbm::gui::windows::density_window
     const core::Properties &properties,
     const Monitor &gui_monitor,
     const SimulationControl &gui_simulation_control,
-    const Algorithmic &gui_algorithmic,
     const core::SimulationResults &simulation_results,
     const Progress &gui_progress,
     Windows &windows, 

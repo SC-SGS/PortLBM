@@ -23,7 +23,7 @@
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
-    lbm::gui::run<lbm::execution::SYCLExecutor<lbm::core::access::LBMStreamAccessor>>("Task-based lattice Boltzmann with HPX");
+    lbm::gui::run<lbm::execution::SYCLExecutor<lbm::core::access::LBMStreamAccessor>>("SYCL Lattice Boltzmann");
 
     /*
     std::unique_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();

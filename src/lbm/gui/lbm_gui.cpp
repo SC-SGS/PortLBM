@@ -5,9 +5,9 @@
  * 
  * @brief       This file contains implementations for GUI operations declared in lbm_gui.hpp.
  *              
- * @version     1.0
+ * @version     2.0
  * 
- * @date        2024-08-28
+ * @date        November 2024
  * 
  * 
  * @copyright   Copyright (c) 2024
@@ -15,151 +15,174 @@
  */
 
 #include "../../../include/lbm/gui/lbm_gui.hpp"
+#include <nlohmann/json.hpp>
 
-GuiWindows::GuiWindows() :
-    show_properties(true),
-    show_simulation_status(true),
-    show_read_from_file_window(false),
-    show_density(true),
-    show_velocity(true),
-    enable_live_visualization(true),
-    enable_velocity_quiver(false),
-    menu_bar_size(0.0f)
-    {};
+lbm::gui::Windows::Windows() 
+:
+show_properties(true),
+show_simulation_status(true),
+show_read_from_file_window(false),
+show_density(true),
+show_velocity(true),
+enable_live_visualization(true),
+enable_velocity_quiver(false),
+menu_bar_size(0.0f)
+{};
 
-GuiSimulationControl::GuiSimulationControl() :
-    is_paused(false),
-    is_simulation_active(false),
-    results_to_csv(false),
-    result_file_name("results.csv")
-    {};
+lbm::gui::SimulationControl::SimulationControl() 
+:
+is_paused(false),
+is_simulation_active(false),
+results_to_csv(false),
+result_file_name("results.csv")
+{};
 
-GuiProgress::GuiProgress() :
-    current_iter(0),
-    progress(0.0),
-    framerate(0.0),
-    frametime(0)
-    {};
+lbm::gui::Progress::Progress() 
+:
+current_iter(0),
+progress(0.0),
+framerate(0.0),
+frametime(0)
+{};
 
-GuiSimulationData::GuiSimulationData() :
-    all_results({}), 
-    current_result({}),
-    result_file_name("results.csv"),
-    results_to_csv(false),
-    distribution_values_0({}),
-    distribution_values_1({}),
-    nodes({}),
-    fluid_nodes({}),
-    phase_information({}),
-    border_swap_information({}),
-    access_function(lbm_access::collision),
-    x_velocities(std::make_shared<std::vector<double>>()),
-    y_velocities(std::make_shared<std::vector<double>>()),
-    absolute_velocities(std::make_shared<std::vector<double>>())
-    {};
+lbm::gui::Monitor::Monitor() 
+:
+monitor_x_scale(1),
+monitor_y_scale(1),
+display_width(1),
+display_height(1)
+{};
 
-GuiMonitor::GuiMonitor() :
-    monitor_x_scale(1),
-    monitor_y_scale(1),
-    display_width(1),
-    display_height(1)
-    {};
+lbm::gui::Algorithmic::Algorithmic() 
+:
+algorithms({"gpu-two-lattice", "gpu-swap"}),
+current_algorithm("gpu-two-lattice"),
+data_layouts({"collision", "stream", "bundle"}),
+current_data_layout("stream")
+{};
 
-    // struct  GuiMonitor
-    // {
-    //     // GLFWmonitor *primary_monitor = glfwGetPrimaryMonitor();
-    //     // const GLFWvidmode *video_mode = glfwGetVideoMode(primary_monitor);
-    //     // float video_mode_width = video_mode->width;
-    //     // float video_mode_height = video_mode->height;
-    //     GLFWmonitor *primary_monitor;
-    //     const GLFWvidmode *video_mode;
-    //     float video_mode_width;
-    //     float video_mode_height;
-    //     float monitor_x_scale = 1;
-    //     float monitor_y_scale = 1;
-    //     int display_width = 1;
-    //     int display_height = 1;
-    //     // ImGuiViewport viewport = *ImGui::GetMainViewport();
-    //     // ImVec2 viewport_work_size = viewport.WorkSize;
-    //     ImGuiViewport viewport;
-    //     ImVec2 viewport_work_size;
-    // };
+lbm::gui::Colormaps::Colormaps() 
+:
+density_colormap(ImPlotColormap_Viridis),
+density_colormap_lower_scale(0.0f),
+density_colormap_upper_scale(0.0f),
+velocity_colormap(ImPlotColormap_Hot),
+velocity_colormap_lower_scale(0.0),
+velocity_colormap_upper_scale(0.0f)
+{};
 
-GuiAlgorithmic::GuiAlgorithmic() :
-    algorithms{{"parallel_two_lattice", "parallel_two_step", "parallel_swap", "parallel_shift"}},
-    current_algorithm("parallel_two_lattice"),
-    data_layouts{{"collision", "stream", "bundle"}},
-    current_data_layout("collision")
-    {};
+lbm::gui::VelocityQuiverData::VelocityQuiverData(size_t size) 
+:
+x_values{std::make_unique<std::vector<double>>(size)},
+y_values{std::make_unique<std::vector<double>>(size)}
+{};
 
-GuiColormaps::GuiColormaps() :
-    density_colormap(ImPlotColormap_Viridis),
-    density_colormap_lower_scale(0.0f),
-    density_colormap_upper_scale(0.0f),
-    velocity_colormap(ImPlotColormap_Hot),
-    velocity_colormap_lower_scale(0.0),
-    velocity_colormap_upper_scale(0.0f)
-    {};
+lbm::gui::PropertiesBuffer::PropertiesBuffer(const core::Properties &properties)
+:
+algorithm(properties.algorithm),
+data_layout(properties.data_layout),
+time_steps(properties.time_steps),
+relaxation_time(properties.relaxation_time),
+debug_mode(properties.debug_mode),
+results_to_csv(properties.results_to_csv),
+vertical_nodes(properties.vertical_nodes - 2),
+horizontal_nodes(properties.horizontal_nodes - 2),
+inlet_velocity_x(properties.inlet_velocity_x),
+inlet_velocity_y(properties.inlet_velocity_y),
+inlet_density(properties.inlet_density),
+outlet_velocity_x(properties.outlet_velocity_x),
+outlet_velocity_y(properties.outlet_velocity_y),
+outlet_density(properties.outlet_density),
+changed(false)
+{};
 
-GuiVelocityQuiverData::GuiVelocityQuiverData() :
-    x_values{std::make_unique<std::vector<double>>()},
-    y_values{std::make_unique<std::vector<double>>()}
-    {};
+void lbm::gui::PropertiesBuffer::to_json(const std::string &path)
+{
+    nlohmann::json file_data;
 
-GuiVisualizationData::GuiVisualizationData() :
-    vertical_nodes(0),
-    horizontal_nodes(0),
-    density_values(std::make_shared<std::vector<double>>()),
-    absolute_velocity_values(std::make_shared<std::vector<double>>()),
-    x_velocity_values(std::make_shared<std::vector<double>>()),
-    y_velocity_values(std::make_shared<std::vector<double>>())
-    {};
+    file_data["algorithmic"]["debugMode"] = debug_mode;
+    file_data["algorithmic"]["resultsToCsv"] = results_to_csv;
+    file_data["algorithmic"]["relaxationTime"] = relaxation_time;
+    file_data["algorithmic"]["timeSteps"] = time_steps;
+    file_data["algorithmic"]["dataLayout"] = data_layout;
+    file_data["algorithmic"]["algorithm"] = algorithm;
 
-void gui_windows::properties_window
+    file_data["domain"]["verticalNodes"] = vertical_nodes;
+    file_data["domain"]["horizontalNodes"]= horizontal_nodes;
+
+    file_data["inlets"]["velocity"]["x"] = inlet_velocity_x;
+    file_data["inlets"]["velocity"]["y"] = inlet_velocity_y;
+    file_data["inlets"]["density"] = inlet_density;
+
+    file_data["outlets"]["velocity"]["x"] = outlet_velocity_x;
+    file_data["outlets"]["velocity"]["y"] = outlet_velocity_y;
+    file_data["outlets"]["density"] = outlet_density;
+
+    std::ofstream file(path);
+    file << std::setw(4) << file_data;
+    file.close();
+}
+
+// MOVE THIS METHOD TO HEADER, MAKE TEMPLATE, ADD EXECUTOR SUCH THAT CHANGES CAN DIRECTLY BE APPLIED
+// ALSO, ADD GUI QUIVER DATA?
+void lbm::gui::windows::properties_window
 (
-    const GuiMonitor &gui_monitor,
-    Settings &settings,
-    GuiWindows &gui_windows,
-    GuiSimulationControl &gui_simulation_control,
-    GuiAlgorithmic &gui_algorithmic,
-    GuiVisualizationData &gui_visualization_data
+    const Monitor &gui_monitor,
+    core::Properties &properties,
+    std::unique_ptr<PropertiesBuffer> &properties_buffer,
+    Windows &windows,
+    SimulationControl &gui_simulation_control,
+    Algorithmic &gui_algorithmic
 )
 {
-    if (gui_windows.show_properties)
+    if (windows.show_properties)
     {    
-        ImGui::SetNextWindowSize(
+        ImGui::SetNextWindowSize
+        (
             {
                 1 * gui_monitor.viewport_work_size.x / 4, 
                 4 * gui_monitor.viewport_work_size.y / 5
             }
         );
 
-        ImGui::SetNextWindowPos(
+        ImGui::SetNextWindowPos
+        (
             {
                 0, 
-                gui_windows.menu_bar_size + gui_monitor.viewport_work_size.y/5
+                windows.menu_bar_size + gui_monitor.viewport_work_size.y / 5
             }
         );
 
-        if(ImGui::Begin("Properties", &gui_windows.show_properties, ImGuiWindowFlags_NoResize))
+        if(ImGui::Begin("Properties", &windows.show_properties, ImGuiWindowFlags_NoResize))
         {
             ImGui::PushItemWidth(ImGui::GetWindowWidth() / 2);
 
             ImGui::BeginDisabled(gui_simulation_control.is_simulation_active);
             
-            gui_items::algorithm_selection(settings, gui_algorithmic);
-            gui_items::data_layout_selection(settings, gui_algorithmic);
-            gui_items::save_results_selection(settings.results_to_csv, gui_simulation_control);
-            ImGui::Checkbox("Live visualization", &gui_windows.enable_live_visualization);
-            gui_items::properties_simulation_and_domain(settings, gui_visualization_data);
-            gui_items::properties_shift_algorithm(settings);
-            gui_items::properties_fluid(settings);
+            items::algorithm_selection(*properties_buffer, gui_algorithmic);
+            items::data_layout_selection(*properties_buffer, gui_algorithmic);
+            items::save_results_selection(properties_buffer->results_to_csv, gui_simulation_control);
+            ImGui::Checkbox("Live visualization", &windows.enable_live_visualization);
+            items::properties_simulation_and_domain(*properties_buffer);
+            items::properties_fluid(*properties_buffer);
  
             ImGui::SeparatorText("");
-            if (ImGui::Button("Create configuration file", ImVec2(ImGui::GetWindowSize().x*0.5f, 0)))
+            if (ImGui::Button("Create configuration file", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
             {
-                    write_csv_config_file(settings);
+                properties_buffer->to_json();
+                properties_buffer->changed = false;
+                properties = *lbm::file_interaction::json_to_properties();
+                properties_buffer = std::make_unique<PropertiesBuffer>(properties);
+                windows.show_density = false;
+                windows.show_velocity = false;
             }
+
+            ImGui::BeginDisabled(!properties_buffer->changed);
+            if (ImGui::Button("Undo changes", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
+            {
+                properties_buffer = std::make_unique<PropertiesBuffer>(properties);
+            }
+            ImGui::EndDisabled();  
 
             ImGui::EndDisabled();   
 
@@ -172,7 +195,11 @@ void gui_windows::properties_window
     }
 }
 
-void gui_windows::read_from_file_window(const GuiMonitor &gui_monitor, GuiWindows &window_settings)
+void lbm::gui::windows::read_from_file_window
+(
+    const Monitor &gui_monitor, 
+    Windows &window_settings
+)
 {
     if(window_settings.show_read_from_file_window)
     {
@@ -180,7 +207,7 @@ void gui_windows::read_from_file_window(const GuiMonitor &gui_monitor, GuiWindow
         {
             ImGui::Text("This feature may be available in the future.");
             ImGui::PushItemWidth(ImGui::GetWindowWidth() / 2);
-            if (ImGui::Button("Load", ImVec2(ImGui::GetWindowSize().x*0.5f, 0)))
+            if (ImGui::Button("Load", ImVec2(ImGui::GetWindowSize().x * 0.5f, 0)))
             {
 
             }
@@ -189,25 +216,26 @@ void gui_windows::read_from_file_window(const GuiMonitor &gui_monitor, GuiWindow
     }
 }
 
-void gui_windows::density_window
+void lbm::gui::windows::density_window
 (
-    const GuiMonitor &gui_monitor,
-    const GuiSimulationControl &gui_simulation_control,
-    const GuiAlgorithmic &gui_algorithmic,
-    const GuiVisualizationData &gui_visualization_data,
-    const GuiProgress &gui_progress,
-    GuiWindows &gui_windows, 
-    GuiColormaps &gui_colormaps
+    const core::Properties &properties,
+    const Monitor &gui_monitor,
+    const SimulationControl &gui_simulation_control,
+    const Algorithmic &gui_algorithmic,
+    const core::SimulationResults &simulation_results,
+    const Progress &gui_progress,
+    Windows &windows, 
+    Colormaps &gui_colormaps
 )
 {
-    if(gui_windows.show_density)
+    if(windows.show_density)
     {
         ImGui::SetNextWindowPos
         (
             ImVec2
             (
-                (1.0/4) * gui_monitor.viewport_work_size.x, 
-                1.0/2 * gui_windows.menu_bar_size + 1.0/2 * gui_monitor.viewport_work_size.y
+                (1.0 / 4) * gui_monitor.viewport_work_size.x, 
+                1.0 / 2 * windows.menu_bar_size + 1.0 / 2 * gui_monitor.viewport_work_size.y
             ), 
             ImGuiCond_Appearing
         ); 
@@ -216,22 +244,22 @@ void gui_windows::density_window
         (
             ImVec2
             (
-                (3.0/4) * gui_monitor.viewport_work_size.x, 
-                1.0/2 * gui_monitor.viewport_work_size.y - 1.0/2 * gui_windows.menu_bar_size
+                (3.0 / 4) * gui_monitor.viewport_work_size.x, 
+                1.0 / 2 * gui_monitor.viewport_work_size.y - 1.0 / 2 * windows.menu_bar_size
             ), 
             ImGuiCond_Appearing
         );
 
-        if(ImGui::Begin("Density", &gui_windows.show_density))
+        if(ImGui::Begin("Density", &windows.show_density))
         {
             ImGui::PushItemWidth(ImGui::GetWindowWidth() / 10);
-            gui_items::colormap_picker(gui_colormaps.density_colormap, "Density");
+            items::colormap_picker(gui_colormaps.density_colormap, "Density");
             ImGui::SameLine();
-            ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
+            ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
             ImGui::SameLine();
             ImGui::InputDouble("Lower scale", &gui_colormaps.density_colormap_lower_scale, 0.05, 0.1);
             ImGui::SameLine();
-            ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
+            ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
             ImGui::SameLine();
             ImGui::InputDouble("Upper scale", &gui_colormaps.density_colormap_upper_scale, 0.05, 0.1);
             ImPlot::PushColormap(gui_colormaps.density_colormap);
@@ -260,39 +288,39 @@ void gui_windows::density_window
                 ImPlot::PlotHeatmap
                 (
                     "",
-                    gui_visualization_data.density_values->data(),
-                    gui_visualization_data.vertical_nodes,
-                    gui_visualization_data.horizontal_nodes,
+                    simulation_results.densities->data(),
+                    properties.vertical_nodes - 2,
+                    properties.horizontal_nodes - 2,
                     gui_colormaps.density_colormap_lower_scale,
                     gui_colormaps.density_colormap_upper_scale,
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(gui_visualization_data.horizontal_nodes, gui_visualization_data.vertical_nodes)
+                    ImPlotPoint(properties.horizontal_nodes - 2, properties.vertical_nodes - 2)
                 );
 
                 ImPlot::PushColormap("SOLID_MASK");
                 ImPlot::PlotHeatmap
                 (
                     "Solid mask for density",
-                    gui_visualization_data.density_values->data(),
-                    gui_visualization_data.vertical_nodes,
-                    gui_visualization_data.horizontal_nodes,
+                    simulation_results.densities->data(),
+                    properties.vertical_nodes - 2,
+                    properties.horizontal_nodes - 2,
                     -1,
                     1, 
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(gui_visualization_data.horizontal_nodes, gui_visualization_data.vertical_nodes)
+                    ImPlotPoint(properties.horizontal_nodes - 2, properties.vertical_nodes - 2)
                 );
 
                 if (ImPlot::IsPlotHovered()) 
                 {
                     ImPlotPoint mouse = ImPlot::GetPlotMousePos();
 
-                    if(0 <= mouse.x && mouse.x < gui_visualization_data.horizontal_nodes && 0 <= mouse.y && mouse.y < gui_visualization_data.vertical_nodes)
+                    if(0 <= mouse.x && mouse.x < (properties.horizontal_nodes - 2) && 0 <= mouse.y && mouse.y < (properties.vertical_nodes - 2))
                     {
                         ImGui::BeginTooltip();
                         ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
-                        double value = gui_visualization_data.density_values->at(gui_visualization_data.horizontal_nodes * ((int)floor(mouse.y)) + (int)floor(mouse.x));
+                        double value = simulation_results.densities->at((properties.horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x));
                         if(value != -1)
                         {
                             ImGui::Text("Density: %f", value);
@@ -327,25 +355,26 @@ void gui_windows::density_window
     }
 }
 
-void gui_windows::velocity_window
+void lbm::gui::windows::velocity_window
 (
-    const GuiMonitor &gui_monitor,
-    const GuiSimulationControl &gui_simulation_control,
-    const GuiVisualizationData &gui_visualization_data,
-    const GuiProgress &gui_progress,
-    GuiWindows &gui_windows, 
-    GuiVelocityQuiverData &gui_velocity_quiver_data,
-    GuiColormaps &gui_colormaps
+    const core::Properties &properties,
+    const Monitor &gui_monitor,
+    const SimulationControl &gui_simulation_control,
+    const core::SimulationResults &simulation_results,
+    const Progress &gui_progress,
+    Windows &windows, 
+    VelocityQuiverData &gui_velocity_quiver_data,
+    Colormaps &gui_colormaps
 )
 {
-    if(gui_windows.show_velocity)
+    if(windows.show_velocity)
     {
         ImGui::SetNextWindowPos
         (
             ImVec2
             (
                 (1.0 / 4) * gui_monitor.viewport_work_size.x, 
-                gui_windows.menu_bar_size
+                windows.menu_bar_size
             ), 
             ImGuiCond_Appearing
         ); 
@@ -355,15 +384,15 @@ void gui_windows::velocity_window
             ImVec2
             (
                 (3.0 / 4) * gui_monitor.viewport_work_size.x,
-                (1.0 / 2) * gui_monitor.viewport_work_size.y - 1.0/2 * gui_windows.menu_bar_size
+                (1.0 / 2) * gui_monitor.viewport_work_size.y - 1.0 / 2 * windows.menu_bar_size
             ), 
             ImGuiCond_Appearing
         );
 
-        if(ImGui::Begin("Velocity", &gui_windows.show_velocity))
+        if(ImGui::Begin("Velocity", &windows.show_velocity))
         {
             ImGui::PushItemWidth(ImGui::GetWindowWidth() / 10);
-            gui_items::colormap_picker(gui_colormaps.velocity_colormap, "Velocity");
+            items::colormap_picker(gui_colormaps.velocity_colormap, "Velocity");
 
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
@@ -376,7 +405,7 @@ void gui_windows::velocity_window
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
             ImGui::SameLine();
-            if(ImGui::Checkbox("Enable vector plot", &gui_windows.enable_velocity_quiver)){}
+            if(ImGui::Checkbox("Enable vector plot", &windows.enable_velocity_quiver)){}
 
 
             ImPlot::PushColormap(gui_colormaps.velocity_colormap);
@@ -406,14 +435,14 @@ void gui_windows::velocity_window
                 ImPlot::PlotHeatmap
                 (
                     "Absolute velocities",
-                    gui_visualization_data.absolute_velocity_values->data(),
-                    gui_visualization_data.vertical_nodes,
-                    gui_visualization_data.horizontal_nodes,
+                    simulation_results.absolute_velocities->data(),
+                    properties.vertical_nodes - 2,
+                    properties.horizontal_nodes - 2,
                     gui_colormaps.velocity_colormap_lower_scale, 
                     gui_colormaps.velocity_colormap_upper_scale, 
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(gui_visualization_data.horizontal_nodes, gui_visualization_data.vertical_nodes)
+                    ImPlotPoint(properties.horizontal_nodes - 2, properties.vertical_nodes - 2)
                 );
 
                 ImPlot::PopColormap;
@@ -422,28 +451,28 @@ void gui_windows::velocity_window
                 ImPlot::PlotHeatmap
                 (
                     "Solid mask for velocity",
-                    gui_visualization_data.density_values->data(),
-                    gui_visualization_data.vertical_nodes,
-                    gui_visualization_data.horizontal_nodes,
+                    simulation_results.densities->data(),
+                    properties.vertical_nodes - 2,
+                    properties.horizontal_nodes - 2,
                     -1,
                     1, 
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(gui_visualization_data.horizontal_nodes, gui_visualization_data.vertical_nodes)
+                    ImPlotPoint(properties.horizontal_nodes - 2, properties.vertical_nodes - 2)
                 );
 
                 ImPlot::PopColormap;
                 ImPlot::PushColormap(ImPlotColormap_Greys);
-                ImPlot::SetNextLineStyle(ImVec4(0,0,0,0.5), 3.f);
+                ImPlot::SetNextLineStyle(ImVec4(0, 0, 0, 0.5), 3.f);
 
-                if(gui_windows.enable_velocity_quiver)
+                if(windows.enable_velocity_quiver)
                 {
                     ImPlot::PlotLine
                     (
                         "Quiver plot", 
                         gui_velocity_quiver_data.x_values->data(), 
                         gui_velocity_quiver_data.y_values->data(), 
-                        2 * gui_visualization_data.absolute_velocity_values->size(), 
+                        2 * simulation_results.absolute_velocities->size(), 
                         ImPlotLineFlags_Segments
                     );
                 }
@@ -452,15 +481,15 @@ void gui_windows::velocity_window
                 {
                     ImPlotPoint mouse = ImPlot::GetPlotMousePos();
 
-                    if(0 <= mouse.x && mouse.x < gui_visualization_data.horizontal_nodes && 0 <= mouse.y && mouse.y < gui_visualization_data.vertical_nodes)
+                    if(0 <= mouse.x && mouse.x < (properties.horizontal_nodes - 2) && 0 <= mouse.y && mouse.y < (properties.vertical_nodes - 2))
                     {
                         ImGui::BeginTooltip();
                         ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
 
-                        if(gui_visualization_data.density_values->at(gui_visualization_data.horizontal_nodes * (int)floor(mouse.y) + (int)floor(mouse.x)) != -1)
+                        if(simulation_results.densities->at((properties.horizontal_nodes - 2) * (int)floor(mouse.y) + (int)floor(mouse.x)) != -1)
                         {
-                            ImGui::Text("x velocity: %.6f", gui_visualization_data.x_velocity_values->at(gui_visualization_data.horizontal_nodes * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
-                            ImGui::Text("y velocity: %.6f", gui_visualization_data.y_velocity_values->at(gui_visualization_data.horizontal_nodes * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
+                            ImGui::Text("x velocity: %.6f", simulation_results.x_velocities->at((properties.horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
+                            ImGui::Text("y velocity: %.6f", simulation_results.y_velocities->at((properties.horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
                         }
                         else
                         {

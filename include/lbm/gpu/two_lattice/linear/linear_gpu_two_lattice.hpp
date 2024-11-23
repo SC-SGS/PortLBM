@@ -472,7 +472,7 @@ namespace lbm
                         
                         lbm::core::SimulationResults current_simulation_results(properties);
 
-                        lbm::core::SimulationResults all_simulation_results({}, {}, {}, {});
+                        lbm::core::SimulationResults all_simulation_results({}, {}, {}, {}, {});
 
                         all_simulation_results.densities->reserve(properties.time_steps * properties.domain_node_count);
                         all_simulation_results.pressures->reserve(properties.time_steps * properties.domain_node_count);

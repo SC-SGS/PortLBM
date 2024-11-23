@@ -127,7 +127,8 @@ lbm::core::SimulationResults::SimulationResults
 densities(std::make_unique<std::vector<double>>(properties.domain_node_count, -1.0f)),
 pressures(std::make_unique<std::vector<double>>(properties.domain_node_count, -1.0f)),
 x_velocities(std::make_unique<std::vector<double>>(properties.domain_node_count, 0.0f)),
-y_velocities(std::make_unique<std::vector<double>>(properties.domain_node_count, 0.0f))
+y_velocities(std::make_unique<std::vector<double>>(properties.domain_node_count, 0.0f)),
+absolute_velocities(std::make_unique<std::vector<double>>(properties.domain_node_count, 0.0f))
 {};
 
 lbm::core::SimulationResults::SimulationResults
@@ -135,11 +136,13 @@ lbm::core::SimulationResults::SimulationResults
     const std::vector<double> &densities,
     const std::vector<double> &pressures,
     const std::vector<double> &x_velocities,
-    const std::vector<double> &y_velocities
+    const std::vector<double> &y_velocities,
+    const std::vector<double> &absolute_velocities  
 )
 :
 densities(std::make_unique<std::vector<double>>(densities)),
 pressures(std::make_unique<std::vector<double>>(pressures)),
 x_velocities(std::make_unique<std::vector<double>>(x_velocities)),
-y_velocities(std::make_unique<std::vector<double>>(y_velocities))
+y_velocities(std::make_unique<std::vector<double>>(y_velocities)),
+absolute_velocities(std::make_unique<std::vector<double>>(absolute_velocities))
 {};

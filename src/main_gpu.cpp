@@ -15,14 +15,15 @@
 #include "../include/lbm/file_interaction/file_interaction.hpp"
 #include "../include/lbm/core/simulation.hpp"
 #include "../include/lbm/gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
-#include "../include/lbm/execution/sycl_executor.hpp"
+#include "../include/lbm/execution/lbm_sycl_executor.hpp"
+#include "../include/lbm/gui/lbm_gui.hpp"
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/execution.hpp>
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
-    run<HpxExecutor>("Task-based lattice Boltzmann with HPX");
+    lbm::gui::run<lbm::execution::SYCLExecutor<lbm::core::access::LBMStreamAccessor>>("Task-based lattice Boltzmann with HPX");
 
     /*
     std::unique_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();
@@ -72,6 +73,7 @@ int hpx_main(hpx::program_options::variables_map& vm)
         }
     }
     */
+   std::cout << "About to finalize \n";
     return hpx::local::finalize();
 }
 

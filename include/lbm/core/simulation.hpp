@@ -222,6 +222,8 @@ namespace lbm
              */
             std::unique_ptr<std::vector<double>> y_velocities;
 
+            std::unique_ptr<std::vector<double>> absolute_velocities;
+
             /**
              * @brief Constructs a new simulation results structure based on the provided properties structure.
              *        The internal vectors are initialized with the correct size and filled up with values such as all nodes
@@ -236,7 +238,8 @@ namespace lbm
                 const std::vector<double> &densities,
                 const std::vector<double> &pressures,
                 const std::vector<double> &x_velocities,
-                const std::vector<double> &y_velocities
+                const std::vector<double> &y_velocities,
+                const std::vector<double> &absolute_velocities
             );
         };
 

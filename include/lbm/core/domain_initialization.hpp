@@ -17,6 +17,7 @@
 #define DOMAIN_INITIALIZATION_HPP
 
 #include "simulation.hpp"
+#include "boundaries.hpp"
 
 namespace lbm
 {

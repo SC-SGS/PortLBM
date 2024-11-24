@@ -231,7 +231,7 @@ namespace lbm
              * 
              * @param properties this structure of properties defines the total buffered node count and the number of time steps.
              */
-            explicit SimulationResults(const Properties &properties);
+            explicit SimulationResults(const size_t &size);
 
             explicit SimulationResults
             (

@@ -121,14 +121,14 @@ subdomain_count_horizontal(subdomain_count_horizontal)
 
 lbm::core::SimulationResults::SimulationResults
 (
-    const lbm::core::Properties &properties
+    const size_t &size
 )
 :
-densities(std::make_unique<std::vector<double>>(properties.domain_node_count, -1.0f)),
-pressures(std::make_unique<std::vector<double>>(properties.domain_node_count, -1.0f)),
-x_velocities(std::make_unique<std::vector<double>>(properties.domain_node_count, 0.0f)),
-y_velocities(std::make_unique<std::vector<double>>(properties.domain_node_count, 0.0f)),
-absolute_velocities(std::make_unique<std::vector<double>>(properties.domain_node_count, 0.0f))
+densities(std::make_unique<std::vector<double>>(size, -1.0f)),
+pressures(std::make_unique<std::vector<double>>(size, -1.0f)),
+x_velocities(std::make_unique<std::vector<double>>(size, 0.0f)),
+y_velocities(std::make_unique<std::vector<double>>(size, 0.0f)),
+absolute_velocities(std::make_unique<std::vector<double>>(size, 0.0f))
 {};
 
 lbm::core::SimulationResults::SimulationResults

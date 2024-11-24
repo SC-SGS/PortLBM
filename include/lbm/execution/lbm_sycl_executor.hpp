@@ -18,11 +18,12 @@
 #define SYCL_EXECUTOR_HPP
 
 #include "lbm_executor.hpp"
-
-#include "../core/simulation.hpp"
+#include "../core/domain_initialization.hpp"
+#include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 
 #include <hpx/future.hpp>
 #include <iostream>
+//#include <sycl/sycl.hpp>
 
 namespace lbm
 {
@@ -44,9 +45,7 @@ namespace lbm
 
             public:
 
-            std::unique_ptr<core::Properties> properties;
             std::unique_ptr<core::SimulationData<LBMAccessor>> simulation_data;
-            std::unique_ptr<core::SimulationResults> simulation_results;
 
             /**
              * @brief Construct a new SYCL executor and initializes it such that it stores
@@ -55,9 +54,8 @@ namespace lbm
              */
             SYCLExecutor()
             :
-            properties(lbm::file_interaction::json_to_properties()),
+            Executor(),
             simulation_data(std::make_unique<lbm::core::SimulationData<LBMAccessor>>(*properties)),
-            simulation_results(std::make_unique<core::SimulationResults>(*properties)),
             future(hpx::async([&]{})),
             device_selector(),
             queue(device_selector)

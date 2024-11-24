@@ -44,14 +44,6 @@ framerate(0.0),
 frametime(0)
 {};
 
-lbm::gui::Monitor::Monitor() 
-:
-monitor_x_scale(1),
-monitor_y_scale(1),
-display_width(1),
-display_height(1)
-{};
-
 lbm::gui::Colormaps::Colormaps() 
 :
 density_colormap(ImPlotColormap_Viridis),
@@ -62,56 +54,256 @@ velocity_colormap_lower_scale(0.0),
 velocity_colormap_upper_scale(0.0f)
 {};
 
-lbm::gui::VelocityQuiverData::VelocityQuiverData(size_t size) 
+lbm::gui::VelocityQuiverData::VelocityQuiverData(const size_t &size) 
 :
 x_values{std::make_unique<std::vector<double>>(size)},
 y_values{std::make_unique<std::vector<double>>(size)}
 {};
 
-lbm::gui::PropertiesBuffer::PropertiesBuffer(const core::Properties &properties)
+lbm::gui::Gui::Gui(const std::string &&window_title)
 :
-algorithm(properties.algorithm),
-data_layout(properties.data_layout),
-time_steps(properties.time_steps),
-relaxation_time(properties.relaxation_time),
-debug_mode(properties.debug_mode),
-results_to_csv(properties.results_to_csv),
-vertical_nodes(properties.vertical_nodes - 2),
-horizontal_nodes(properties.horizontal_nodes - 2),
-inlet_velocity_x(properties.inlet_velocity_x),
-inlet_velocity_y(properties.inlet_velocity_y),
-inlet_density(properties.inlet_density),
-outlet_velocity_x(properties.outlet_velocity_x),
-outlet_velocity_y(properties.outlet_velocity_y),
-outlet_density(properties.outlet_density),
-changed(false)
+windows(std::make_unique<Windows>()),
+simulation_control(std::make_unique<SimulationControl>()),
+progress(std::make_unique<Progress>()),
+monitor(std::make_unique<Monitor>()),
+colormaps(std::make_unique<Colormaps>()),
+properties_stored(lbm::file_interaction::json_to_properties()),
+properties_buffered(lbm::file_interaction::json_to_properties()),
+velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_stored->domain_node_count)),
+window_title(std::make_unique<std::string>(window_title)),
+properties_changed(false)
 {};
 
-void lbm::gui::PropertiesBuffer::to_json(const std::string &path)
+void lbm::gui::initialize_executor
+(
+    const std::string &algorithm,
+    const std::string &data_layout,
+    std::unique_ptr<execution::Executor<core::SimulationResults>> &executor
+)
 {
-    nlohmann::json file_data;
+    if(algorithm == "gpu-two-lattice-linear")
+    {
+        if(data_layout == "stream")
+        {
+            executor = std::make_unique<execution::SYCLExecutor<core::access::LBMStreamAccessor>>(new execution::SYCLExecutor<core::access::LBMStreamAccessor>());
+        }
+        else if(data_layout == "collision")
+        {
+            executor = std::make_unique<execution::SYCLExecutor<core::access::LBMCollisionAccessor>>(new execution::SYCLExecutor<core::access::LBMCollisionAccessor>());
+        }
+        else if(data_layout == "bundle")
+        {
+            executor = std::make_unique<execution::SYCLExecutor<core::access::LBMBundleAccessor>>(new execution::SYCLExecutor<core::access::LBMBundleAccessor>());
+        }
+        else
+        {
+            throw exceptions::Exception("Unknown data layout: " + data_layout);
+        }
+    }
+    else if(algorithm == "gpu-two-lattice")
+    {
+        throw exceptions::Exception("This algorithm is not implemented yet.");
+    }
+    else if(algorithm == "gpu-swap")
+    {
+        throw exceptions::Exception("This algorithm is not implemented yet.");
+    }
+    else
+    {
+        throw exceptions::Exception("Unknown algorithm: " + algorithm);
+    }
+}
 
-    file_data["algorithmic"]["debugMode"] = debug_mode;
-    file_data["algorithmic"]["resultsToCsv"] = results_to_csv;
-    file_data["algorithmic"]["relaxationTime"] = relaxation_time;
-    file_data["algorithmic"]["timeSteps"] = time_steps;
-    file_data["algorithmic"]["dataLayout"] = data_layout;
-    file_data["algorithmic"]["algorithm"] = algorithm;
+int lbm::gui::Gui::run()
+{
+    glfwSetErrorCallback(rendering::glfw_error_callback);
+    if (!glfwInit())
+        return 1;
 
-    file_data["domain"]["verticalNodes"] = vertical_nodes;
-    file_data["domain"]["horizontalNodes"]= horizontal_nodes;
+    // GL 3.0 + GLSL 130
+    const char* glsl_version = "#version 130";
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 
-    file_data["inlets"]["velocity"]["x"] = inlet_velocity_x;
-    file_data["inlets"]["velocity"]["y"] = inlet_velocity_y;
-    file_data["inlets"]["density"] = inlet_density;
+    std::unique_ptr<lbm::execution::SYCLExecutor<core::SimulationResults>> executor;
 
-    file_data["outlets"]["velocity"]["x"] = outlet_velocity_x;
-    file_data["outlets"]["velocity"]["y"] = outlet_velocity_y;
-    file_data["outlets"]["density"] = outlet_density;
+    // LBM initializations
+    initialize_executor(properties_stored->algorithm, properties_stored->data_layout, executor);
 
-    std::ofstream file(path);
-    file << std::setw(4) << file_data;
-    file.close();
+    // Create window with graphics context
+    GLFWwindow* window = glfwCreateWindow(monitor->video_mode->width, monitor->video_mode->height, window_title->c_str(), nullptr, nullptr);
+    if (window == nullptr)
+    {
+        return 1;
+    }
+        
+    glfwMakeContextCurrent(window);
+    //glfwSwapInterval(1); // Enable vsync
+
+    contexts::create_contexts();
+    styles::set_light_style();
+    glfwGetMonitorContentScale(monitor->primary_monitor, &(monitor->monitor_x_scale), &(monitor->monitor_x_scale));
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.Fonts->AddFontFromFileTTF("../fonts/DroidSans.ttf", 2 * sqrt(monitor->monitor_x_scale * monitor->monitor_x_scale) * 9.0f);
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+    glfwGetFramebufferSize(window, &(monitor->display_width), &(monitor->display_height));
+
+    // Timer initializations
+    SimpleTimer timer;
+    SimpleTimer timer_framerate;
+
+    misc::add_solid_colormap();
+
+    ImPlotStyle& implot_style = ImPlot::GetStyle();
+    implot_style.PlotPadding = ImVec2(monitor->monitor_x_scale * 20, monitor->monitor_y_scale * 20);
+
+    colormaps->density_colormap_lower_scale = std::min({executor->properties->inlet_density, executor->properties->outlet_density});
+    colormaps->density_colormap_upper_scale = std::max({executor->properties->inlet_density, executor->properties->outlet_density});
+    colormaps->velocity_colormap_upper_scale = sqrt(pow(executor->properties->inlet_velocity_x, 2) + pow(executor->properties->inlet_velocity_y, 2)); 
+
+    // Eternal loop of imaging magic
+    while (!glfwWindowShouldClose(window))
+    {
+        glfwPollEvents();
+
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        monitor->viewport = std::make_unique<ImGuiViewport>(*ImGui::GetMainViewport());
+
+        items::menu_bar(*windows);
+
+        windows::read_from_file_window(*monitor, *windows);
+
+        windows::properties_window
+        (
+            *monitor,
+            *executor,
+            *properties_buffered,
+            properties_changed,
+            *windows,
+            *simulation_control
+        );
+
+        windows::simulation_status_window
+        (
+            *monitor,
+            *windows,
+            *simulation_control,
+            *progress,
+            *executor
+        );
+
+        if(simulation_control->is_simulation_active && !simulation_control->is_paused)
+        {
+            if(executor->is_ready())
+            {
+                if(timer_framerate.elapsed() > 0.25)
+                {
+                    progress->framerate = 1 / timer.elapsed();
+                    progress->frametime = 1000.0f / progress->framerate;
+                    timer_framerate.restart();
+                }
+                
+                timer.restart();
+                progress->current_iter++;
+                progress->progress = (double)progress->current_iter / executor->properties->time_steps;
+
+                if(simulation_control->results_to_csv)
+                {
+                    
+                }
+
+                for(int i = 0; i < executor->properties->domain_node_count; ++i)
+                {
+                    (*(executor->simulation_results->absolute_velocities))[i] = sqrt(pow((*(executor->simulation_results->x_velocities))[i], 2) + pow((*(executor->simulation_results->y_velocities))[i], 2));
+                }
+
+                if(windows->enable_velocity_quiver)
+                {
+                    velocity_quiver_data->x_values->assign(2 * executor->properties->domain_node_count, 0);
+                    velocity_quiver_data->y_values->assign(2 * executor->properties->domain_node_count, 0);
+
+                    for(int y = 1; y < executor->properties->vertical_nodes - 1; ++y)
+                    {
+                        for(int x = 1; x < executor->properties->horizontal_nodes - 1; ++x)
+                        {
+                            unsigned int dnode_index = core::access::get_node_index(x-1, y-1, executor->properties->horizontal_nodes-2);
+                            unsigned int node_index = core::access::get_node_index(x, y, executor->properties->horizontal_nodes);
+                            unsigned int velocity_value_index = core::access::results::get_result_index_no_ghosts(core::access::get_node_index(x, y, executor->properties->horizontal_nodes), executor->properties->horizontal_nodes);
+                            //std::cout << "Reaching node index " << node_index << ", calculated from coordinates (x = " << x << ", y = " << y << ")\n";
+                            if(executor->simulation_results->absolute_velocities->at(velocity_value_index) > 1e-15)
+                            {
+                                double base_x = 0.5 + x - 1;
+                                double base_y = 0.5 + y - 1;
+                                
+                                (*velocity_quiver_data->x_values)[2 * dnode_index] = base_x;
+                                (*velocity_quiver_data->y_values)[2 * dnode_index] = base_y;
+
+                                double offset_x = base_x + 0.5 * (1.0 / executor->simulation_results->absolute_velocities->at(velocity_value_index)) * executor->simulation_results->x_velocities->at(velocity_value_index);
+                                double offset_y = base_y + 0.5 * (1.0 / executor->simulation_results->absolute_velocities->at(velocity_value_index)) * executor->simulation_results->y_velocities->at(velocity_value_index);
+
+                                (*velocity_quiver_data->x_values)[2 * dnode_index + 1] = offset_x;
+                                (*velocity_quiver_data->y_values)[2 * dnode_index + 1] = offset_y;
+                            }
+                        }  
+                    }
+                }
+                executor->execute();
+
+                // Check if simulation is finished
+                if(progress->current_iter == executor->properties->time_steps)
+                {
+                    progress->current_iter = 0;
+                    progress->progress = 0;
+                    simulation_control->is_simulation_active = false;
+
+                    if(simulation_control->results_to_csv)
+                    {
+
+                    }
+                }
+            }
+        }
+
+        windows::density_window
+        (   
+            *executor->properties,
+            *monitor, 
+            *simulation_control, 
+            *executor->simulation_results,
+            *progress, 
+            *windows, 
+            *colormaps
+        );
+
+        windows::velocity_window
+        (
+            *executor->properties,
+            *monitor, 
+            *simulation_control, 
+            *executor->simulation_results,
+            *progress, 
+            *windows, 
+            *velocity_quiver_data,
+            *colormaps
+        );
+
+        rendering::render(window, *monitor);
+    }
+    std::cout << "Exiting program \n";
+    contexts::destroy(window);
+    std::cout << "Contexts destroyed \n";
+    return 0;
 }
 
 void lbm::gui::windows::read_from_file_window
@@ -152,8 +344,8 @@ void lbm::gui::windows::density_window
         (
             ImVec2
             (
-                (1.0 / 4) * gui_monitor.viewport_work_size.x, 
-                1.0 / 2 * windows.menu_bar_size + 1.0 / 2 * gui_monitor.viewport_work_size.y
+                (1.0 / 4) * gui_monitor.viewport->WorkSize.x, 
+                1.0 / 2 * windows.menu_bar_size + 1.0 / 2 * gui_monitor.viewport->WorkSize.y
             ), 
             ImGuiCond_Appearing
         ); 
@@ -162,8 +354,8 @@ void lbm::gui::windows::density_window
         (
             ImVec2
             (
-                (3.0 / 4) * gui_monitor.viewport_work_size.x, 
-                1.0 / 2 * gui_monitor.viewport_work_size.y - 1.0 / 2 * windows.menu_bar_size
+                (3.0 / 4) * gui_monitor.viewport->WorkSize.x, 
+                1.0 / 2 * gui_monitor.viewport->WorkSize.y - 1.0 / 2 * windows.menu_bar_size
             ), 
             ImGuiCond_Appearing
         );
@@ -291,7 +483,7 @@ void lbm::gui::windows::velocity_window
         (
             ImVec2
             (
-                (1.0 / 4) * gui_monitor.viewport_work_size.x, 
+                (1.0 / 4) * gui_monitor.viewport->WorkSize.x, 
                 windows.menu_bar_size
             ), 
             ImGuiCond_Appearing
@@ -301,8 +493,8 @@ void lbm::gui::windows::velocity_window
         (
             ImVec2
             (
-                (3.0 / 4) * gui_monitor.viewport_work_size.x,
-                (1.0 / 2) * gui_monitor.viewport_work_size.y - 1.0 / 2 * windows.menu_bar_size
+                (3.0 / 4) * gui_monitor.viewport->WorkSize.x,
+                (1.0 / 2) * gui_monitor.viewport->WorkSize.y - 1.0 / 2 * windows.menu_bar_size
             ), 
             ImGuiCond_Appearing
         );

@@ -226,7 +226,7 @@ namespace lbm
                         "Template class must have base class core::access::LBMAccessorObject."
                     );
                     
-                    core::SimulationResults simulation_results(properties);
+                    core::SimulationResults simulation_results(properties.domain_node_count);
                     sycl::default_selector device_selector; 
                     sycl::queue queue(device_selector);
 
@@ -470,7 +470,7 @@ namespace lbm
                         std::cout << "\033[36mNow running GPU two-lattice for " << properties.time_steps << " iterations.\033[0m\n\n";
                         std::cout.flush();
                         
-                        lbm::core::SimulationResults current_simulation_results(properties);
+                        lbm::core::SimulationResults current_simulation_results(properties.domain_node_count);
 
                         lbm::core::SimulationResults all_simulation_results({}, {}, {}, {}, {});
 

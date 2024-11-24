@@ -25,6 +25,9 @@
 #ifndef LBM_EXECUTOR_HPP
 #define LBM_EXECUTOR_HPP
 
+#include "../core/simulation.hpp"
+#include "../file_interaction/file_interaction.hpp"
+
 namespace lbm
 {
 
@@ -56,6 +59,15 @@ namespace lbm
                  * @brief Initializes an object representing the simulation data with the specified data.
                  */
                 virtual void initialize() = 0;
+
+                explicit Executor() 
+                : 
+                properties(lbm::file_interaction::json_to_properties()),
+                simulation_results(std::make_unique<ResultsType>(properties->domain_node_count))
+                {};
+
+            std::unique_ptr<core::Properties> properties;
+            std::unique_ptr<ResultsType> simulation_results;
         };
 
     } // ! namespace execution

@@ -47,8 +47,9 @@
 #include "simple_timer.hpp"
 #include "gui_constants.hpp"
 #include "../file_interaction/file_interaction.hpp"
-#include "../execution/lbm_executor.hpp"
+#include "../execution/lbm_sycl_executor.hpp"
 #include "../core/simulation.hpp"
+#include "../exceptions/exceptions.hpp"
 
 #include <memory>
 
@@ -115,18 +116,30 @@ namespace lbm
          */
         struct Monitor
         {
-            explicit Monitor();
-
             GLFWmonitor *primary_monitor;
             const GLFWvidmode *video_mode;
-            float video_mode_width;
-            float video_mode_height;
+
             float monitor_x_scale;
             float monitor_y_scale;
+
+            // Amount of pixels in horizontal direction
             int display_width;
+
+            // Amount of pixels in vertical direction
             int display_height;
-            ImGuiViewport viewport;
-            ImVec2 viewport_work_size;
+        
+            std::unique_ptr<ImGuiViewport> viewport;
+
+            inline explicit Monitor()
+            :
+            primary_monitor(glfwGetPrimaryMonitor()),
+            video_mode(glfwGetVideoMode(primary_monitor)),
+            monitor_x_scale(1.f),
+            monitor_y_scale(1.f),
+            display_width(0),
+            display_height(0),
+            viewport(std::make_unique<ImGuiViewport>())
+            {};
         };
 
         /**
@@ -155,38 +168,6 @@ namespace lbm
             std::unique_ptr<std::vector<double>> y_values;
         };
 
-        /**
-         * @brief This struct acts as a buffer for a buffer for a properties object
-         */
-/*         struct PropertiesBuffer
-        {
-            std::string algorithm;
-            std::string data_layout;
-
-            unsigned int time_steps;
-            double relaxation_time;
-
-            bool debug_mode;
-            bool results_to_csv;
-
-            unsigned int vertical_nodes;
-            unsigned int horizontal_nodes;
-
-            double inlet_velocity_x;
-            double inlet_velocity_y;
-            double inlet_density;
-
-            double outlet_velocity_x;
-            double outlet_velocity_y;
-            double outlet_density;
-
-            bool changed;
-
-            explicit PropertiesBuffer(const core::Properties &properties);
-
-            void to_json(const std::string &path = "../settings/domain.json");
-        }; */
-
         class Gui
         {
             std::unique_ptr<Windows> windows;
@@ -194,11 +175,27 @@ namespace lbm
             std::unique_ptr<Progress> progress;
             std::unique_ptr<Monitor> monitor;
             std::unique_ptr<Colormaps> colormaps;
-            std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
             std::unique_ptr<core::Properties> properties_stored;
             std::unique_ptr<core::Properties> properties_buffered;
+            std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
+            std::unique_ptr<std::string> window_title;
+            std::unique_ptr<execution::Executor<core::SimulationResults>> executor;
+
             bool properties_changed;
+
+            public: 
+
+            explicit Gui(const std::string &&window_title);
+
+            int run();
         };
+
+        void initialize_executor
+        (
+            const std::string &algorithm,
+            const std::string &data_layout,
+            std::unique_ptr<execution::Executor<core::SimulationResults>> &executor
+        );
 
         /**
          * @brief This namespace contains helper functions for setting up the style of ImGui and ImPlot.
@@ -467,7 +464,8 @@ namespace lbm
              */
             inline void algorithm_selection
             (
-                PropertiesBuffer &properties_buffer
+                core::Properties &properties_buffer,
+                bool &changed
             )
             {
                 ImGui::SeparatorText("Algorithmic");
@@ -482,7 +480,7 @@ namespace lbm
                         if (ImGui::Selectable(lbm::gui::constants::algorithms[n].data(), is_selected))
                         {
                             properties_buffer.algorithm = lbm::gui::constants::algorithms[n];
-                            properties_buffer.changed = true;
+                            changed = true;
                         }
                         if (is_selected)
                         {
@@ -501,7 +499,8 @@ namespace lbm
              */
             inline void data_layout_selection
             (
-                PropertiesBuffer &properties_buffer
+                core::Properties &properties_buffer,
+                bool &changed
             )
             {
                 if (ImGui::BeginCombo("Data layout", properties_buffer.data_layout.c_str())) 
@@ -512,7 +511,7 @@ namespace lbm
                         if (ImGui::Selectable(lbm::gui::constants::data_layouts[n].data(), is_selected))
                         {
                             properties_buffer.data_layout = lbm::gui::constants::data_layouts[n];
-                            properties_buffer.changed = true;
+                            changed = true;
                         }
                         if (is_selected)
                         {
@@ -561,7 +560,7 @@ namespace lbm
              * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
              * @param current_sim_data a reference to the tuple storing the current simulation results
              */
-            inline void properties_simulation_and_domain(PropertiesBuffer &properties_buffer)
+            inline void properties_simulation_and_domain(core::Properties &properties_buffer, bool &changed)
             {
                 ImGui::SeparatorText("Simulation and domain");
 
@@ -572,7 +571,7 @@ namespace lbm
                     ImGui::InputUnsignedInt("Vertical nodes", &(properties_buffer.vertical_nodes), 10, 100)
                 )
                 {
-                    properties_buffer.changed = true;
+                    changed = true;
                 }
             }
 
@@ -581,7 +580,7 @@ namespace lbm
              * 
              * @param settings a reference to the settings object responsible for setting up all necessary simulation properties 
              */
-            inline void properties_fluid(PropertiesBuffer &properties_buffer)
+            inline void properties_fluid(core::Properties &properties_buffer, bool &changed)
             {
                 ImGui::SeparatorText("Fluid properties");
 
@@ -596,7 +595,7 @@ namespace lbm
                     ImGui::InputDouble("Relaxation time", &(properties_buffer.relaxation_time), 0.01, 0.1)
                 )
                 {
-                    properties_buffer.changed = true;
+                    changed = true;
                 }
             }
 
@@ -743,8 +742,8 @@ namespace lbm
                     ImGui::SetNextWindowSize
                     (
                         { 
-                            1 * gui_monitor.viewport_work_size.x / 4, 
-                            gui_monitor.viewport_work_size.y / 5
+                            1 * gui_monitor.viewport->WorkSize.x / 4, 
+                            gui_monitor.viewport->WorkSize.y / 5
                         }
                     );
                     ImGui::SetNextWindowPos({0, windows.menu_bar_size});
@@ -780,12 +779,12 @@ namespace lbm
             * @param gui_algorithmic a reference to an object containing all data specifying the algorithm used for the simulation
             * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
             */
-            template <class Executor>
             void properties_window
             (
                 const Monitor &gui_monitor,
-                Executor &executor,
-                std::unique_ptr<PropertiesBuffer> &properties_buffer,
+                std::unique_ptr<execution::Executor<core::SimulationResults>> &executor,
+                std::unique_ptr<core::Properties> &properties_buffer,
+                bool &changed,
                 Windows &windows,
                 SimulationControl &gui_simulation_control
             )
@@ -795,8 +794,8 @@ namespace lbm
                     ImGui::SetNextWindowSize
                     (
                         {
-                            1 * gui_monitor.viewport_work_size.x / 4, 
-                            4 * gui_monitor.viewport_work_size.y / 5
+                            1 * gui_monitor.viewport->WorkSize.x / 4, 
+                            4 * gui_monitor.viewport->WorkSize.y / 5
                         }
                     );
 
@@ -804,7 +803,7 @@ namespace lbm
                     (
                         {
                             0, 
-                            windows.menu_bar_size + gui_monitor.viewport_work_size.y / 5
+                            windows.menu_bar_size + gui_monitor.viewport->WorkSize.y / 5
                         }
                     );
 
@@ -814,26 +813,26 @@ namespace lbm
 
                         ImGui::BeginDisabled(gui_simulation_control.is_simulation_active);
                         
-                        items::algorithm_selection(*properties_buffer);
-                        items::data_layout_selection(*properties_buffer);
+                        items::algorithm_selection(*properties_buffer, changed);
+                        items::data_layout_selection(*properties_buffer, changed);
                         items::save_results_selection(properties_buffer->results_to_csv, gui_simulation_control);
                         ImGui::Checkbox("Live visualization", &windows.enable_live_visualization);
-                        items::properties_simulation_and_domain(*properties_buffer);
-                        items::properties_fluid(*properties_buffer);
+                        items::properties_simulation_and_domain(*properties_buffer, changed);
+                        items::properties_fluid(*properties_buffer, changed);
             
                         ImGui::SeparatorText("");
                         if (ImGui::Button("Create configuration file", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
                         {
-                            properties_buffer->to_json();
-                            properties_buffer->changed = false;
-                            executor.initialize();
-                            properties_buffer = std::make_unique<PropertiesBuffer>(*executor.properties);
+                            //properties_buffer->to_json();
+                            file_interaction::properties_to_json(*properties_buffer);
+                            changed = false;
+                            initialize_executor(properties_buffer->algorithm, properties_buffer->data_layout, executor);
                         }
 
-                        ImGui::BeginDisabled(!properties_buffer->changed);
+                        ImGui::BeginDisabled(!changed);
                         if (ImGui::Button("Undo changes", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
                         {
-                            properties_buffer = std::make_unique<PropertiesBuffer>(*executor.properties);
+                            //properties_buffer = std::make_unique<core::Properties>(*executor->properties);
                         }
                         ImGui::EndDisabled();  
 
@@ -977,213 +976,7 @@ namespace lbm
             }
         } // ! namespace misc
 
-        template <class Executor>
-        int run(const std::string &window_title)
-        {
-            glfwSetErrorCallback(rendering::glfw_error_callback);
-            if (!glfwInit())
-                return 1;
 
-            // GL 3.0 + GLSL 130
-            const char* glsl_version = "#version 130";
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
-            glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
-            
-            // GUI initializations
-            Windows gui_windows_config;
-            SimulationControl gui_simulation_control;
-            Progress gui_progress;
-            Monitor gui_monitor;
-            Colormaps gui_colormaps;
-            std::cout << "GUI initializations \n";
-
-            gui_monitor.primary_monitor = glfwGetPrimaryMonitor();
-            gui_monitor.video_mode = glfwGetVideoMode(gui_monitor.primary_monitor);
-
-            gui_monitor.video_mode_width = gui_monitor.video_mode->width;
-            gui_monitor.video_mode_height = gui_monitor.video_mode->height;
-
-            // LBM initializations
-            Executor executor;
-            std::unique_ptr<PropertiesBuffer> properties_buffer = std::make_unique<PropertiesBuffer>(*executor.properties);
-            VelocityQuiverData gui_velocity_quiver_data(2 * (executor.properties->domain_node_count));
-
-            std::cout << "Structs initialized \n";
-
-            // Create window with graphics context
-            GLFWwindow* window = glfwCreateWindow(gui_monitor.video_mode_width, gui_monitor.video_mode_height, window_title.c_str(), nullptr, nullptr);
-            if (window == nullptr)
-                return 1;
-            glfwMakeContextCurrent(window);
-            //glfwSwapInterval(1); // Enable vsync
-            std::cout << "Window stuff \n";
-
-            contexts::create_contexts();
-            styles::set_light_style();
-            glfwGetMonitorContentScale(gui_monitor.primary_monitor, &gui_monitor.monitor_x_scale, &gui_monitor.monitor_x_scale);
-            std::cout << "Created contexts and so on \n";
-
-            ImGuiIO& io = ImGui::GetIO();
-            io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-            io.Fonts->AddFontFromFileTTF("../fonts/DroidSans.ttf", 2 * sqrt(gui_monitor.monitor_x_scale * gui_monitor.monitor_x_scale) * 9.0f);
-
-            // Setup Platform/Renderer backends
-            ImGui_ImplGlfw_InitForOpenGL(window, true);
-            ImGui_ImplOpenGL3_Init(glsl_version);
-            glfwGetFramebufferSize(window, &gui_monitor.display_width, &gui_monitor.display_height);
-
-            // Timer initializations
-            SimpleTimer timer;
-            SimpleTimer timer_framerate;
-
-            misc::add_solid_colormap();
-
-            ImPlotStyle& implot_style = ImPlot::GetStyle();
-            implot_style.PlotPadding = ImVec2(gui_monitor.monitor_x_scale * 20, gui_monitor.monitor_y_scale * 20);
-
-            gui_colormaps.density_colormap_lower_scale = std::min({executor.properties->inlet_density, executor.properties->outlet_density});
-            gui_colormaps.density_colormap_upper_scale = std::max({executor.properties->inlet_density, executor.properties->outlet_density});
-            gui_colormaps.velocity_colormap_upper_scale = sqrt(pow(executor.properties->inlet_velocity_x, 2) + pow(executor.properties->inlet_velocity_y, 2)); 
-
-            // Eternal loop of imaging magic
-            while (!glfwWindowShouldClose(window))
-            {
-                glfwPollEvents();
-
-                // Start the Dear ImGui frame
-                ImGui_ImplOpenGL3_NewFrame();
-                ImGui_ImplGlfw_NewFrame();
-                ImGui::NewFrame();
-
-                gui_monitor.viewport = *ImGui::GetMainViewport();
-                gui_monitor.viewport_work_size = gui_monitor.viewport.WorkSize;
-
-                items::menu_bar(gui_windows_config);
-
-                windows::read_from_file_window(gui_monitor, gui_windows_config);
-
-                windows::properties_window
-                (
-                    gui_monitor,
-                    executor,
-                    properties_buffer,
-                    gui_windows_config,
-                    gui_simulation_control
-                );
-
-                windows::simulation_status_window
-                (
-                    gui_monitor,
-                    gui_windows_config,
-                    gui_simulation_control,
-                    gui_progress,
-                    executor
-                );
-
-                if(gui_simulation_control.is_simulation_active && !gui_simulation_control.is_paused)
-                {
-                    if(executor.is_ready())
-                    {
-                        if(timer_framerate.elapsed() > 0.25)
-                        {
-                            gui_progress.framerate = 1 / timer.elapsed();
-                            gui_progress.frametime = 1000.0f / gui_progress.framerate;
-                            timer_framerate.restart();
-                        }
-                        
-                        timer.restart();
-                        gui_progress.current_iter++;
-                        gui_progress.progress = (double)gui_progress.current_iter / executor.properties->time_steps;
-
-                        if(gui_simulation_control.results_to_csv)
-                        {
-                            
-                        }
-
-                        for(int i = 0; i < executor.properties->domain_node_count; ++i)
-                        {
-                            (*(executor.simulation_results->absolute_velocities))[i] = sqrt(pow((*(executor.simulation_results->x_velocities))[i], 2) + pow((*(executor.simulation_results->y_velocities))[i], 2));
-                        }
-
-                        if(gui_windows_config.enable_velocity_quiver)
-                        {
-                            gui_velocity_quiver_data.x_values->assign(2 * executor.properties->domain_node_count, 0);
-                            gui_velocity_quiver_data.y_values->assign(2 * executor.properties->domain_node_count, 0);
-
-                            for(int y = 1; y < executor.properties->vertical_nodes - 1; ++y)
-                            {
-                                for(int x = 1; x < executor.properties->horizontal_nodes - 1; ++x)
-                                {
-                                    unsigned int dnode_index = core::access::get_node_index(x-1, y-1, executor.properties->horizontal_nodes-2);
-                                    unsigned int node_index = core::access::get_node_index(x, y, executor.properties->horizontal_nodes);
-                                    unsigned int velocity_value_index = core::access::results::get_result_index_no_ghosts(core::access::get_node_index(x, y, executor.properties->horizontal_nodes), executor.properties->horizontal_nodes);
-                                    //std::cout << "Reaching node index " << node_index << ", calculated from coordinates (x = " << x << ", y = " << y << ")\n";
-                                    if(executor.simulation_results->absolute_velocities->at(velocity_value_index) > 1e-15)
-                                    {
-                                        double base_x = 0.5 + x - 1;
-                                        double base_y = 0.5 + y - 1;
-                                        
-                                        (*gui_velocity_quiver_data.x_values)[2 * dnode_index] = base_x;
-                                        (*gui_velocity_quiver_data.y_values)[2 * dnode_index] = base_y;
-
-                                        double offset_x = base_x + 0.5 * (1.0 / executor.simulation_results->absolute_velocities->at(velocity_value_index)) * executor.simulation_results->x_velocities->at(velocity_value_index);
-                                        double offset_y = base_y + 0.5 * (1.0 / executor.simulation_results->absolute_velocities->at(velocity_value_index)) * executor.simulation_results->y_velocities->at(velocity_value_index);
-
-                                        (*gui_velocity_quiver_data.x_values)[2 * dnode_index + 1] = offset_x;
-                                        (*gui_velocity_quiver_data.y_values)[2 * dnode_index + 1] = offset_y;
-                                    }
-                                }  
-                            }
-                        }
-                        executor.execute();
-
-                        // Check if simulation is finished
-                        if(gui_progress.current_iter == executor.properties->time_steps)
-                        {
-                            gui_progress.current_iter = 0;
-                            gui_progress.progress = 0;
-                            gui_simulation_control.is_simulation_active = false;
-
-                            if(gui_simulation_control.results_to_csv)
-                            {
-
-                            }
-                        }
-                    }
-                }
-
-                windows::density_window
-                (   
-                    *executor.properties,
-                    gui_monitor, 
-                    gui_simulation_control, 
-                    *executor.simulation_results,
-                    gui_progress, 
-                    gui_windows_config, 
-                    gui_colormaps
-                );
-
-                windows::velocity_window
-                (
-                    *executor.properties,
-                    gui_monitor, 
-                    gui_simulation_control, 
-                    *executor.simulation_results,
-                    gui_progress, 
-                    gui_windows_config, 
-                    gui_velocity_quiver_data,
-                    gui_colormaps
-                );
-
-                rendering::render(window, gui_monitor);
-            }
-            std::cout << "Exiting program \n";
-            contexts::destroy(window);
-            std::cout << "Contexts destroyed \n";
-            return 0;
-        }
 
     } // ! namespace gui
 

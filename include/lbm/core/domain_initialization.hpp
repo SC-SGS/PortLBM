@@ -5,9 +5,9 @@
  * 
  * @brief       In this header file, functionality for setting up the simulation domain is declared and defined.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -16,8 +16,9 @@
 #ifndef DOMAIN_INITIALIZATION_HPP
 #define DOMAIN_INITIALIZATION_HPP
 
-#include "simulation.hpp"
+// Dependencies on other LBM core features
 #include "boundaries.hpp"
+#include "simulation.hpp"
 
 namespace lbm
 {
@@ -34,25 +35,22 @@ namespace lbm
          * @param[in]       properties      a struct containing the densities and velocities of the inlets and outlets
          * @param[in, out]  simulation_data a structure of data on which the simulation operates
          */
-        template<access::experimental::LBMAccessor T> void setup_pipe_flow_environment
-        (
-            const Properties &properties,
-            Data &data
-        )
+        template<access::experimental::AccessorConcept A> 
+        void setup_pipe_flow_environment(const Simulation &simulation)
         {
             std::vector<double> values = maxwell_boltzmann_distribution(0, 0, 1);
-            for(auto i = 0; i < properties.end_node_index_buffered; ++i)
+            for(auto i = 0; i < simulation.properties->buffered_node_count; ++i)
             {
-                access::set_distribution_values_of<T>(values, i, *simulation_data.distribution_values_0);
+                access::set_distribution_values_of<A>(values, i, *simulation.data->distribution_values_0);
             }    
 
-            boundary_conditions::update_velocity_input_density_output(properties, *simulation_data.distribution_values_0);
+            boundary_conditions::update_velocity_input_density_output<A>(*simulation.properties, *simulation.data->distribution_values_0);
 
             /* Phase information vector */
-            for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
+            for(auto x = 1; x < simulation.properties->horizontal_nodes - 1; ++x)
             {
-                (*simulation_data.phase_information)[access::get_node_index(x,1, properties.horizontal_nodes)] = true;
-                (*simulation_data.phase_information)[access::get_node_index(x,properties.vertical_nodes - 2, properties.horizontal_nodes)] = true;
+                (*simulation.data->phase_information)[access::get_node_index(x, 1, simulation.properties->horizontal_nodes)] = true;
+                (*simulation.data->phase_information)[access::get_node_index(x, simulation.properties->vertical_nodes - 2, simulation.properties->horizontal_nodes)] = true;
             }
 
             // /* Add wall */

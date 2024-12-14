@@ -23,6 +23,7 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+#include <array>
 #include <concepts>
 
 namespace lbm
@@ -191,7 +192,7 @@ namespace lbm
                      * @return the index of the corresponding distribution value
                      */
                     static inline
-                    unsigned int operator()(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count)
+                    unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count)
                     {
                         return 9 * node + direction;  
                     }
@@ -215,7 +216,7 @@ namespace lbm
                      * @return the index of the corresponding distribution value
                      */
                     static inline
-                    unsigned int operator()(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
+                    unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
                     {
                         return total_buffered_node_count * direction + node;
                     }
@@ -239,14 +240,14 @@ namespace lbm
                      * @return the index of the corresponding distribution value
                      */
                     static inline
-                    unsigned int operator()(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
+                    unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
                     {
                         return 3 * (direction / 3) * total_buffered_node_count + (direction % 3) + 3 * node; 
                     }
                 };
 
                 template <class T>
-                concept LBMAccessor = std::same_as<T, CollisionAccessor> || std::same_as<T, StreamAccessor> || std::same_as<T, BundleAccessor>;
+                concept AccessorConcept = std::same_as<T, CollisionAccessor> || std::same_as<T, StreamAccessor> || std::same_as<T, BundleAccessor>;
 
             } // ! namespace experimental
             
@@ -317,7 +318,7 @@ namespace lbm
              * 
              * @return a vector containing the distribution values
              */
-            template<experimental::LBMAccessor T> inline 
+            template<experimental::AccessorConcept A> inline 
             std::vector<double> get_distribution_values_of
             (
                 const std::vector<double> &source, 
@@ -327,7 +328,7 @@ namespace lbm
                 std::vector<double> dist_vals(9,0);
                 for(auto direction = 0; direction < 9; ++direction)
                 {
-                    dist_vals[direction] = source[T(node_index, direction)];
+                    dist_vals[direction] = source[A::at(node_index, direction)];
                 }
                 return dist_vals;
             }
@@ -340,7 +341,7 @@ namespace lbm
              * @param[in] node_index    this is the index of the node in the domain
              * @param[in] destination   the distribution values will be written to this vector
              */
-            template<experimental::LBMAccessor T> inline
+            template<experimental::AccessorConcept A> inline
             void set_distribution_values_of
             (
                 const std::vector<double> &dist_vals, 
@@ -350,7 +351,7 @@ namespace lbm
             {
                 for(auto direction = 0; direction < 9; ++direction)
                 {
-                    destination[T(node_index, direction)] = dist_vals[direction];
+                    destination[A::at(node_index, direction)] = dist_vals[direction];
                 }
             }
 

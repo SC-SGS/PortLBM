@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declarations of various functions for console outputs.
  * 
- * @version     1.2
+ * @version     1.3
  * 
  * @date        December 2024
  * 
@@ -16,7 +16,7 @@
 #ifndef CONSOLE_OUTPUT_HPP
 #define CONSOLE_OUTPUT_HPP
 
-// LBM
+// LBM core dependencies
 #include "../core/access.hpp"
 #include "../core/simulation.hpp"
 
@@ -40,9 +40,10 @@ namespace lbm
     {
 
         /**
-         * @brief Prints the message to the console that mentions the usage of ANSI colors and the implications.
+         * @brief   Prints the message to the console that mentions the usage of ANSI colors and the implications.
          */
-        inline void print_ansi_color_message()
+        inline 
+        void print_ansi_color_message()
         {
             fmt::print
             (
@@ -60,17 +61,18 @@ namespace lbm
         }
 
         /**
-         * @brief Prints the legend explaining the meaning of the colors used in the console output.
+         * @brief   Prints the legend explaining the meaning of the colors used in the console output.
          */
-        inline void print_color_legend()
+        inline 
+        void print_color_legend()
         {
             fmt::print
             (
                 "Legend:\n"
                 "-------------------------------------------------------------------------------\n"
                 "\033[31mRED\033[0m:\tValues of the node in the origin\n"
-                "\033[32mGREEN\033[0m:\t1.) Distribution values of buffer nodes or ghost nodes\n"
-                "\t2.) Phase illustration: \033[32m#\033[0m marks a solid node\n"
+                "\033[33mYELLOW\033[0m:\tPhase illustration: \033[32m#\033[0m marks a solid node\n\n"
+                "\033[32mGREEN\033[0m:\tbuffer nodes or ghost nodes, or their distribution values\n"
                 "\033[36mCYAN\033[0m:\tMilestones and important events\n"
                 "\033[34mBLUE\033[0m:\t1.) Distribution values of the \"outmost\" node\n"
                 "\t2.) Phase illustration: \033[34m~\033[0m marks a fluid node\n\n"
@@ -78,20 +80,22 @@ namespace lbm
         }
 
         /**
-         * @brief Allows to print out a vector representing a data layout whose column count is HORIZONTAL_NODES.
-         *        Notice that the vector is assumed to represent a matrix.
+         * @brief   Allows to print out a vector representing a data layout whose column count is `horizontal_nodes`.
+         *          Notice that the vector is assumed to represent a matrix.
          * 
          * @tparam T the type of the objects the specified vector holds (must be numeric)
-         * @param vector the vector that is to be printed in the console
+         * 
+         * @param[in]   vector              the contents of this vector are printed 
+         * @param[in]   horizontal_nodes    column count of the specified vector
          */
-        template <typename T> void print_vector
+        template <typename T> 
+        void print_vector
         (
             const std::vector<T> &vector,
             const unsigned int horizontal_nodes
         )
         {
             unsigned int vertical_nodes = vector.size() / horizontal_nodes;
-            T value = 0;
 
             for(auto y = vertical_nodes; y-- > 0; )
             {
@@ -99,8 +103,7 @@ namespace lbm
                 {
                     if(x == 0 && y == 0) std::cout << "\033[31m";
                     else if(x == (horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
-                    value = vector[core::access::get_node_index(x, y, horizontal_nodes)];
-                    std::cout << value << "\t\033[0m"; 
+                    std::cout << vector.at(core::access::get_node_index(x, y, horizontal_nodes)) << "\t\033[0m"; 
                 }
                 std::cout << "\n";
             }
@@ -108,45 +111,44 @@ namespace lbm
         }
 
         /**
-         * @brief Prints all distribution values in to the console.
-         *        They are displayed in the original order, i.e. the origin is located at the lower left corner of the printed distribution chart.
+         * @brief   Prints all distribution values in to the console.
+         *          They are displayed in the original order, i.e. the origin is located at the lower left corner of 
+         *          the printed distribution chart.
          * 
-         * @param distribution_values a vector containing the distribution values of all nodes 
-         * @param access_function the function used to core::access the distribution values
+         * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+         * 
+         * @param[in] distribution_values   a vector containing the distribution values of all nodes 
+         * @param[in] horizontal_nodes      total horizontal nodes in the subdomain
+         * @param[in] vertical_nodes        total vertical nodes in the subdomain
          */
-        template <class T> inline void print_distribution_values
+        template <core::access::experimental::AccessorConcept A> inline 
+        void print_distribution_values
         (
-            const std::vector<double> &distribution_values, 
-            const T &lbm_accessor
+            const std::vector<double> &distribution_values,
+            const unsigned int horizontal_nodes,
+            const unsigned int vertical_nodes
         )
         {
-            static_assert(
-                std::is_base_of<core::access::LBMAccessorObject, T>::value, 
-                "Template class must have base class core::access::LBMAccessorObject."
-            );
-
-            std::vector<std::vector<unsigned int>> print_dirs = {{6,7,8}, {3,4,5}, {0,1,2}};
+            constexpr std::array<size_t, 9> print_dirs = {6, 7, 8, 3, 4, 5, 0, 1, 2};
             std::vector<double> current_values(9,0);
 
             unsigned int current_node_index = 0;
-            unsigned int vertical_nodes = distribution_values.size() / (9 * lbm_accessor.horizontal_nodes); 
             std::cout << std::setprecision(3) << std::fixed;
 
-            for(auto y = vertical_nodes; y-- > 0; )
+            for(unsigned int y = vertical_nodes; y-- > 0; )
             {
-                for(auto i = 0; i < 3; ++i)
+                for(unsigned int j = 0; j < 3; ++j)
                 {
-                    auto current_row = print_dirs[i];
-                    for(auto x = 0; x < lbm_accessor.horizontal_nodes; ++x)
+                    for(unsigned int x = 0; x < horizontal_nodes; ++x)
                     {
                         if(x == 0 && y == 0) std::cout << "\033[31m";
-                        else if(x == (lbm_accessor.horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
-                        current_node_index = core::access::get_node_index(x, y, lbm_accessor.horizontal_nodes);
-                        current_values = core::access::get_distribution_values_of(distribution_values, current_node_index, lbm_accessor);
+                        else if(x == (horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
+                        current_node_index = core::access::get_node_index(x, y, horizontal_nodes);
+                        current_values = core::access::get_distribution_values_of<A>(distribution_values, current_node_index);
 
-                        for(auto j = 0; j < 3; ++j)
+                        for(unsigned int i = 0; i < 3; ++i)
                         {
-                            auto direction = current_row[j];
+                            size_t direction = print_dirs.at(core::access::get_node_index(i, j, 3));
                             if(current_values[direction] >= 0) std::cout << " ";
                             std::cout << current_values[direction] << " ";
                         }
@@ -159,11 +161,12 @@ namespace lbm
         } 
 
         /**
-         * @brief Adapted version of print_vector that prints out the phase vector of a lattice.
-         *        If a node is solid (i.e. the entry is true), it is represented by #.
-         *        If a node is fluid (i.e. the entry is false), it is represented by ~.
+         * @brief   Adapted version of print_vector that prints out the phase vector of a lattice.
+         *          If a node is solid (i.e. the entry is `true`), it is represented by `#`.
+         *          If a node is fluid (i.e. the entry is `false`), it is represented by `~`.
          * 
-         * @param vector the phase vector
+         * @param[in]   vector              the phase vector
+         * @param[in]   horizontal_nodes    total amount of horizontal nodes in the simulation domain
          */
         void print_phase_vector
         (
@@ -172,60 +175,104 @@ namespace lbm
         );
 
         /**
-         * @brief Prints all velocity values in the lattice to the console.
-         *        All values are printed in order, i.e. the origin is located at the lower left corner of the output.
+         * @brief   Prints all velocity values in the lattice to the console.
+         *          All values are printed in order, i.e. the origin is located at the lower left corner of the output.
+         *          This version of this function is supposed to operate on structures containing the values for multiple
+         *          time steps, e.g. for debugging purposes.
          * 
-         * @param vector a vector containing all velocity values
+         * @param[in] properties    a struct containing the extents of the simulation domain  
+         * @param[in] x_velocities  a vector containing all velocities in x-direction
+         * @param[in] y_velocities  a vector containing all velocities in y-direction
+         * @param[in] time_step     the time time step considered
          */
         void print_velocities
         (
             const core::Properties &properties,
             const std::vector<double> &x_velocities, 
             const std::vector<double> &y_velocities,
-            const unsigned int time_step
+            const unsigned int time_step = 0
         );
 
+        /**
+         * @brief   Prints all density values in the lattice to the console.
+         *          All values are printed in order, i.e. the origin is located at the lower left corner of the output.
+         *          This version of this function is supposed to operate on structures containing the values for multiple
+         *          time steps, e.g. for debugging purposes.
+         * 
+         * @param[in] properties    a struct containing the extents of the simulation domain  
+         * @param[in] densities     a vector containing all density values
+         * @param[in] time_step     the time time step considered
+         */
         void print_densities
         (
             const core::Properties &properties,
             const std::vector<double> &densities,
-            const unsigned int time_step
+            const unsigned int time_step = 0
         );
 
         /**
-         * @brief Prints the simulation results, i.e. the velocity vectors and density values, for all time steps.
+         * @brief   Prints all velocity values in the lattice to the console.
+         *          All values are printed in order, i.e. the origin is located at the lower left corner of the output.
          * 
-         * @param results a vector containing the simulation data tuples.
+         * @param[in] properties    a struct containing the extents of the simulation domain  
+         * @param[in] x_velocities  a vector containing all velocities in x-direction
+         * @param[in] y_velocities  a vector containing all velocities in y-direction
+         */
+        void print_velocities
+        (
+            const core::Properties &properties,
+            const std::vector<double> &x_velocities, 
+            const std::vector<double> &y_velocities
+        );
+
+        /**
+         * @brief   Prints all density values in the lattice to the console.
+         *          All values are printed in order, i.e. the origin is located at the lower left corner of the output.
+         * 
+         * @param[in] properties    a struct containing the extents of the simulation domain  
+         * @param[in] densities     a vector containing all density values
+         */
+        void print_densities
+        (
+            const core::Properties &properties,
+            const std::vector<double> &densities
+        );
+
+        /**
+         * @brief   Prints the simulation results, i.e. the velocity vectors and density values, for all time steps.
+         * 
+         * @param[in]   properties          a struct containing the extents of the simulation domain
+         * @param[in]   simulation_results  the structure containing the simulation results (density and component-wise velocity values)
          */
         void print_simulation_results
         (
             const core::Properties &properties,
-            const core::Results &simulation_results
+            const core::Results &simulation_results 
         );
 
     /**
-     * @brief Prints various pieces of debug information to the console.
-     *        Included information:
+     * @brief   Prints various pieces of debug information to the console. Included information:
      *        
-     *        - Enumeration of all nodes within the lattice
+     *          - Enumeration of all nodes within the lattice
      * 
-     *        - Phase information
+     *          - Phase information
      * 
-     *        - Border swap information
+     *          - Border swap information
      * 
-     *        - Distribution values 0
+     *          - Distribution values 0
      * 
-     * @tparam T an lbm accessor object, that is, any object whose class inherits from `core::access::LBMAccessorObject`
+         * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
      * 
-     * @param[in] simulation_data   a structure of data on which the simulation operates
+     * @param[in] data   a structure of data on which the simulation operates
      */
-    template <class T> void debug_prints
+    template <core::access::experimental::AccessorConcept A> void debug_prints
     (
-        const core::Data &simulation_data
+        const core::Data &data,
+        const core::Properties &properties
     )
     {
         std::vector<unsigned int> nodes;
-        for(auto i = 0; i < simulation_data.end_node_index_buffered; ++i)
+        for(auto i = 0; i < properties.buffered_node_count; ++i)
         {
             nodes.push_back(i);
         }
@@ -233,17 +280,17 @@ namespace lbm
         std::cout << "Enumeration of all nodes within the lattice: \n"
                 << "-------------------------------------------------------------------------------\n";
 
-        lbm::console::print_vector(nodes, simulation_data.lbm_accessor->horizontal_nodes);
+        lbm::console::print_vector(nodes, properties.horizontal_nodes);
         std::cout << "\n";
 
         std::cout << "Phases: \n"
                 << "-------------------------------------------------------------------------------\n";
-        lbm::console::print_phase_vector(*simulation_data.phase_information, simulation_data.lbm_accessor->horizontal_nodes);
+        lbm::console::print_phase_vector(*data.phase_information, properties.horizontal_nodes);
         std::cout << "\n";
 
         std::cout << "Distribution values: \n"
                 << "-------------------------------------------------------------------------------\n";
-        lbm::console::print_distribution_values(*simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
+        lbm::console::print_distribution_values<A>(*data.distribution_values_0, properties.horizontal_nodes, properties.vertical_nodes);
         std::cout << "\n";
     }
 

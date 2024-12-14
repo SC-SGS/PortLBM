@@ -179,7 +179,7 @@ namespace lbm
             std::unique_ptr<core::Properties> properties_buffered;
             std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
             std::unique_ptr<std::string> window_title;
-            std::unique_ptr<execution::Executor<core::SimulationResults>> executor;
+            std::unique_ptr<execution::Executor> executor;
 
             bool properties_changed;
 
@@ -190,12 +190,12 @@ namespace lbm
             int run();
         };
 
-        void initialize_executor
-        (
-            const std::string &algorithm,
-            const std::string &data_layout,
-            std::unique_ptr<execution::Executor<core::SimulationResults>> &executor
-        );
+        // void initialize_executor
+        // (
+        //     const std::string &algorithm,
+        //     const std::string &data_layout,
+        //     std::unique_ptr<execution::Executor> &executor
+        // );
 
         /**
          * @brief This namespace contains helper functions for setting up the style of ImGui and ImPlot.
@@ -285,11 +285,10 @@ namespace lbm
                  * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
                  * @param executor a reference to the executor used to execute the simulation is set up with an according default value
                  */
-                template <typename ResultsType>
                 inline void run_button
                 (
                     SimulationControl &gui_simulation_control,
-                    execution::Executor<ResultsType> &executor
+                    std::unique_ptr<execution::Executor> &executor
                 )
                 {
                     ImGui::PushID(0);
@@ -301,7 +300,7 @@ namespace lbm
                     {
                         if(!gui_simulation_control.is_simulation_active)
                         {
-                            executor.initialize();
+                            executor = std::make_unique<execution::SYCLExecutor>();
                         }
                         gui_simulation_control.is_paused = false;
                         gui_simulation_control.is_simulation_active = true;
@@ -734,7 +733,7 @@ namespace lbm
                 Windows &windows, 
                 SimulationControl &gui_simulation_control,
                 Progress &gui_progess,
-                execution::Executor<ResultsType> &executor
+                std::unique_ptr<execution::Executor> &executor
             )
             {
                 if (windows.show_simulation_status)
@@ -782,7 +781,7 @@ namespace lbm
             void properties_window
             (
                 const Monitor &gui_monitor,
-                std::unique_ptr<execution::Executor<core::SimulationResults>> &executor,
+                std::unique_ptr<execution::Executor> &executor,
                 std::unique_ptr<core::Properties> &properties_buffer,
                 bool &changed,
                 Windows &windows,
@@ -826,7 +825,8 @@ namespace lbm
                             //properties_buffer->to_json();
                             file_interaction::properties_to_json(*properties_buffer);
                             changed = false;
-                            initialize_executor(properties_buffer->algorithm, properties_buffer->data_layout, executor);
+                            //initialize_executor(properties_buffer->algorithm, properties_buffer->data_layout, executor);
+                            executor = std::make_unique<execution::Executor>();
                         }
 
                         ImGui::BeginDisabled(!changed);
@@ -880,7 +880,7 @@ namespace lbm
                 const core::Properties &properties,
                 const Monitor &gui_monitor,
                 const SimulationControl &gui_simulation_control,
-                const core::SimulationResults &simulation_results,
+                const core::Results &results,
                 const Progress &gui_progress,
                 Windows &windows, 
                 Colormaps &gui_colormaps
@@ -914,7 +914,7 @@ namespace lbm
                 const core::Properties &properties,
                 const Monitor &gui_monitor,
                 const SimulationControl &gui_simulation_control,
-                const core::SimulationResults &simulation_results,
+                const core::Results &results,
                 const Progress &gui_progress,
                 Windows &windows, 
                 VelocityQuiverData &gui_velocity_quiver_data,

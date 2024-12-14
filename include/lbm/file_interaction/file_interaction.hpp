@@ -16,10 +16,13 @@
 #ifndef FILE_INTERACTION_HPP
 #define FILE_INTERACTION_HPP
 
+// Dependencies on LBM core features
 #include "../core/simulation.hpp"
 
+// C++ JSON integration by N. Lohmann
 #include <nlohmann/json.hpp>
 
+// Standard library
 #include <fstream>
 #include <iostream>
 

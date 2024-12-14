@@ -74,45 +74,45 @@ window_title(std::make_unique<std::string>(window_title)),
 properties_changed(false)
 {};
 
-void lbm::gui::initialize_executor
-(
-    const std::string &algorithm,
-    const std::string &data_layout,
-    std::unique_ptr<execution::Executor<core::SimulationResults>> &executor
-)
-{
-    if(algorithm == "gpu-two-lattice-linear")
-    {
-        if(data_layout == "stream")
-        {
-            executor = std::make_unique<execution::SYCLExecutor<core::access::LBMStreamAccessor>>(new execution::SYCLExecutor<core::access::LBMStreamAccessor>());
-        }
-        else if(data_layout == "collision")
-        {
-            executor = std::make_unique<execution::SYCLExecutor<core::access::LBMCollisionAccessor>>(new execution::SYCLExecutor<core::access::LBMCollisionAccessor>());
-        }
-        else if(data_layout == "bundle")
-        {
-            executor = std::make_unique<execution::SYCLExecutor<core::access::LBMBundleAccessor>>(new execution::SYCLExecutor<core::access::LBMBundleAccessor>());
-        }
-        else
-        {
-            throw exceptions::Exception("Unknown data layout: " + data_layout);
-        }
-    }
-    else if(algorithm == "gpu-two-lattice")
-    {
-        throw exceptions::Exception("This algorithm is not implemented yet.");
-    }
-    else if(algorithm == "gpu-swap")
-    {
-        throw exceptions::Exception("This algorithm is not implemented yet.");
-    }
-    else
-    {
-        throw exceptions::Exception("Unknown algorithm: " + algorithm);
-    }
-}
+// void lbm::gui::initialize_executor
+// (
+//     const std::string &algorithm,
+//     const std::string &data_layout,
+//     std::unique_ptr<execution::Executor<core::SimulationResults>> &executor
+// )
+// {
+//     if(algorithm == "gpu-two-lattice-linear")
+//     {
+//         if(data_layout == "stream")
+//         {
+//             executor = std::make_unique<execution::SYCLExecutor<core::access::LBMStreamAccessor>>(new execution::SYCLExecutor<core::access::LBMStreamAccessor>());
+//         }
+//         else if(data_layout == "collision")
+//         {
+//             executor = std::make_unique<execution::SYCLExecutor<core::access::LBMCollisionAccessor>>(new execution::SYCLExecutor<core::access::LBMCollisionAccessor>());
+//         }
+//         else if(data_layout == "bundle")
+//         {
+//             executor = std::make_unique<execution::SYCLExecutor<core::access::LBMBundleAccessor>>(new execution::SYCLExecutor<core::access::LBMBundleAccessor>());
+//         }
+//         else
+//         {
+//             throw exceptions::Exception("Unknown data layout: " + data_layout);
+//         }
+//     }
+//     else if(algorithm == "gpu-two-lattice")
+//     {
+//         throw exceptions::Exception("This algorithm is not implemented yet.");
+//     }
+//     else if(algorithm == "gpu-swap")
+//     {
+//         throw exceptions::Exception("This algorithm is not implemented yet.");
+//     }
+//     else
+//     {
+//         throw exceptions::Exception("Unknown algorithm: " + algorithm);
+//     }
+// }
 
 int lbm::gui::Gui::run()
 {
@@ -130,7 +130,8 @@ int lbm::gui::Gui::run()
     std::unique_ptr<lbm::execution::SYCLExecutor<core::SimulationResults>> executor;
 
     // LBM initializations
-    initialize_executor(properties_stored->algorithm, properties_stored->data_layout, executor);
+    //initialize_executor(properties_stored->algorithm, properties_stored->data_layout, executor);
+    executor = std::make_unique<execute::SYCLExecutor>();
 
     // Create window with graphics context
     GLFWwindow* window = glfwCreateWindow(monitor->video_mode->width, monitor->video_mode->height, window_title->c_str(), nullptr, nullptr);

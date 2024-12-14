@@ -7,7 +7,7 @@
  * 
  * @version     3.0
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -16,14 +16,20 @@
 #ifndef SIMULATION_HPP
 #define SIMULATION_HPP
 
+// LBM exceptions
 #include "../exceptions/exceptions.hpp"
 
+// Dependencies on other LBM core features
 #include "access.hpp"
 #include "constants.hpp"
 #include "defines.hpp"
 
+// Format
 #include <fmt/core.h>
+
+// Standary library
 #include <complex>
+#include <memory>
 
 namespace lbm
 {
@@ -40,7 +46,8 @@ namespace lbm
          * 
          * @return a vector containing the distribution values
          */
-        inline std::vector<double> maxwell_boltzmann_distribution
+        inline 
+        std::vector<double> maxwell_boltzmann_distribution
         (
             const double x_velocity, 
             const double y_velocity, 
@@ -69,7 +76,8 @@ namespace lbm
         /**
          * @brief Returns the inverse direction of that specified.
          */
-        inline constexpr unsigned int invert_direction(const unsigned int dir)
+        inline constexpr 
+        unsigned int invert_direction(const unsigned int dir)
         {
             return 8 - dir;
         }

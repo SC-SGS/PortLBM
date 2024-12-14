@@ -17,10 +17,10 @@
 #ifndef MACROSCOPIC_HPP
 #define MACROSCOPIC_HPP
 
-#include "defines.hpp"
-
 #include <list>
 #include <numeric>
+#include <vector>
+#include <array>
 
 namespace lbm
 {

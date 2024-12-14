@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declaration of several exceptions for the lattice Boltzmann implementation.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        2024-10-10
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -16,18 +16,20 @@
 #ifndef EXCEPTIONS_HPP
 #define EXCEPTIONS_HPP
 
+// Format
+#include <fmt/core.h>
+
+// Standary library
 #include <stdexcept>                                                   
 #include <string_view>                            
 
-#include <fmt/core.h>
-
-/**
+/*
  * Careful: At the time this file was created, the used Clang 18.1.3 compiler includes the `source_location.hpp` header
  *          as an experimental feature. This may change in future versions of Clang, and the include direction may change
  *          to `<source_location>`.
  */
 //#include <experimental/source_location>
-#include <source_location>
+#include <source_location> // tested under clang 18.1.8 with AMDGPU target
 
 namespace lbm
 {

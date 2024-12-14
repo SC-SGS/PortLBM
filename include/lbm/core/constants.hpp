@@ -5,15 +5,15 @@
  * 
  * @brief       This header file contains constants used throughout the project.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  */
 
-#ifndef CONSTANTS_HPP
-#define CONSTANTS_HPP
+#ifndef LBM_CONSTANTS_HPP
+#define LBM_CONSTANTS_HPP
 
 #include <array>
 

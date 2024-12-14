@@ -25,9 +25,6 @@
 #ifndef LBM_EXECUTOR_HPP
 #define LBM_EXECUTOR_HPP
 
-#include "../core/simulation.hpp"
-#include "../file_interaction/file_interaction.hpp"
-
 namespace lbm
 {
 
@@ -54,10 +51,10 @@ namespace lbm
                  */
                 virtual bool is_ready() const = 0;
 
-                /**
-                 * @brief Initializes an object representing the simulation data with the specified data.
-                 */
-                virtual void initialize() = 0;
+                // /**
+                //  * @brief Initializes an object representing the simulation data with the specified data.
+                //  */
+                // virtual void initialize() = 0;
 
         };
 

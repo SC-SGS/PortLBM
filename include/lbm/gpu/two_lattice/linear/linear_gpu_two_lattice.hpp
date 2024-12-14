@@ -11,9 +11,9 @@
  *              Compatiblity to the CPU implementation is achieved by additional measures.
  *              Eventually, all functionality is realized on the GPU, and any deprecated features will be removed.
  * 
- * @version     2.1
+ * @version     3.0
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -22,18 +22,26 @@
 #ifndef LINEAR_GPU_TWO_LATTICE_HPP
 #define LINEAR_GPU_TWO_LATTICE_HPP
 
+// Console output
+#include "../../../console/console_output.hpp"
+
+// LBM core features
 #include "../../../core/access.hpp"
 #include "../../../core/boundaries.hpp"
 #include "../../../core/collision.hpp"
-#include "../../../console/console_output.hpp"
 #include "../../../core/domain_initialization.hpp"
 #include "../../../core/simulation.hpp"
 
+// Linear GPU boundary handling
 #include "../../boundaries/linear/linear_gpu_boundaries.hpp"
+
+// SYCL constants
 #include "../../sycl_constants.hpp"
 
+// Kernels
 #include "linear_two_lattice_kernels.hpp"
 
+// SYCL
 #include <sycl/sycl.hpp>
 
 namespace lbm
@@ -58,37 +66,66 @@ namespace lbm
             {
 
                 /**
+                 * @brief Class representation of the linear SYCL implementation of the two-lattice algorithm.
+                 * 
+                 * @tparam LBMAccessor any child class of `lbm::core::access::LBMAccessorObject` 
+                 */
+                template <core::access::experimental::LBMAccessor Accessor>
+                class LinearGpuTwoLattice : public Algorithm
+                {
+                    public:
+
+                    /**
+                     * @brief   Performs one iteration of the linear two-lattice algorithm. 
+                     *          The instructions are enqueued in the specified queue.
+                     * 
+                     * @param[in]       properties          the structue containing the simulation properties
+                     * @param[in, out]  simulation_data     the simulation object on which the algorithm operates
+                     * @param[in, out]  queue               the SYCL queue 
+                     */
+                    inline void execute
+                    (
+                        const core::Properties &properties, 
+                        core::Simulation &simulation,
+                        sycl::queue &queue
+                    ) 
+                    override
+                    {
+                        future = hpx::async
+                        (
+                            [&]
+                            {
+                                gpu::two_lattice::linear::emplace_bounce_back<T>(properties, simulation, queue);
+                                gpu::two_lattice::linear::perform_inout_update(properties, simulation, queue);
+                                gpu::two_lattice::linear::stream_and_collide(properties, simulation, queue);
+                                simulation.data->distribution_values_1.swap(simulation.data->distribution_values_0);
+                            }
+                        );
+                    }
+                };
+
+                /**
                  * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
                  *          the macroscopic observables in the process.
                  * 
                  * @tparam  LBMAccessor any child class of `core::access::LBMAccessorObject`
                  * 
-                 * @param[in]       properties          the structure containing all relevant simulation properties
-                 * @param[in, out]  simulation_data     the data on which the algorithm operates
-                 * @param[in, out]  simulation_results  the macroscopic simulation results produced by the algorithm
+                 * @param[in, out]  simulation          the structure containing all relevant simulation data
                  * @param[in, out]  queue               the SYCL queue used for scheduling the corresponding kernel
                  */
-                template <class LBMAccessor> void stream_and_collide
+                inline void stream_and_collide
                 (
-                    const core::Properties &properties,
-                    const core::SimulationData<LBMAccessor> &simulation_data,
-                    const core::SimulationResults &simulation_results,
+                    const core::Simulation &simulation,
                     sycl::queue &queue  
                 )
                 {
-                    static_assert
-                    (
-                        std::is_base_of<core::access::LBMAccessorObject, LBMAccessor>::value, 
-                        "Template class must have base class core::access::LBMAccessorObject."
-                    );
-
                     {
-                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation_data.phase_information->begin(), simulation_data.phase_information->end());
-                        sycl::buffer<double, 1> src_sycl(simulation_data.distribution_values_0->data(), sycl::range<1>(simulation_data.distribution_values_0->size()));
-                        sycl::buffer<double, 1> dst_sycl(simulation_data.distribution_values_1->data(), sycl::range<1>(simulation_data.distribution_values_1->size()));
-                        sycl::buffer<double, 1> densities_sycl(simulation_results.densities->data(), sycl::range<1>(simulation_results.densities->size()));
-                        sycl::buffer<double, 1> x_velocities_sycl(simulation_results.x_velocities->data(), sycl::range<1>(simulation_results.x_velocities->size()));
-                        sycl::buffer<double, 1> y_velocities_sycl(simulation_results.y_velocities->data(), sycl::range<1>(simulation_results.y_velocities->size()));
+                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation.data->phase_information->begin(), simulation.data->phase_information->end());
+                        sycl::buffer<double, 1> src_sycl(simulation.data->distribution_values_0->data(), sycl::range<1>(simulation.data->distribution_values_0->size()));
+                        sycl::buffer<double, 1> dst_sycl(simulation.data->distribution_values_1->data(), sycl::range<1>(simulation.data->distribution_values_1->size()));
+                        sycl::buffer<double, 1> densities_sycl(simulation.results->densities->data(), sycl::range<1>(simulation.results->densities->size()));
+                        sycl::buffer<double, 1> x_velocities_sycl(simulation.results->x_velocities->data(), sycl::range<1>(simulation.results->x_velocities->size()));
+                        sycl::buffer<double, 1> y_velocities_sycl(simulation.results->y_velocities->data(), sycl::range<1>(simulation.results->y_velocities->size()));
 
                         queue.submit
                         (
@@ -109,7 +146,7 @@ namespace lbm
                                     densities_acc,
                                     x_velocities_acc,
                                     y_velocities_acc,
-                                    *simulation_data.lbm_accessor,
+                                    *simulation.data->lbm_accessor,
                                     properties
                                 );
                                 cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
@@ -127,10 +164,9 @@ namespace lbm
                  * @param[in, out]  simulation_data     the data on which the algorithm operates
                  * @param[in, out]  queue               the SYCL queue used for scheduling the corresponding kernel
                  */
-                template <class LBMAccessor> void emplace_bounce_back
+                void emplace_bounce_back
                 (
-                    const core::Properties &properties,
-                    const core::SimulationData<LBMAccessor> &simulation_data,
+                    const core::
                     sycl::queue &queue
                 )
                 {
@@ -140,8 +176,8 @@ namespace lbm
                         "Template class must have base class core::access::LBMAccessorObject."
                     );
 
-                    sycl::buffer<uint8_t, 1> phase_info_sycl(simulation_data.phase_information->begin(), simulation_data.phase_information->end());
-                    sycl::buffer<double, 1> src_sycl(simulation_data.distribution_values_0->data(), sycl::range<1>(simulation_data.distribution_values_0->size()));
+                    sycl::buffer<uint8_t, 1> phase_info_sycl(simulation.data->phase_information->begin(), simulation.data->phase_information->end());
+                    sycl::buffer<double, 1> src_sycl(simulation.data->distribution_values_0->data(), sycl::range<1>(simulation.data->distribution_values_0->size()));
 
                     queue.submit
                     (
@@ -154,7 +190,7 @@ namespace lbm
                             (
                                 phase_info_acc,
                                 src_acc,
-                                *simulation_data.lbm_accessor
+                                *simulation.data->lbm_accessor
                             );
 
                             cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
@@ -185,7 +221,7 @@ namespace lbm
                         "Template class must have base class core::access::LBMAccessorObject."
                     );
 
-                    sycl::buffer<double, 1> src_sycl(simulation_data.distribution_values_0->data(), sycl::range<1>(simulation_data.distribution_values_0->size()));
+                    sycl::buffer<double, 1> src_sycl(simulation.data->distribution_values_0->data(), sycl::range<1>(simulation.data->distribution_values_0->size()));
 
                     queue.submit
                     (
@@ -196,7 +232,7 @@ namespace lbm
                             auto kernel = boundaries::linear::InoutUpdateKernel<LBMAccessor>
                             (
                                 src_acc,
-                                *simulation_data.lbm_accessor,
+                                *simulation.data->lbm_accessor,
                                 properties
                             );
 
@@ -236,7 +272,7 @@ namespace lbm
                         perform_inout_update(properties, simulation_data, queue);
                         stream_and_collide(properties, simulation_data, simulation_results, queue);
 
-                        simulation_data.distribution_values_1.swap(simulation_data.distribution_values_0);
+                        simulation.data->distribution_values_1.swap(simulation.data->distribution_values_0);
                     }
                 }
 
@@ -268,9 +304,9 @@ namespace lbm
                             "Template class must have base class core::access::LBMAccessorObject."
                         );
 
-                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation_data.phase_information->begin(), simulation_data.phase_information->end());
-                        sycl::buffer<double, 1> src_sycl(simulation_data.distribution_values_0->data(), sycl::range<1>(simulation_data.distribution_values_0->size()));
-                        sycl::buffer<double, 1> dst_sycl(simulation_data.distribution_values_1->data(), sycl::range<1>(simulation_data.distribution_values_1->size()));
+                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation.data->phase_information->begin(), simulation.data->phase_information->end());
+                        sycl::buffer<double, 1> src_sycl(simulation.data->distribution_values_0->data(), sycl::range<1>(simulation.data->distribution_values_0->size()));
+                        sycl::buffer<double, 1> dst_sycl(simulation.data->distribution_values_1->data(), sycl::range<1>(simulation.data->distribution_values_1->size()));
 
                         queue.submit
                         (
@@ -285,7 +321,7 @@ namespace lbm
                                     phase_info_acc,
                                     src_acc,
                                     dst_acc,
-                                    *simulation_data.lbm_accessor,
+                                    *simulation.data->lbm_accessor,
                                     properties
                                 );
 
@@ -313,11 +349,11 @@ namespace lbm
                         sycl::queue &queue  
                     )
                     {
-                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation_data.phase_information->begin(), simulation_data.phase_information->end());
-                        sycl::buffer<double, 1> dst_sycl(simulation_data.distribution_values_1->data(), sycl::range<1>(simulation_data.distribution_values_1->size()));
-                        sycl::buffer<double, 1> densities_sycl(simulation_results.densities->data(), sycl::range<1>(simulation_results.densities->size()));
-                        sycl::buffer<double, 1> x_velocities_sycl(simulation_results.x_velocities->data(), sycl::range<1>(simulation_results.x_velocities->size()));
-                        sycl::buffer<double, 1> y_velocities_sycl(simulation_results.y_velocities->data(), sycl::range<1>(simulation_results.y_velocities->size()));
+                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation.data->phase_information->begin(), simulation.data->phase_information->end());
+                        sycl::buffer<double, 1> dst_sycl(simulation.data->distribution_values_1->data(), sycl::range<1>(simulation.data->distribution_values_1->size()));
+                        sycl::buffer<double, 1> densities_sycl(simulation.results->densities->data(), sycl::range<1>(simulation.results->densities->size()));
+                        sycl::buffer<double, 1> x_velocities_sycl(simulation.results->x_velocities->data(), sycl::range<1>(simulation.results->x_velocities->size()));
+                        sycl::buffer<double, 1> y_velocities_sycl(simulation.results->y_velocities->data(), sycl::range<1>(simulation.results->y_velocities->size()));
 
                         queue.submit
                         (
@@ -337,7 +373,7 @@ namespace lbm
                                     densities_acc,
                                     x_velocities_acc,
                                     y_velocities_acc,
-                                    *simulation_data.lbm_accessor,
+                                    *simulation.data->lbm_accessor,
                                     properties
                                 );
                                 cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
@@ -363,11 +399,11 @@ namespace lbm
                         sycl::queue &queue  
                     )
                     {
-                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation_data.phase_information->begin(), simulation_data.phase_information->end());
-                        sycl::buffer<double, 1> dst_sycl(simulation_data.distribution_values_1->data(), sycl::range<1>(simulation_data.distribution_values_1->size()));
-                        sycl::buffer<double, 1> densities_sycl(simulation_results.densities->data(), sycl::range<1>(simulation_results.densities->size()));
-                        sycl::buffer<double, 1> x_velocities_sycl(simulation_results.x_velocities->data(), sycl::range<1>(simulation_results.x_velocities->size()));
-                        sycl::buffer<double, 1> y_velocities_sycl(simulation_results.y_velocities->data(), sycl::range<1>(simulation_results.y_velocities->size()));
+                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation.data->phase_information->begin(), simulation.data->phase_information->end());
+                        sycl::buffer<double, 1> dst_sycl(simulation.data->distribution_values_1->data(), sycl::range<1>(simulation.data->distribution_values_1->size()));
+                        sycl::buffer<double, 1> densities_sycl(simulation.results->densities->data(), sycl::range<1>(simulation.results->densities->size()));
+                        sycl::buffer<double, 1> x_velocities_sycl(simulation.results->x_velocities->data(), sycl::range<1>(simulation.results->x_velocities->size()));
+                        sycl::buffer<double, 1> y_velocities_sycl(simulation.results->y_velocities->data(), sycl::range<1>(simulation.results->y_velocities->size()));
 
                         queue.submit
                         (
@@ -387,7 +423,7 @@ namespace lbm
                                     densities_acc,
                                     x_velocities_acc,
                                     y_velocities_acc,
-                                    *simulation_data.lbm_accessor,
+                                    *simulation.data->lbm_accessor,
                                     properties
                                 );
                                 cgh.parallel_for(sycl::range<1>(properties.vertical_nodes * properties.horizontal_nodes), kernel);
@@ -426,23 +462,23 @@ namespace lbm
 
                         std::cout << "\033[36mDestination lattice after streaming: \n"
                                 << "-------------------------------------------------------------------------------\n\033[0m";
-                        lbm::console::print_distribution_values(*simulation_data.distribution_values_1, *simulation_data.lbm_accessor);
+                        lbm::console::print_distribution_values(*simulation.data->distribution_values_1, *simulation.data->lbm_accessor);
                     
                         update_macroscopic_observables(properties, simulation_data, simulation_results, queue);
 
                         std::cout << "Velocities: \n"
                                 << "-------------------------------------------------------------------------------\n";
-                        lbm::console::print_velocities(properties, *simulation_results.x_velocities, *simulation_results.y_velocities, 0);
+                        lbm::console::print_velocities(properties, *simulation.results->x_velocities, *simulation.results->y_velocities, 0);
 
                         std::cout << "Densities: \n"
                                 << "-------------------------------------------------------------------------------\n";
-                        lbm::console::print_densities(properties, *simulation_results.densities, 0);
+                        lbm::console::print_densities(properties, *simulation.results->densities, 0);
 
                         collide(properties, simulation_data, simulation_results, queue);
 
                         std::cout << "\033[36mDestination lattice after collision: \n"
                                 << "-------------------------------------------------------------------------------\n\033[0m";
-                        lbm::console::print_distribution_values(*simulation_data.distribution_values_1, *simulation_data.lbm_accessor);
+                        lbm::console::print_distribution_values(*simulation.data->distribution_values_1, *simulation.data->lbm_accessor);
                     }
 
                     /**
@@ -474,10 +510,10 @@ namespace lbm
 
                         lbm::core::SimulationResults all_simulation_results({}, {}, {}, {}, {});
 
-                        all_simulation_results.densities->reserve(properties.time_steps * properties.domain_node_count);
-                        all_simulation_results.pressures->reserve(properties.time_steps * properties.domain_node_count);
-                        all_simulation_results.x_velocities->reserve(properties.time_steps * properties.domain_node_count);
-                        all_simulation_results.y_velocities->reserve(properties.time_steps * properties.domain_node_count);
+                        all_simulation.results->densities->reserve(properties.time_steps * properties.domain_node_count);
+                        all_simulation.results->pressures->reserve(properties.time_steps * properties.domain_node_count);
+                        all_simulation.results->x_velocities->reserve(properties.time_steps * properties.domain_node_count);
+                        all_simulation.results->y_velocities->reserve(properties.time_steps * properties.domain_node_count);
 
                         sycl::default_selector device_selector; 
                         sycl::queue queue(device_selector);
@@ -494,25 +530,25 @@ namespace lbm
 
                             std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
                                     << "-------------------------------------------------------------------------------\033[0m\n";
-                            lbm::console::print_distribution_values(*simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
+                            lbm::console::print_distribution_values(*simulation.data->distribution_values_0, *simulation.data->lbm_accessor);
 
                             linear::perform_inout_update(properties, simulation_data, queue);
 
                             std::cout << "\033[36mDestination lattice after updating inlets and outlets: \n"
                                     << "-------------------------------------------------------------------------------\033[0m\n";
-                            lbm::console::print_distribution_values(*simulation_data.distribution_values_0, *simulation_data.lbm_accessor);
+                            lbm::console::print_distribution_values(*simulation.data->distribution_values_0, *simulation.data->lbm_accessor);
 
                             stream_and_collide(properties, simulation_data, current_simulation_results, queue);
 
                             std::cout << "\033[36mFinished iteration " << step << "\033[0m \n\n\n";
 
                             // Swap source and destination lattice
-                            simulation_data.distribution_values_1.swap(simulation_data.distribution_values_0);
+                            simulation.data->distribution_values_1.swap(simulation.data->distribution_values_0);
 
-                            all_simulation_results.densities->insert(all_simulation_results.densities->end(), current_simulation_results.densities->begin(), current_simulation_results.densities->end());
-                            all_simulation_results.pressures->insert(all_simulation_results.pressures->end(), current_simulation_results.pressures->begin(), current_simulation_results.pressures->end());
-                            all_simulation_results.x_velocities->insert(all_simulation_results.x_velocities->end(), current_simulation_results.x_velocities->begin(), current_simulation_results.x_velocities->end());
-                            all_simulation_results.y_velocities->insert(all_simulation_results.y_velocities->end(), current_simulation_results.y_velocities->begin(), current_simulation_results.y_velocities->end());
+                            all_simulation.results->densities->insert(all_simulation.results->densities->end(), current_simulation.results->densities->begin(), current_simulation.results->densities->end());
+                            all_simulation.results->pressures->insert(all_simulation.results->pressures->end(), current_simulation.results->pressures->begin(), current_simulation.results->pressures->end());
+                            all_simulation.results->x_velocities->insert(all_simulation.results->x_velocities->end(), current_simulation.results->x_velocities->begin(), current_simulation.results->x_velocities->end());
+                            all_simulation.results->y_velocities->insert(all_simulation.results->y_velocities->end(), current_simulation.results->y_velocities->begin(), current_simulation.results->y_velocities->end());
                         }
 
                         std::cout << "\033[36mAll done, exiting simulation. \033[0m\n";

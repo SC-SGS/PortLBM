@@ -26,7 +26,8 @@
  *          as an experimental feature. This may change in future versions of Clang, and the include direction may change
  *          to `<source_location>`.
  */
-#include <experimental/source_location>
+//#include <experimental/source_location>
+#include <source_location>
 
 namespace lbm
 {
@@ -37,12 +38,12 @@ namespace lbm
     namespace exceptions
     {
         /**
-         * @brief This general exception class is essentially a `std::runtime_error` with a `std::experimental::source_location`. 
+         * @brief This general exception class is essentially a `std::runtime_error` with a `std::source_location`. 
          */
         class Exception : public std::runtime_error
         {
             std::string_view exception_name;
-            std::experimental::source_location source_location;
+            std::source_location source_location;
             
             public:
 
@@ -50,7 +51,7 @@ namespace lbm
                 (
                     const std::string &message, 
                     const std::string_view &exception_name = "Exception", 
-                    const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                    const std::source_location &source_location = std::source_location::current()
                 );
 
                 /**
@@ -89,7 +90,7 @@ namespace lbm
                     explicit PropertyArgumentException
                     (
                         const std::string &message,
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
 
@@ -103,7 +104,7 @@ namespace lbm
                     explicit MissingPropertyException
                     (
                         const std::string &message,
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
 
@@ -117,7 +118,7 @@ namespace lbm
                     explicit UnknownPropertyException
                     (
                         const std::string &message, 
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
         } // ! namespace json
@@ -144,7 +145,7 @@ namespace lbm
                     explicit OutOfBoundsException
                     (
                         const std::string &message, 
-                        const std::experimental::source_location &source_location= std::experimental::source_location::current()
+                        const std::source_location &source_location= std::source_location::current()
                     );
             };
         } // ! namespace observables
@@ -165,7 +166,7 @@ namespace lbm
                     explicit OutOfDomainException
                     (
                         const std::string &message, 
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
         } // ! namespace domain

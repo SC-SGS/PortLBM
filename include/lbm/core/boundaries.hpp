@@ -6,9 +6,9 @@
  * @brief       This header file contains the declarations and definitions of functionality related to the
  *              treatment of boundary conditions.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -17,9 +17,9 @@
 #ifndef BOUNDARIES_HPP
 #define BOUNDARIES_HPP
 
-#include "access.hpp"
 #include "macroscopic.hpp"
 #include "simulation.hpp"
+#include "access.hpp"
 #include "../console/console_output.hpp"
 
 namespace lbm
@@ -44,9 +44,9 @@ namespace lbm
             const unsigned int horizontal_nodes
         )
         {
-            std::tuple<unsigned int, unsigned int> coordinates = access::get_node_coordinates(node_index, horizontal_nodes);
-            unsigned int x = std::get<0>(coordinates);
-            unsigned int y = std::get<1>(coordinates);
+            std::array<unsigned int, 2> coordinates = access::get_node_coordinates(node_index, horizontal_nodes);
+            unsigned int x = coordinates[0];
+            unsigned int y = coordinates[1];
             return ((x == 1) || (x == (horizontal_nodes - 2))) && ((y == 1) || (y == (vertical_nodes - 2)));
         }
 
@@ -74,9 +74,9 @@ namespace lbm
             }
             else
             {
-                std::tuple<unsigned int, unsigned int> coordinates = access::get_node_coordinates(node_index, properties.horizontal_nodes);
-                unsigned int x = std::get<0>(coordinates);
-                unsigned int y = std::get<1>(coordinates);
+                std::array<unsigned int, 2> coordinates = access::get_node_coordinates(node_index, properties.horizontal_nodes);
+                unsigned int x = coordinates[0];
+                unsigned int y = coordinates[1];
                 return ((x == 0) || (x == (properties.horizontal_nodes - 1))) || ((y == 0) || (y == (properties.vertical_nodes - 1)));
             }
         }
@@ -95,9 +95,9 @@ namespace lbm
             }
             else
             {
-                std::tuple<unsigned int, unsigned int> coordinates = access::get_node_coordinates(node_index, horizontal_nodes);
-                unsigned int x = std::get<0>(coordinates);
-                unsigned int y = std::get<1>(coordinates);
+                std::array<unsigned int, 2> coordinates = access::get_node_coordinates(node_index, horizontal_nodes);
+                unsigned int x = coordinates[0];
+                unsigned int y = coordinates[1];
                 return ((x == 0) || (x == (horizontal_nodes - 1))) || ((y == 0) || (y == (vertical_nodes - 1)));
             }
         }
@@ -123,9 +123,9 @@ namespace lbm
             const uint8_t phase_information
         )
         {
-            std::tuple<unsigned int, unsigned int> coordinates = access::get_node_coordinates(node_index, properties.horizontal_nodes);
-            unsigned int x = std::get<0>(coordinates);
-            unsigned int y = std::get<1>(coordinates);
+                std::array<unsigned int, 2> coordinates = access::get_node_coordinates(node_index, properties.horizontal_nodes);
+                unsigned int x = coordinates[0];
+                unsigned int y = coordinates[1];
             return ((x != 0) && (x != (properties.horizontal_nodes - 1))) && ((y == 0) || (y == (properties.vertical_nodes - 1)) || phase_information);
         }
 
@@ -147,39 +147,27 @@ namespace lbm
              * @param[in, out]  distribution_values a vector containing the distribution values of all nodes
              * @param[in]       lbm_accessor        the accessor object according to which distribution values are accessed
              */
-            template <class T> void emplace_bounce_back_values
+            /*
+            template <access::experimental::LBMAccessor T> 
+            void emplace_bounce_back_values
             (
                 const lbm::border_swap_information &bsi,
-                std::vector<double> &distribution_values,
-                const T &lbm_accessor
+                std::vector<double> &distribution_values
             )
-            {
-                static_assert(
-                    std::is_base_of<access::LBMAccessorObject, T>::value, 
-                    "Template class must be child of lbm::core::access::LBMAccessorObject.");
-                
+            {                
                 for(auto bsi_iterator = bsi.begin(); bsi_iterator < bsi.end(); ++bsi_iterator)
                 {
                     for(auto direction_iterator = (*bsi_iterator).begin()+1; direction_iterator < (*bsi_iterator).end(); ++direction_iterator) 
                     {
                         distribution_values[
-                            lbm_accessor(
-                                access::get_neighbor((*bsi_iterator)[0], *direction_iterator, lbm_accessor.horizontal_nodes), 
+                            T(
+                                access::get_neighbor((*bsi_iterator)[0], *direction_iterator, horizontal_nodes), 
                                 invert_direction(*direction_iterator))] 
-                                    = distribution_values[lbm_accessor((*bsi_iterator)[0], *direction_iterator)];
+                                    = distribution_values[T((*bsi_iterator)[0], *direction_iterator)];
                     }
                 }
             }
-
-            /**
-             * @brief Retrieves the border swap information data structure.
-             *        This method does not consider inlet and outlet ghost nodes when performing bounce-back
-             *        as the inserted values will be overwritten by inflow and outflow values anyways.
-             * 
-             * @param fluid_nodes a vector containing the indices of all fluid nodes within the simulation domain
-             * @param phase_information a vector containing the phase information for every vector (true means solid)
-             * @return lbm::border_swap_information see documentation of lbm::border_swap_information
-             */
+            */
 
             /**
              * @brief Retrieves the border swap information data structure.
@@ -193,16 +181,14 @@ namespace lbm
              * 
              * @return an lbm::border_swap_information, i.e. a vector of vectors with the index of a fluid node and bounce-back directions
              */
-            template <class T> lbm::border_swap_information retrieve_border_swap_info
+            /*
+            template <access::experimental::LBMAccessor T> 
+            lbm::border_swap_information retrieve_border_swap_info
             (
                 const Properties &properties,
-                SimulationData<T> &simulation_data
+                Data &simulation_data
             )
             {
-                static_assert(
-                    std::is_base_of<access::LBMAccessorObject, T>::value, 
-                    "Template class must be child of lbm::core::access::LBMAccessorObject.");
-
                 std::vector<unsigned int> current_adjacencies;
                 lbm::border_swap_information result;
 
@@ -227,6 +213,7 @@ namespace lbm
                     lbm::console::print_vector(current, current.size());
                 return result;
             }
+            */
 
         } // ! namespace bounce_back
 
@@ -251,27 +238,22 @@ namespace lbm
              * @param[in]       lbm_accessor        the accessor object according to which distribution values are accessed       
              * @param[in, out]  distribution_values a vector containing the distribution values of all nodes
              */
-            template <class T>
+            template <access::experimental::LBMAccessor T>
             void update_velocity_input_density_output
             (
                 const Properties &properties,
-                const T &lbm_accessor,
                 std::vector<double> &distribution_values
             )
             {
-                static_assert(
-                    std::is_base_of<access::LBMAccessorObject, T>::value, 
-                    "Template class must be child of lbm::core::access::LBMAccessorObject.");
-
                 std::vector<double> current_dist_vals(9, 0);
                 unsigned int current_border_node = 0;
-                lbm::velocity v = {properties.inlet_velocity_x, properties.inlet_velocity_y};
+                std::array<double, 2> v = {properties.inlet_velocity_x, properties.inlet_velocity_y};
+
                 for(auto y = 2; y < properties.vertical_nodes - 2; ++y)
                 {
                     // Update inlets
                     current_border_node = access::get_node_index(1,y,properties.horizontal_nodes);
-                    current_dist_vals = maxwell_boltzmann_distribution(
-                        properties.inlet_velocity_x, properties.inlet_velocity_y, properties.inlet_density);
+                    current_dist_vals = maxwell_boltzmann_distribution(properties.inlet_velocity_x, properties.inlet_velocity_y, properties.inlet_density);
 
                     access::set_distribution_values_of
                     (
@@ -282,11 +264,14 @@ namespace lbm
                     );
 
                     // Update outlets
-                    current_border_node = access::get_node_index(properties.horizontal_nodes - 2,y,properties.horizontal_nodes);
+                    current_border_node = access::get_node_index(properties.horizontal_nodes - 2, y, properties.horizontal_nodes);
+
                     v = macroscopic::flow_velocity(
                         access::get_distribution_values_of(
                             distribution_values, access::get_neighbor(current_border_node, 3, properties.horizontal_nodes), lbm_accessor));
+
                     current_dist_vals = maxwell_boltzmann_distribution(v[0], v[1], properties.outlet_density);
+
                     access::set_distribution_values_of
                     (
                         current_dist_vals,
@@ -303,21 +288,15 @@ namespace lbm
              * 
              * @tparam T an lbm accessor object, that is, any object whose class inherits from `access::LBMAccessorObject`
              * 
-             * @param[in]       properties          the properties structure containing the inlet and outlet density and velocity 
-             * @param[in]       lbm_accessor        the accessor object according to which distribution values are accessed    
+             * @param[in]       properties          the properties structure containing the inlet and outlet density and velocity   
              * @param[in, out]  distribution_values a vector containing the distribution values of all nodes
              */
-            template <class T> void boundary_update
+            template <access::experimental::LBMAccessor> void boundary_update
             (
                 const Properties &properties,
-                const T &lbm_accessor,
                 std::vector<double> &distribution_values
             )
             {
-                static_assert(
-                std::is_base_of<access::LBMAccessorObject, T>::value, 
-                "Template class must be child of lbm::core::access::LBMAccessorObject.");
-
                 std::vector<double> f(9, 0);
                 unsigned int current_border_node = 0;
                 double x_velocity = 0.0;

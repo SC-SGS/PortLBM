@@ -23,6 +23,7 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+#include <concepts>
 
 namespace lbm
 {
@@ -170,6 +171,84 @@ namespace lbm
                         return 3 * (direction / 3) * buffered_node_count + (direction % 3) + 3 * node; 
                     }
             };
+
+            namespace experimental
+            {
+                /**
+                 * @brief Models the access of distribution values according to the collision data layout.
+                 */
+                struct CollisionAccessor
+                {
+                    static constexpr std::string_view layout_string = "collision";
+
+                    /**
+                     * @brief Retrieves the index of the distribution value within the according vector
+                     *        following the collision layout.
+                     * 
+                     * @param[in] node      index of the node 
+                     * @param[in] direction index of the direction
+                     * 
+                     * @return the index of the corresponding distribution value
+                     */
+                    static inline
+                    unsigned int operator()(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count)
+                    {
+                        return 9 * node + direction;  
+                    }
+                };
+
+                /**
+                 * @brief Models the access of distribution values according to the stream data layout.
+                 */
+                struct StreamAccessor
+                {
+                    constexpr static std::string_view layout_string = "stream";
+
+                    /**
+                     * @brief Retrieves the index of the distribution value within the according vector
+                     *        following the stream layout.
+                     * 
+                     * @param[in] node                          index of the node 
+                     * @param[in] direction                     index of the direction
+                     * @param[in] total_buffered_node_count     total amount of nodes in the lattice including buffers and ghosts
+                     * 
+                     * @return the index of the corresponding distribution value
+                     */
+                    static inline
+                    unsigned int operator()(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
+                    {
+                        return total_buffered_node_count * direction + node;
+                    }
+                };
+
+                /**
+                 * @brief Models the access of distribution values according to the bundle data layout.
+                 */
+                class BundleAccessor
+                {
+                    constexpr static std::string_view layout_string = "bundle";
+
+                    /**
+                     * @brief Retrieves the index of the distribution value within the according vector
+                     *        following the stream layout.
+                     * 
+                     * @param[in] node                          index of the node 
+                     * @param[in] direction                     index of the direction
+                     * @param[in] total_buffered_node_count     total amount of nodes in the lattice including buffers and ghosts
+                     * 
+                     * @return the index of the corresponding distribution value
+                     */
+                    static inline
+                    unsigned int operator()(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
+                    {
+                        return 3 * (direction / 3) * total_buffered_node_count + (direction % 3) + 3 * node; 
+                    }
+                };
+
+                template <class T>
+                concept LBMAccessor = std::same_as<T, CollisionAccessor> || std::same_as<T, StreamAccessor> || std::same_as<T, BundleAccessor>;
+
+            } // ! namespace experimental
             
             /**
             * @brief Retrieves the coordinates of the node with the specified node index.
@@ -179,13 +258,13 @@ namespace lbm
             * 
             * @return a tuple containing the x and y coordinate of the specified node.
             */
-            inline std::tuple<unsigned int, unsigned int> get_node_coordinates
+            inline std::array<unsigned int, 2> get_node_coordinates
             (
                 const unsigned int node_index,
                 const unsigned int horizontal_nodes
             )
             {
-                return std::make_tuple(node_index % horizontal_nodes, node_index / horizontal_nodes);
+                return std::array{node_index % horizontal_nodes, node_index / horizontal_nodes};
             }
 
             /**
@@ -235,27 +314,20 @@ namespace lbm
              * 
              * @param[in] source        the distribution values will be read from this vector
              * @param[in] node_index    this is the index of the node in the domain
-             * @param[in] lbm_accessor  the access pattern defined by this accessor object is used
              * 
              * @return a vector containing the distribution values
              */
-            template<class T> inline std::vector<double> get_distribution_values_of
+            template<experimental::LBMAccessor T> inline 
+            std::vector<double> get_distribution_values_of
             (
                 const std::vector<double> &source, 
-                const unsigned int node_index, 
-                const T &lbm_accessor
+                const unsigned int node_index
             )
             {
-                static_assert
-                (
-                    std::is_base_of<LBMAccessorObject, T>::value, 
-                    "Template class must have base class lbm::access::LBMAccessorObject."
-                );
-
                 std::vector<double> dist_vals(9,0);
                 for(auto direction = 0; direction < 9; ++direction)
                 {
-                    dist_vals[direction] = source[lbm_accessor(node_index, direction)];
+                    dist_vals[direction] = source[T(node_index, direction)];
                 }
                 return dist_vals;
             }
@@ -266,26 +338,19 @@ namespace lbm
              * 
              * @param[in] dist_vals     a vector containing the values to which the distribution values shall be set
              * @param[in] node_index    this is the index of the node in the domain
-             * @param[in] lbm_accessor  the access pattern defined by this accessor object is used
              * @param[in] destination   the distribution values will be written to this vector
              */
-            template<class T> inline void set_distribution_values_of
+            template<experimental::LBMAccessor T> inline
+            void set_distribution_values_of
             (
                 const std::vector<double> &dist_vals, 
                 const int node_index, 
-                const T &lbm_accessor,
                 std::vector<double> &destination
             )
             {
-                static_assert
-                (
-                    std::is_base_of<LBMAccessorObject, T>::value, 
-                    "Template class must be child of lbm::access::LBMAccessorObject."
-                );
-                
                 for(auto direction = 0; direction < 9; ++direction)
                 {
-                    destination[lbm_accessor(node_index, direction)] = dist_vals[direction];
+                    destination[T(node_index, direction)] = dist_vals[direction];
                 }
             }
 

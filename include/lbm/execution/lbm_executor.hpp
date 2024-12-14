@@ -17,7 +17,7 @@
  * 
  * @version 2.0
  * 
- * @date    2024-08-28
+ * @date    December 2024
  * 
  * @copyright Copyright (c) 2024 Marcel Graf
  */
@@ -37,7 +37,6 @@ namespace lbm
          * @brief This abstract class determines the minimum basic functionality for an executor such as it is 
          *        required for use with the GUI.
          */
-        template <typename ResultsType>
         class Executor
         {
             public:
@@ -60,14 +59,6 @@ namespace lbm
                  */
                 virtual void initialize() = 0;
 
-                explicit Executor() 
-                : 
-                properties(lbm::file_interaction::json_to_properties()),
-                simulation_results(std::make_unique<ResultsType>(properties->domain_node_count))
-                {};
-
-            std::unique_ptr<core::Properties> properties;
-            std::unique_ptr<ResultsType> simulation_results;
         };
 
     } // ! namespace execution

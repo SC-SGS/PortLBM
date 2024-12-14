@@ -22,7 +22,6 @@
 #include <list>
 #include <numeric>
 
-
 namespace lbm
 {
 
@@ -55,10 +54,10 @@ namespace lbm
              * 
              * @return a lbm::velocity representing the flow velocity
              */
-            inline velocity flow_velocity(const std::vector<double> &distribution_values)
+            inline std::array<double, 2> flow_velocity(const std::vector<double> &distribution_values)
             {
-                velocity flow_velocity{0,0};
-                velocity velocity_vector{0,0};
+                std::array<double, 2> flow_velocity{0,0};
+                std::array<double, 2> velocity_vector{0,0};
 
                 int velocity_x_component = 0; 
                 int velocity_y_component = 0; 
@@ -67,8 +66,8 @@ namespace lbm
                 {
                     velocity_x_component = i % 3 - 1; 
                     velocity_y_component = i / 3 - 1; 
-                    flow_velocity[0] += distribution_values[i] * velocity_x_component;
-                    flow_velocity[1] += distribution_values[i] * velocity_y_component;
+                    flow_velocity[0] += distribution_values.at(i) * velocity_x_component;
+                    flow_velocity[1] += distribution_values.at(i) * velocity_y_component;
                 }
                 return flow_velocity;
             }

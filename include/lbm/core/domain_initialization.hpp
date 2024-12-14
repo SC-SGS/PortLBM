@@ -34,23 +34,19 @@ namespace lbm
          * @param[in]       properties      a struct containing the densities and velocities of the inlets and outlets
          * @param[in, out]  simulation_data a structure of data on which the simulation operates
          */
-        template<class T> void setup_pipe_flow_environment
+        template<access::experimental::LBMAccessor T> void setup_pipe_flow_environment
         (
             const Properties &properties,
-            SimulationData<T> &simulation_data
+            Data &data
         )
         {
-            static_assert(
-                std::is_base_of<access::LBMAccessorObject, T>::value, 
-                "Template class must have base class access::LBMAccessorObject.");
-
             std::vector<double> values = maxwell_boltzmann_distribution(0, 0, 1);
-            for(auto i = 0; i < simulation_data.end_node_index_buffered; ++i)
+            for(auto i = 0; i < properties.end_node_index_buffered; ++i)
             {
-                access::set_distribution_values_of(values, i, *simulation_data.lbm_accessor, *simulation_data.distribution_values_0);
+                access::set_distribution_values_of<T>(values, i, *simulation_data.distribution_values_0);
             }    
 
-            boundary_conditions::update_velocity_input_density_output(properties, *simulation_data.lbm_accessor, *simulation_data.distribution_values_0);
+            boundary_conditions::update_velocity_input_density_output(properties, *simulation_data.distribution_values_0);
 
             /* Phase information vector */
             for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)

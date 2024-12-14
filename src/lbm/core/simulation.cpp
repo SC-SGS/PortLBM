@@ -3,21 +3,19 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       Implementation of the updated version of the lattice Boltzmann simulation.hpp first introduced 
- *              in my SimTech project work:
- *              https://github.com/MarcelGraf0710/Task-based-Lattice-Boltzmann.
- *              Initially, this file only contained operations to set up an example domain.
- *              Additional functionality was added to support the updated structure that suits the GPU implementation better. 
+ * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann simulations.
  * 
- * @version     2.1
+ * @version     3.0
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
  */
 
 #include "../../../include/lbm/core/simulation.hpp"
+#include "../../../include/lbm/file_interaction/file_interaction.hpp"
+#include "../../../include/lbm/exceptions/exceptions.hpp"
 
 lbm::core::Properties::Properties
 (
@@ -119,19 +117,15 @@ subdomain_count_vertical(subdomain_count_vertical),
 subdomain_count_horizontal(subdomain_count_horizontal)
 {};
 
-lbm::core::SimulationResults::SimulationResults
-(
-    const size_t &size
-)
+lbm::core::Results::Results(const size_t &size)
 :
 densities(std::make_unique<std::vector<double>>(size, -1.0f)),
-pressures(std::make_unique<std::vector<double>>(size, -1.0f)),
 x_velocities(std::make_unique<std::vector<double>>(size, 0.0f)),
 y_velocities(std::make_unique<std::vector<double>>(size, 0.0f)),
 absolute_velocities(std::make_unique<std::vector<double>>(size, 0.0f))
 {};
 
-lbm::core::SimulationResults::SimulationResults
+lbm::core::Results::Results
 (
     const std::vector<double> &densities,
     const std::vector<double> &pressures,
@@ -141,8 +135,42 @@ lbm::core::SimulationResults::SimulationResults
 )
 :
 densities(std::make_unique<std::vector<double>>(densities)),
-pressures(std::make_unique<std::vector<double>>(pressures)),
 x_velocities(std::make_unique<std::vector<double>>(x_velocities)),
 y_velocities(std::make_unique<std::vector<double>>(y_velocities)),
 absolute_velocities(std::make_unique<std::vector<double>>(absolute_velocities))
 {};
+
+lbm::core::Data::Data(const size_t &buffered_node_count)
+:
+phase_information(std::make_unique<std::vector<uint8_t>>(buffered_node_count, 0)),
+is_buffer(std::make_unique<std::vector<uint8_t>>(buffered_node_count, 0)),
+distribution_values_0(std::make_unique<std::vector<double>>(buffered_node_count * 9, 0.0f)),
+distribution_values_1(std::make_unique<std::vector<double>>(buffered_node_count * 9, 0.0f)),
+boundary_interactions(std::make_unique<std::vector<unsigned int>>(buffered_node_count * 9, 0))
+{};
+
+lbm::core::Simulation::Simulation()
+:
+properties(std::move(lbm::file_interaction::json_to_properties())),
+data(std::make_unique<Data>(properties->buffered_node_count)),
+results(std::make_unique<Results>(properties->domain_node_count))
+{
+    /*
+    if(properties->data_layout == "stream")
+    {
+        accessor = std::make_unique<access::LBMAccessorObject>(new access::LBMStreamAccessor(properties->horizontal_nodes, properties->buffered_node_count));
+    }
+    else if(properties->data_layout == "collision")
+    {
+        accessor = std::make_unique<access::LBMAccessorObject>(new access::LBMCollisionAccessor(properties->horizontal_nodes));
+    }
+    else if(properties->data_layout == "bundle")
+    {
+        accessor = std::make_unique<access::LBMAccessorObject>(new access::LBMBundleAccessor(properties->horizontal_nodes, properties->buffered_node_count));
+    }
+    else
+    {
+        throw lbm::exceptions::json::PropertyArgumentException("Unknown data layout: " + properties->data_layout);
+    }
+    */
+};

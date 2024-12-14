@@ -11,7 +11,7 @@ namespace lbm
     /**
      * @brief Representation of a velocity vector
      */
-    typedef std::array<double, 2> velocity; 
+    //typedef std::array<double, 2> velocity; 
 
     /**
      * @deprecated Legacy typedef. Will be removed in the future.
@@ -28,7 +28,7 @@ namespace lbm
      *        This is used for the halfway bounce-back boundary treatment where BORDER_NODE will copy the 
      *        respective distribution values BEFORE streaming.
      */
-    typedef std::vector<std::vector<unsigned int>> border_swap_information;
+    //typedef std::vector<std::vector<unsigned int>> border_swap_information;
 
     /**
      * @deprecated Legacy typedef. Will be removed in the future.
@@ -36,14 +36,14 @@ namespace lbm
      * @brief Convenience type definition that describes a tuple containing vectors of all flow velocities 
      *        and density values for a fixed time step.
      */
-    typedef std::tuple<std::vector<velocity>, std::vector<double>> sim_data_tuple;
+    //typedef std::tuple<std::vector<velocity>, std::vector<double>> sim_data_tuple;
 
     /**
      * @deprecated Legacy typedef. Will be removed in the future.
      * @brief This type stands for an access function. Node values can be stored in different layout and 
      *        via this function, the corresponding access scheme can be specified.
      */
-    typedef std::function<unsigned int(unsigned int, unsigned int)> access_function;
+    //typedef std::function<unsigned int(unsigned int, unsigned int)> access_function;
 }
 
 #endif

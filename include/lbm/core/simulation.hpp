@@ -3,12 +3,9 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       Updated version of the lattice Boltzmann simulation.hpp first introduced in my SimTech project work:
- *              https://github.com/MarcelGraf0710/Task-based-Lattice-Boltzmann.
- *              Initially, this file only contained operations to set up an example domain.
- *              Additional functionality was added to support the updated structure that suits the GPU implementation better. 
+ * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann simulations.
  * 
- * @version     2.1
+ * @version     3.0
  * 
  * @date        November 2024
  * 
@@ -79,13 +76,10 @@ namespace lbm
 
         /**
          * @brief This structure contains all important properties of the simulation.
-         *        It is a replacement of the Settings structure used in the project work.
-         *        It was replaced owing to the introduced support of a grid decomposition
-         *        and a structure-of-array representation of the simulation results.
          */
         struct Properties
         {
-            /* Algorithmic options */
+            // Algorithmic options
             std::string data_layout;
             std::string algorithm;
             bool debug_mode;
@@ -93,25 +87,25 @@ namespace lbm
             bool results_to_csv;
             unsigned int time_steps;
 
-            /* Extents of the simulation domain */
+            // Extents of the simulation domain
             unsigned int vertical_nodes;
             unsigned int horizontal_nodes;
             
-            // Total amount of nodes including ghost nodes but excluding buffer nodes
+            /** @brief Total amount of nodes including ghost nodes but excluding buffer nodes */
             unsigned int non_buffered_node_count;
 
-            // Total amount of nodes including ghost nodes and buffer nodes
+            /** @brief Total amount of nodes including ghost nodes and buffer nodes */
             unsigned int buffered_node_count;
 
-            // Total amount of node within the actual simulation domain, excluding ghost nodes
+            /** @brief Total amount of node within the actual simulation domain, excluding ghost nodes */
             unsigned int domain_node_count;
 
-            /* Inlets */
+            // Inlets
             double inlet_velocity_x;
             double inlet_velocity_y;
             double inlet_density;
 
-            /* Outlets */
+            // Outlets
             double outlet_velocity_x;
             double outlet_velocity_y;
             double outlet_density;
@@ -176,64 +170,54 @@ namespace lbm
 
         /**
          * @brief This structure contains the results of the simulation in a structure-of-arrays representation.
-         *        It is a replacement of the sim_data_tuple used in the project work. 
-         *        
-         *        Notice that this structure stores unique pointers to vectors and not the vectors themselves.
-         *        It is not recommended to resize the vectors as may require reallocation and may thus invalidate 
-         *        the pointer. This can lead to poor predictability. If you want to resize the vectors, set the 
-         *        pointers to new vectors of the desired size or construct a new SimulationResults object.
-         *        
-         *        Results are stored time-step-wise, that is, the values are stored according to the order of
-         *        the node index for one time step and then for another. Hence, to properly access the results,
-         *        the accessor must know the total amount of nodes including buffers.
          */
-        struct SimulationResults
+        struct Results
         {
             /**
-             * @brief A unique pointer to a vector containing the densities of all nodes in the simulation domain.
-             *        Solid nodes should always have the value '-1.0' for better distinction from the fluid nodes.
-             *        Notice that in the case of an incompressible fluid, the density values still vary since these
-             *        "virtual" densities are required by the simulation. Hence, in this case, these density values
-             *        are not meaningful. However, they are meaningful for compressible fluids.
+             * @brief   A unique pointer to a vector containing the densities of all nodes in the simulation domain.
+             *          Solid nodes should always have the value '-1.0' for better distinction from the fluid nodes.
+             *          Notice that in the case of an incompressible fluid, the density values still vary since these
+             *          "virtual" densities are required by the simulation. However, in this case, these density values
+             *          are not meaningful, and have to be scaled by a factor to retrieve pressure values. 
+             *          However, they are meaningful for compressible fluids.
              */
             std::unique_ptr<std::vector<double>> densities;
 
             /**
-             * @brief A unique pointer to a vector containing the pressure values of all nodes in the simulation domain.
-             *        Solid nodes should always have the value '-1.0' for better distinction from the fluid nodes.
-             *        Notice that unlike the density values, the pressure values are meaningful for both compressible
-             *        and incompressible fluids.
-             */
-            std::unique_ptr<std::vector<double>> pressures;
-
-            /**
-             * @brief A unique pointer to a vector containing the x components of the velocity vectors of all nodes 
-             *        in the simulation domain. Solid nodes should always have a zero component and are not differenciated
-             *        further regarding their velocities. All differenciation between solid and fluid nodes is realized
-             *        through the density values.
+             * @brief   A unique pointer to a vector containing the x components of the velocity vectors of all nodes 
+             *          in the simulation domain. Solid nodes should always have a zero component and are not differenciated
+             *          further regarding their velocities. All differenciation between solid and fluid nodes is realized
+             *          through the density values.
              */
             std::unique_ptr<std::vector<double>> x_velocities;
 
             /**
-             * @brief A unique pointer to a vector containing the y components of the velocity vectors of all nodes 
-             *        in the simulation domain. Solid nodes should always have a zero component and are not differenciated
-             *        further regarding their velocities. All differenciation between solid and fluid nodes is realized
-             *        through the density values.
+             * @brief   A unique pointer to a vector containing the y components of the velocity vectors of all nodes 
+             *          in the simulation domain. Solid nodes should always have a zero component and are not differenciated
+             *          further regarding their velocities. All differenciation between solid and fluid nodes is realized
+             *          through the density values.
              */
             std::unique_ptr<std::vector<double>> y_velocities;
 
+            /**
+             * @brief   A unique pointer to a vector containing the absolutes of the velocity vectors of each node.
+             *          It is required for visualization purposes only and remains unused otherwise.
+             */
             std::unique_ptr<std::vector<double>> absolute_velocities;
 
             /**
-             * @brief Constructs a new simulation results structure based on the provided properties structure.
-             *        The internal vectors are initialized with the correct size and filled up with values such as all nodes
-             *        were solid.
+             * @brief   Constructs a new simulation results object based on the provided properties structure.
+             *          The internal vectors are initialized with the correct size and filled up with values such as all nodes
+             *          were solid.
              * 
-             * @param properties this structure of properties defines the total buffered node count and the number of time steps.
+             * @param[in] size the size of each vector should be set to the amount of actual nodes (neither ghost nor buffer)
              */
-            explicit SimulationResults(const size_t &size);
+            explicit Results(const size_t &size);
 
-            explicit SimulationResults
+            /**
+             * @brief Constructs a new results object using the specified vectors.
+             */
+            explicit Results
             (
                 const std::vector<double> &densities,
                 const std::vector<double> &pressures,
@@ -245,10 +229,8 @@ namespace lbm
 
         /**
          * @brief This structure contains all data on which the simulation operates internally.
-         * 
-         * @tparam T an lbm accessor object, that is, any object whose class inherits from `lbm::core::access::LBMAccessorObject`
          */
-        template <class T> struct SimulationData
+        struct Data
         {
             std::unique_ptr<std::vector<uint8_t>> phase_information;
             std::unique_ptr<std::vector<uint8_t>> is_buffer;
@@ -256,68 +238,28 @@ namespace lbm
             std::unique_ptr<std::vector<double>> distribution_values_1;
             std::unique_ptr<std::vector<unsigned int>> boundary_interactions;
 
-            unsigned int end_node_index_non_buffered;
-            unsigned int end_node_index_buffered;
-
-            std::unique_ptr<T> lbm_accessor;
-
             /**
-             * @brief Constructs a new SimulationData object with an accessor object of the specified type.
+             * @brief Constructs a new Data object with an accessor object of the specified type.
              * 
-             * @param properties the extents of the lattice specified in this Properties structure are used for initialization
+             * @param[in] buffered_node_count the amount of nodes in the lattice including ghosts and buffers.
              */
-            explicit SimulationData<T>
-            (
-                const Properties &properties
-            )
-            :
-            phase_information(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            is_buffer(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            distribution_values_0(std::make_unique<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
-            distribution_values_1(std::make_unique<std::vector<double>>(properties.buffered_node_count * 9, 0.0f)),
-            boundary_interactions(std::make_unique<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),
-            end_node_index_non_buffered(properties.non_buffered_node_count),
-            end_node_index_buffered(properties.buffered_node_count),
-            lbm_accessor(std::make_unique<T>(properties.horizontal_nodes, properties.buffered_node_count))
-            {};
+            explicit Data(const size_t &buffered_node_count);
         };
 
         /**
-         * @brief Specialized version of the SimulationData structure for use with a collision accessor object.
-         *        The only difference is that the collision accessor object requires one less parameter for its constructor.
+         * @brief This structure contains all data that is related to the simulation.
          */
-        template<> struct SimulationData<access::LBMCollisionAccessor>
+        struct Simulation
         {
-            std::unique_ptr<std::vector<uint8_t>> phase_information;
-            std::unique_ptr<std::vector<uint8_t>> is_buffer;
-            std::unique_ptr<std::vector<double>> distribution_values_0;
-            std::unique_ptr<std::vector<double>> distribution_values_1;
-            std::unique_ptr<std::vector<unsigned int>> boundary_interactions;
-
-            unsigned int end_node_index_non_buffered;
-            unsigned int end_node_index_buffered;
-
-            std::unique_ptr<access::LBMCollisionAccessor> lbm_accessor;
+            std::unique_ptr<Properties> properties;
+            std::unique_ptr<Data> data;
+            std::unique_ptr<Results> results;
 
             /**
-             * @brief Constructs a new SimulationData object with an accessor object of the specified type.
-             * 
-             * @param properties the extents of the lattice specified in this Properties structure are used for initialization
+             * @brief Constructor for the Simulation struct.
+             * @throws `lbm::exceptions::json::PropertyArgumentException` if an unknown data layout is read from the JSON file
              */
-            explicit SimulationData<access::LBMCollisionAccessor>
-            (
-                const Properties &properties
-            )
-            :
-            phase_information(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            is_buffer(std::make_unique<std::vector<uint8_t>>(properties.buffered_node_count, 0)),
-            distribution_values_0(std::make_unique<std::vector<double>>(properties.buffered_node_count, 0.0f)),
-            distribution_values_1(std::make_unique<std::vector<double>>(properties.buffered_node_count, 0.0f)),
-            boundary_interactions(std::make_unique<std::vector<unsigned int>>(properties.buffered_node_count * 9, 0)),
-            end_node_index_non_buffered(properties.non_buffered_node_count),
-            end_node_index_buffered(properties.buffered_node_count),
-            lbm_accessor(std::make_unique<access::LBMCollisionAccessor>(properties.horizontal_nodes))
-            {};
+            explicit Simulation();
         };
 
     } // ! namespace core

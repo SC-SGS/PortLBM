@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declarations of various functions for console outputs.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -16,12 +16,15 @@
 #ifndef CONSOLE_OUTPUT_HPP
 #define CONSOLE_OUTPUT_HPP
 
+// LBM
 #include "../core/access.hpp"
 #include "../core/simulation.hpp"
 
+// Format
 #include <fmt/core.h>
 #include <fmt/color.h>
 
+// Standard library
 #include <vector>
 #include <string>
 #include <iostream>
@@ -197,7 +200,7 @@ namespace lbm
         void print_simulation_results
         (
             const core::Properties &properties,
-            const core::SimulationResults &simulation_results
+            const core::Results &simulation_results
         );
 
     /**
@@ -218,13 +221,9 @@ namespace lbm
      */
     template <class T> void debug_prints
     (
-        const core::SimulationData<T> &simulation_data
+        const core::Data &simulation_data
     )
     {
-        static_assert(
-            std::is_base_of<core::access::LBMAccessorObject, T>::value, 
-            "Template class must have base class core::access::LBMAccessorObject.");
-
         std::vector<unsigned int> nodes;
         for(auto i = 0; i < simulation_data.end_node_index_buffered; ++i)
         {

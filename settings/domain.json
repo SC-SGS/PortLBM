@@ -1,18 +1,18 @@
 {
     "algorithmic": {
-        "algorithm": "gpu-two-lattice",
+        "algorithm": "gpu-two-lattice-linear",
         "dataLayout": "stream",
         "debugMode": false,
-        "relaxationTime": 0.8,
+        "relaxationTime": 1.0,
         "resultsToCsv": false,
         "timeSteps": 10000
     },
     "domain": {
-        "horizontalNodes": 100,
-        "verticalNodes": 50
+        "horizontalNodes": 98,
+        "verticalNodes": 98
     },
     "inlets": {
-        "density": 1.05,
+        "density": 1.001,
         "velocity": {
             "x": 0.0,
             "y": 0.0

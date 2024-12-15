@@ -383,8 +383,8 @@ namespace lbm
                                 // Streaming
                                 for (const auto& direction : core::constants::all_directions)
                                 {
-                                    destination_accessor[A::at(id, direction)] =
-                                        source_accessor[A::at(lbm::core::access::get_neighbor(id, core::invert_direction(direction), horizontal_nodes), direction)];
+                                    destination_accessor[A::at(id, direction, horizontal_nodes * vertical_nodes)] =
+                                        source_accessor[A::at(lbm::core::access::get_neighbor(id, core::invert_direction(direction), horizontal_nodes), direction, horizontal_nodes * vertical_nodes)];
                                 }
 
                                 // Macroscopic observables
@@ -398,7 +398,7 @@ namespace lbm
 
                                 for (const auto& direction : core::constants::all_directions)
                                 {
-                                    value = destination_accessor[A::at(id, direction)];
+                                    value = destination_accessor[A::at(id, direction, horizontal_nodes * vertical_nodes)];
                                     density += value;
                                     velocity_x_component = direction % 3 - 1; 
                                     velocity_y_component = direction / 3 - 1; 
@@ -413,7 +413,7 @@ namespace lbm
                                 // Collision
                                 for (const auto& direction : core::constants::all_directions)
                                 {
-                                    value = destination_accessor[A::at(id, direction)];
+                                    value = destination_accessor[A::at(id, direction, horizontal_nodes * vertical_nodes)];
 
                                     velocity_x_component = (direction % 3) - 1; 
                                     velocity_y_component = (direction / 3) - 1; 
@@ -426,7 +426,7 @@ namespace lbm
                                         );
 
                                     result = -(1/relaxation_time) * (value - result) + value;
-                                    destination_accessor[A::at(id, direction)] = result;
+                                    destination_accessor[A::at(id, direction, horizontal_nodes * vertical_nodes)] = result;
                                 }
                             }
                         }
@@ -451,6 +451,7 @@ namespace lbm
                             sycl::accessor<uint8_t, 1, constants::read> phase_info_accessor;
                             sycl::accessor<double, 1, constants::read_write> distribution_values_accessor;
                             unsigned int horizontal_nodes;
+                            unsigned int total_nodes;
 
                             public:
 
@@ -458,12 +459,14 @@ namespace lbm
                             (
                                 const sycl::accessor<uint8_t, 1, constants::read> &phase_info_accessor,
                                 const sycl::accessor<double, 1, constants::read_write> &distribution_values_accessor,
-                                const unsigned int horizontal_nodes
+                                const unsigned int horizontal_nodes,
+                                const unsigned int total_nodes
                             )
                             : 
                             phase_info_accessor(phase_info_accessor), 
                             distribution_values_accessor(distribution_values_accessor),
-                            horizontal_nodes(horizontal_nodes)
+                            horizontal_nodes(horizontal_nodes),
+                            total_nodes(total_nodes)
                             {}
 
                             void operator()(const sycl::item<1> &item) const
@@ -474,8 +477,8 @@ namespace lbm
                                 {
                                     for(const auto& dir : core::constants::all_directions)
                                     {
-                                        distribution_values_accessor[A::at(id, dir)] =
-                                        distribution_values_accessor[A::at(core::access::get_neighbor(id, dir, horizontal_nodes), core::invert_direction(dir))];            
+                                        distribution_values_accessor[A::at(id, dir, total_nodes)] =
+                                        distribution_values_accessor[A::at(core::access::get_neighbor(id, dir, horizontal_nodes), core::invert_direction(dir), total_nodes)];            
                                     }
                                 }
                             }
@@ -538,22 +541,22 @@ namespace lbm
 
                                 unsigned int current_border_node = core::access::get_node_index(id_x, id_y, horizontal_nodes);
 
-                                f_1 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 7, horizontal_nodes), 1)];
-                                f_4 = distribution_values_accessor[A::at(current_border_node, 4)];
-                                f_7 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 1, horizontal_nodes), 7)];
+                                f_1 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 7, horizontal_nodes), 1, horizontal_nodes * vertical_nodes)];
+                                f_4 = distribution_values_accessor[A::at(current_border_node, 4, horizontal_nodes * vertical_nodes)];
+                                f_7 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 1, horizontal_nodes), 7, horizontal_nodes * vertical_nodes)];
 
                                 for(int i = 0; i < 3; ++i)
                                 {
-                                    f_inverse[i] = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, missing[i], horizontal_nodes), 8 - missing[i])];
+                                    f_inverse[i] = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, missing[i], horizontal_nodes), 8 - missing[i], horizontal_nodes * vertical_nodes)];
                                 }
 
                                 double x_velocity = 1 - (1 / density) * (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
 
-                                distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[0], horizontal_nodes), missing[0])]
+                                distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[0], horizontal_nodes), missing[0], horizontal_nodes * vertical_nodes)]
                                     = f_inverse[0] - 0.5 * (f_1 - f_7) + 1.0/6 * density * x_velocity;
-                                distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[1], horizontal_nodes), missing[1])]
+                                distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[1], horizontal_nodes), missing[1], horizontal_nodes * vertical_nodes)]
                                     = f_inverse[1] + (2.0/3) * density * x_velocity;
-                                distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[2], horizontal_nodes), missing[2])]
+                                distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[2], horizontal_nodes), missing[2], horizontal_nodes * vertical_nodes)]
                                     = f_inverse[2] + 0.5 * (f_1 - f_7) + 1.0/6 * density * x_velocity;
                             }
                         };
@@ -620,13 +623,13 @@ namespace lbm
                                     }
                                     std::cout << "\n";
 
-                                    f_1 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 7, properties.horizontal_nodes), 1)];
-                                    f_4 = distribution_values_accessor[A::at(current_border_node, 4)];
-                                    f_7 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 1, properties.horizontal_nodes), 7)];
+                                    f_1 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 7, properties.horizontal_nodes), 1, properties.buffered_node_count)];
+                                    f_4 = distribution_values_accessor[A::at(current_border_node, 4, properties.buffered_node_count)];
+                                    f_7 = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 1, properties.horizontal_nodes), 7, properties.buffered_node_count)];
 
                                     for(int i = 0; i < 3; ++i)
                                     {
-                                        f_inverse[i] = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, missing[i], properties.horizontal_nodes), 8 - missing[i])];
+                                        f_inverse[i] = distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, missing[i], properties.horizontal_nodes), 8 - missing[i], properties.buffered_node_count)];
                                         std::cout << "The corresponding neighbor of this node in direction " << 
                                                   missing[i] << " is believed to have index " << core::access::get_neighbor(current_border_node, missing[i], properties.horizontal_nodes) << "\n";
                                     }
@@ -649,11 +652,11 @@ namespace lbm
 
                                     std::cout << "Velocity: " << x_velocity << "\n";
 
-                                    distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[0], properties.horizontal_nodes), missing[0])]
+                                    distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[0], properties.horizontal_nodes), missing[0], properties.buffered_node_count)]
                                         = f_inverse[0] - 0.5 * (f_1 - f_7) + 1.0/6 * density * x_velocity;
-                                    distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[1], properties.horizontal_nodes), missing[1])]
+                                    distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[1], properties.horizontal_nodes), missing[1], properties.buffered_node_count)]
                                         = f_inverse[1] + (2.0/3) * density * x_velocity;
-                                    distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[2], properties.horizontal_nodes), missing[2])]
+                                    distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[2], properties.horizontal_nodes), missing[2], properties.buffered_node_count)]
                                         = f_inverse[2] + 0.5 * (f_1 - f_7) + 1.0/6 * density * x_velocity;
 
                                     std::cout << "Calculated distribution values: \n";
@@ -661,7 +664,7 @@ namespace lbm
                                     for(int i = 0; i < 3; ++i)
                                     {
                                         std::cout << "f[" << missing[i] << "] = " 
-                                                << distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[i], properties.horizontal_nodes), missing[i])] << "\n";
+                                                << distribution_values_accessor[A::at(core::access::get_neighbor(current_border_node, 8 - missing[i], properties.horizontal_nodes), missing[i], properties.buffered_node_count)] << "\n";
                                     }
                                     std::cout << "\n";
                                     std::cout << std::setprecision(3) << std::fixed;

@@ -108,7 +108,7 @@ namespace lbm
                                         densities_acc,
                                         x_velocities_acc,
                                         y_velocities_acc,
-                                        simulation->properties
+                                        *simulation->properties
                                     );
                                     cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes), kernel);
                                 }
@@ -131,7 +131,7 @@ namespace lbm
                                 sycl::accessor<uint8_t, 1, constants::read> phase_info_acc = phase_info_sycl.get_access<constants::read>(cgh);
                                 sycl::accessor<double, 1, constants::read_write> src_acc = src_sycl.get_access<constants::read_write>(cgh);
                                 
-                                auto kernel = kernels::boundaries::EmplaceBounceBackKernel<A>(phase_info_acc, src_acc);
+                                auto kernel = kernels::boundaries::EmplaceBounceBackKernel<A>(phase_info_acc, src_acc, simulation->properties->horizontal_nodes, simulation->properties->buffered_node_count);
                                 cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes), kernel);
                             }
                         );
@@ -191,7 +191,7 @@ namespace lbm
                         }
                     }
 
-                    explicit LinearGpuTwoLattice(const sycl::queue &queue) : Algorithm(queue) {}; 
+                    explicit LinearGpuTwoLattice(const sycl::queue &queue) : Algorithm(queue) {std::cout << "Constructor of LinearGpuTwoLattice called!" << std::endl;}; 
                 };
 
                 // /**

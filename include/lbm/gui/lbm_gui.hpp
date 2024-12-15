@@ -13,9 +13,9 @@
  *              needs of the individual implementation. Any interaction with the GUI is supposed to be carried out
  *              through Executors inheriting from the equally named class defined in executor.hpp.
  * 
- * @version     1.0
+ * @version     2.0
  * 
- * @date        2024-08-28
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -133,7 +133,7 @@ namespace lbm
             inline explicit Monitor()
             :
             primary_monitor(glfwGetPrimaryMonitor()),
-            video_mode(glfwGetVideoMode(primary_monitor)),
+            video_mode(nullptr),//video_mode(glfwGetVideoMode(primary_monitor)),
             monitor_x_scale(1.f),
             monitor_y_scale(1.f),
             display_width(0),
@@ -168,7 +168,7 @@ namespace lbm
             std::unique_ptr<std::vector<double>> y_values;
         };
 
-        class Gui
+        struct Gui
         {
             std::unique_ptr<Windows> windows;
             std::unique_ptr<SimulationControl> simulation_control;
@@ -179,23 +179,14 @@ namespace lbm
             std::unique_ptr<core::Properties> properties_buffered;
             std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
             std::unique_ptr<std::string> window_title;
-            std::unique_ptr<execution::Executor> executor;
+            std::unique_ptr<execution::SYCLExecutor> executor;
 
             bool properties_changed;
-
-            public: 
 
             explicit Gui(const std::string &&window_title);
 
             int run();
         };
-
-        // void initialize_executor
-        // (
-        //     const std::string &algorithm,
-        //     const std::string &data_layout,
-        //     std::unique_ptr<execution::Executor> &executor
-        // );
 
         /**
          * @brief This namespace contains helper functions for setting up the style of ImGui and ImPlot.
@@ -280,15 +271,14 @@ namespace lbm
                  * 
                  *        Pressing this button when a simulation is active and not paused has no effect.
                  * 
-                 * @param settings a constant reference to the settings object responsible for setting up all necessary simulation properties
-                 * @param gui_simulation_control a reference to an object responsible for tracking control data for the simulation
-                 * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
+                 * @param gui the GUI data
                  * @param executor a reference to the executor used to execute the simulation is set up with an according default value
                  */
                 inline void run_button
                 (
-                    SimulationControl &gui_simulation_control,
-                    std::unique_ptr<execution::Executor> &executor
+                    gui::Gui &gui,
+                    //SimulationControl &gui.simulation_control,
+                    std::unique_ptr<execution::SYCLExecutor> &executor
                 )
                 {
                     ImGui::PushID(0);
@@ -298,12 +288,12 @@ namespace lbm
 
                     if (ImGui::Button("run", ImVec2(1.0/3 * ImGui::GetWindowSize().x*0.5f, 0.0f)))
                     {
-                        if(!gui_simulation_control.is_simulation_active)
+                        if(!gui.simulation_control->is_simulation_active)
                         {
                             executor = std::make_unique<execution::SYCLExecutor>();
                         }
-                        gui_simulation_control.is_paused = false;
-                        gui_simulation_control.is_simulation_active = true;
+                        gui.simulation_control->is_paused = false;
+                        gui.simulation_control->is_simulation_active = true;
                     }
 
                     ImGui::PopStyleColor(3);
@@ -320,11 +310,11 @@ namespace lbm
                  * 
                  *        Pressing this button when a simulation is active and not already paused pauses it.
                  * 
-                 * @param gui_simulation_control a reference to an object responsible for tracking control data for the simulation
+                 * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation
                  */
                 inline void pause_button
                 (
-                    SimulationControl &gui_simulation_control
+                    gui::Gui &gui
                 )
                 {
                     ImGui::PushID(1);
@@ -333,7 +323,7 @@ namespace lbm
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.166f, 0.9f, 0.9f));
                     if(ImGui::Button("pause", ImVec2(1.0/3 * ImGui::GetWindowSize().x*0.5f, 0.0f)))                           
                     {
-                        gui_simulation_control.is_paused = true;
+                        gui.simulation_control->is_paused = true;
                     }
                     ImGui::PopStyleColor(3);
                     ImGui::PopID();
@@ -351,25 +341,26 @@ namespace lbm
                  *       
                  *        Pressing this button when a simulation is active aborts it and resets all progress but keeps the last result.
                  * 
-                 * @param gui_simulation_control a reference to an object responsible for tracking control data for the simulation
+                 * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation
                  * @param gui_progress reference to an object containing all data on the current progress of a simulation
                  */
                 inline void abort_button
                 (
-                    SimulationControl &gui_simulation_control,
-                    Progress &gui_progess
+                    //SimulationControl &gui.simulation_control,
+                    //Progress &gui.progress
+                    gui::Gui &gui
                 )
                 {
                     ImGui::PushID(2);
                     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.00f, 0.6f, 0.6f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.0f, 0.75f, 0.75f));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.0f, 0.9f, 0.9f));
-                    if (ImGui::Button("abort", ImVec2(1.0/3 * ImGui::GetWindowSize().x*0.5f, 0.0f)) && gui_simulation_control.is_simulation_active)                           
+                    if (ImGui::Button("abort", ImVec2(1.0/3 * ImGui::GetWindowSize().x*0.5f, 0.0f)) && gui.simulation_control->is_simulation_active)                           
                     {
-                        gui_simulation_control.is_paused = false;
-                        gui_simulation_control.is_simulation_active = false;
-                        gui_progess.current_iter = 0;
-                        gui_progess.progress = 0;
+                        gui.simulation_control->is_paused = false;
+                        gui.simulation_control->is_simulation_active = false;
+                        gui.progress->current_iter = 0;
+                        gui.progress->progress = 0;
                     }    
                     ImGui::PopStyleColor(3);
                     ImGui::PopID();
@@ -384,27 +375,27 @@ namespace lbm
              * 
              * @param window_config a struct containing all information on the GUI windows
              */
-            inline void menu_bar(Windows &window_config)
+            inline void menu_bar(gui::Gui &gui)
             {
                 if (ImGui::BeginMainMenuBar()) 
                 {
                     if (ImGui::BeginMenu("Windows"))
                     {
-                        if (ImGui::MenuItem("Properties", NULL, window_config.show_properties)) 
+                        if (ImGui::MenuItem("Properties", NULL, gui.windows->show_properties)) 
                         {
-                            window_config.show_properties = !window_config.show_properties;
+                            gui.windows->show_properties = !gui.windows->show_properties;
                         }
-                        if (ImGui::MenuItem("Simulation status", NULL, window_config.show_simulation_status)) 
+                        if (ImGui::MenuItem("Simulation status", NULL, gui.windows->show_simulation_status)) 
                         { 
-                            window_config.show_simulation_status = !window_config.show_simulation_status;
+                            gui.windows->show_simulation_status = !gui.windows->show_simulation_status;
                         }
-                        if (ImGui::MenuItem("Density", NULL, window_config.show_density)) 
+                        if (ImGui::MenuItem("Density", NULL, gui.windows->show_density)) 
                         { 
-                            window_config.show_density = !window_config.show_density;
+                            gui.windows->show_density = !gui.windows->show_density;
                         }
-                        if (ImGui::MenuItem("Velocity", NULL, window_config.show_velocity)) 
+                        if (ImGui::MenuItem("Velocity", NULL, gui.windows->show_velocity)) 
                         { 
-                            window_config.show_velocity = !window_config.show_velocity;
+                            gui.windows->show_velocity = !gui.windows->show_velocity;
                         }
                         ImGui::EndMenu();
                     }
@@ -426,14 +417,14 @@ namespace lbm
                     }
                     if (ImGui::BeginMenu("Load from file"))
                     {
-                        if (ImGui::MenuItem("Show window", NULL, window_config.show_read_from_file_window)) 
+                        if (ImGui::MenuItem("Show window", NULL, gui.windows->show_read_from_file_window)) 
                         {
-                            window_config.show_read_from_file_window = !window_config.show_read_from_file_window;
+                            gui.windows->show_read_from_file_window = !gui.windows->show_read_from_file_window;
                         }
                         ImGui::EndMenu();
                     }
                 }
-                window_config.menu_bar_size = ImGui::GetWindowHeight();
+                gui.windows->menu_bar_size = ImGui::GetWindowHeight();
                 ImGui::EndMainMenuBar();
             }
 
@@ -527,25 +518,26 @@ namespace lbm
              *        Up to 200 characters are allowed.
              * 
              * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
-             * @param gui_simulation_control a reference to an object responsible for tracking control data for the simulation 
+             * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation 
              * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
              */
             inline void save_results_selection
             (
                 bool &results_to_csv,
-                SimulationControl &gui_simulation_control
+                //SimulationControl &gui.simulation_control
+                gui::Gui &gui
             )
             {
-                if(ImGui::Checkbox("Save results", &gui_simulation_control.results_to_csv))
+                if(ImGui::Checkbox("Save results", &gui.simulation_control->results_to_csv))
                 {
-                    results_to_csv = gui_simulation_control.results_to_csv;
+                    results_to_csv = gui.simulation_control->results_to_csv;
                 }
 
                 ImGui::SameLine();
                 ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                 ImGui::SameLine();
 
-                ImGui::InputTextWithHint("File name", "enter_name.csv", gui_simulation_control.result_file_name, IM_ARRAYSIZE(gui_simulation_control.result_file_name));
+                ImGui::InputTextWithHint("File name", "enter_name.csv", gui.simulation_control->result_file_name, IM_ARRAYSIZE(gui.simulation_control->result_file_name));
             }
 
             /**
@@ -601,29 +593,30 @@ namespace lbm
             /**
              * @brief Provides information on the simulation status and displays the current progress using a progress bar.
              * 
-             * @param gui_simulation_control a reference to an object responsible for tracking control data for the simulation  
+             * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation  
              * @param gui_progress reference to an object containing all data on the current progress of a simulation
              */
             inline void show_simulation_status
             (
-                SimulationControl &gui_simulation_control,
-                Progress &gui_progress
+                //SimulationControl &gui.simulation_control,
+                //Progress &gui_progress
+                gui::Gui &gui
             )
             {
-                if(!gui_simulation_control.is_simulation_active)
+                if(!gui.simulation_control->is_simulation_active)
                 {
                     ImGui::Text("Ready to start simulation.");
                     ImGui::ProgressBar(0.0, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
                 }
-                else if(gui_simulation_control.is_paused)
+                else if(gui.simulation_control->is_paused)
                 {
                     ImGui::Text("Simulation is paused.");
-                    ImGui::ProgressBar(gui_progress.progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(gui.progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
                 }
                 else
                 {
                     ImGui::Text("Simulation is running.");
-                    ImGui::ProgressBar(gui_progress.progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(gui.progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
                 }
             }
 
@@ -718,50 +711,50 @@ namespace lbm
              *        The window can intentionally not be relocated.
              * 
              * @param settings a constant reference to the settings object responsible for setting up all necessary simulation properties
-             * @param gui_monitor a constant reference to an object storing data related to the primary monitor and the viewport
+             * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
              * @param windows a reference to an object storing data on which windows are shown
-             * @param gui_simulation_control a reference to an object responsible for tracking control data for the simulation  
+             * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation  
              * @param gui_algorithmic a reference to an object containing all data specifying the algorithm used for the simulation
              * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
              * @param gui_progress reference to an object containing all data on the current progress of a simulation
              * @param executor a reference to the executor used to execute the simulation
              */
-            template <typename ResultsType>
             inline void simulation_status_window
             (
-                const Monitor &gui_monitor,
-                Windows &windows, 
-                SimulationControl &gui_simulation_control,
-                Progress &gui_progess,
-                std::unique_ptr<execution::Executor> &executor
+                // const Monitor &gui.monitor,
+                // Windows &windows, 
+                // SimulationControl &gui.simulation_control,
+                // Progress &gui.progress,
+                gui::Gui &gui,
+                std::unique_ptr<execution::SYCLExecutor> &executor
             )
             {
-                if (windows.show_simulation_status)
+                if (gui.windows->show_simulation_status)
                 {
                     ImGui::SetNextWindowSize
                     (
                         { 
-                            1 * gui_monitor.viewport->WorkSize.x / 4, 
-                            gui_monitor.viewport->WorkSize.y / 5
+                            1 * gui.monitor->viewport->WorkSize.x / 4, 
+                            gui.monitor->viewport->WorkSize.y / 5
                         }
                     );
-                    ImGui::SetNextWindowPos({0, windows.menu_bar_size});
+                    ImGui::SetNextWindowPos({0, gui.windows->menu_bar_size});
 
-                    if(ImGui::Begin("Simulation", &windows.show_simulation_status, ImGuiWindowFlags_NoResize))
+                    if(ImGui::Begin("Simulation", &gui.windows->show_simulation_status, ImGuiWindowFlags_NoResize))
                     {
                         ImGui::SeparatorText("Control");
 
-                        items::buttons::run_button(gui_simulation_control, executor);
+                        items::buttons::run_button(gui, executor);
                         ImGui::SameLine();
-                        items::buttons::pause_button(gui_simulation_control);
+                        items::buttons::pause_button(gui);
                         ImGui::SameLine();
-                        items::buttons::abort_button(gui_simulation_control, gui_progess);
+                        items::buttons::abort_button(gui);
 
                         ImGui::SeparatorText("Status");
-                        items::show_simulation_status(gui_simulation_control, gui_progess);
+                        items::show_simulation_status(gui);
 
                         ImGui::SeparatorText("Framerate");
-                        ImGui::Text("%.1f FPS, %.3f ms/frame ", gui_progess.framerate, gui_progess.frametime);
+                        ImGui::Text("%.1f FPS, %.3f ms/frame ", gui.progress->framerate, gui.progress->frametime);
                     }                        
                     ImGui::End();
                 }
@@ -771,30 +764,31 @@ namespace lbm
             * @brief Creates a window allowing to set various properties of the algorithm and the domain used in a simulation.
             *        The window can intentionally not be relocated.
             * 
-            * @param gui_monitor a constant reference to an object storing data related to the primary monitor and the viewport
+            * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
             * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
             * @param windows a reference to an object storing data on which windows are shown
-            * @param gui_simulation_control a reference to an object responsible for tracking control data for the simulation  
+            * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation  
             * @param gui_algorithmic a reference to an object containing all data specifying the algorithm used for the simulation
             * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
             */
-            void properties_window
+            inline void properties_window
             (
-                const Monitor &gui_monitor,
-                std::unique_ptr<execution::Executor> &executor,
+                // const Monitor &gui.monitor,
+                std::unique_ptr<execution::SYCLExecutor> &executor,
                 std::unique_ptr<core::Properties> &properties_buffer,
                 bool &changed,
-                Windows &windows,
-                SimulationControl &gui_simulation_control
+                // Windows &windows,
+                // SimulationControl &gui.simulation_control
+                gui::Gui &gui
             )
             {
-                if (windows.show_properties)
+                if (gui.windows->show_properties)
                 {    
                     ImGui::SetNextWindowSize
                     (
                         {
-                            1 * gui_monitor.viewport->WorkSize.x / 4, 
-                            4 * gui_monitor.viewport->WorkSize.y / 5
+                            1 * gui.monitor->viewport->WorkSize.x / 4, 
+                            4 * gui.monitor->viewport->WorkSize.y / 5
                         }
                     );
 
@@ -802,20 +796,20 @@ namespace lbm
                     (
                         {
                             0, 
-                            windows.menu_bar_size + gui_monitor.viewport->WorkSize.y / 5
+                            gui.windows->menu_bar_size + gui.monitor->viewport->WorkSize.y / 5
                         }
                     );
 
-                    if(ImGui::Begin("Properties", &windows.show_properties, ImGuiWindowFlags_NoResize))
+                    if(ImGui::Begin("Properties", &gui.windows->show_properties, ImGuiWindowFlags_NoResize))
                     {
                         ImGui::PushItemWidth(ImGui::GetWindowWidth() / 2);
 
-                        ImGui::BeginDisabled(gui_simulation_control.is_simulation_active);
+                        ImGui::BeginDisabled(gui.simulation_control->is_simulation_active);
                         
                         items::algorithm_selection(*properties_buffer, changed);
                         items::data_layout_selection(*properties_buffer, changed);
-                        items::save_results_selection(properties_buffer->results_to_csv, gui_simulation_control);
-                        ImGui::Checkbox("Live visualization", &windows.enable_live_visualization);
+                        items::save_results_selection(properties_buffer->results_to_csv, gui);
+                        ImGui::Checkbox("Live visualization", &gui.windows->enable_live_visualization);
                         items::properties_simulation_and_domain(*properties_buffer, changed);
                         items::properties_fluid(*properties_buffer, changed);
             
@@ -826,7 +820,7 @@ namespace lbm
                             file_interaction::properties_to_json(*properties_buffer);
                             changed = false;
                             //initialize_executor(properties_buffer->algorithm, properties_buffer->data_layout, executor);
-                            executor = std::make_unique<execution::Executor>();
+                            executor = std::make_unique<execution::SYCLExecutor>();
                         }
 
                         ImGui::BeginDisabled(!changed);
@@ -838,7 +832,7 @@ namespace lbm
 
                         ImGui::EndDisabled();   
 
-                        if(gui_simulation_control.is_simulation_active)
+                        if(gui.simulation_control->is_simulation_active)
                         {
                             ImGui::Text("The properties of an active simulation cannot be changed.");
                         } 
@@ -852,7 +846,7 @@ namespace lbm
             * 
             * @param window_settings 
             */
-            void read_from_file_window(const Monitor &gui_monitor, Windows &window_settings);
+            void read_from_file_window(/*const Monitor &gui.monitor, Windows &window_settings*/ gui::Gui &gui);
 
             /**
             * @brief Creates the window visualizing the density of the fluid.
@@ -867,8 +861,8 @@ namespace lbm
             * @param density_data an array of doubles containing the density values of all nodes
             *                     (can be retrieved from a std::vector by calling .data() on it)
             * @param settings a constant reference to the settings object responsible for setting up all necessary simulation properties
-            * @param gui_monitor a constant reference to an object storing data related to the primary monitor and the viewport
-            * @param gui_simulation_control a constant reference to an object responsible for tracking control data for the simulation  
+            * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
+            * @param gui.simulation_control a constant reference to an object responsible for tracking control data for the simulation  
             * @param gui_algorithmic a constant reference to an object containing all data specifying the algorithm used for the simulation
             * @param gui_simulation_data a constant reference to an object containing all data on which the simulation operates
             * @param gui_progress a constant reference to an object containing all data on the current progress of a simulation
@@ -877,13 +871,15 @@ namespace lbm
             */
             void density_window
             (
-                const core::Properties &properties,
-                const Monitor &gui_monitor,
-                const SimulationControl &gui_simulation_control,
-                const core::Results &results,
-                const Progress &gui_progress,
-                Windows &windows, 
-                Colormaps &gui_colormaps
+                const execution::SYCLExecutor &sycl_executor,
+                // const core::Properties &properties,
+                // const Monitor &gui.monitor,
+                // const SimulationControl &gui.simulation_control,
+                // const core::Results &results,
+                // const Progress &gui_progress,
+                // Windows &windows, 
+                // Colormaps &gui_colormaps
+                gui::Gui &gui
             );
 
             /**
@@ -900,8 +896,8 @@ namespace lbm
             *        Closing this window yields medium to major performance improvements.
             * 
             * @param settings a constant reference to the settings object responsible for setting up all necessary simulation properties
-            * @param gui_monitor a constant reference to an object storing data related to the primary monitor and the viewport
-            * @param gui_simulation_control a constant reference to an object responsible for tracking control data for the simulation  
+            * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
+            * @param gui.simulation_control a constant reference to an object responsible for tracking control data for the simulation  
             * @param gui_algorithmic a constant reference to an object containing all data specifying the algorithm used for the simulation
             * @param gui_simulation_data a constant reference to an object containing all data on which the simulation operates
             * @param gui_progress a constant reference to an object containing all data on the current progress of a simulation
@@ -911,14 +907,16 @@ namespace lbm
             */
             void velocity_window
             (
-                const core::Properties &properties,
-                const Monitor &gui_monitor,
-                const SimulationControl &gui_simulation_control,
-                const core::Results &results,
-                const Progress &gui_progress,
-                Windows &windows, 
-                VelocityQuiverData &gui_velocity_quiver_data,
-                Colormaps &gui_colormaps
+                const execution::SYCLExecutor &sycl_executor,
+                // const core::Properties &properties,
+                // const Monitor &gui.monitor,
+                // const SimulationControl &gui.simulation_control,
+                // const core::Results &results,
+                // const Progress &gui_progress,
+                // Windows &windows, 
+                // VelocityQuiverData &gui_velocity_quiver_data,
+                // Colormaps &gui_colormaps
+                gui::Gui &gui
             );
         } // ! namespace windows
 
@@ -944,12 +942,12 @@ namespace lbm
             * @brief Renders the contents of the specified window.
             * 
             * @param window the window whose contents are drawn
-            * @param gui_monitor the primary monitor on which the window is shown
+            * @param gui.monitor the primary monitor on which the window is shown
             */
-            inline void render(GLFWwindow *window, Monitor &gui_monitor)
+            inline void render(GLFWwindow *window, gui::Gui &gui)
             {
                 ImGui::Render();
-                glViewport(0, 0, gui_monitor.display_width, gui_monitor.display_height);
+                glViewport(0, 0, gui.monitor->display_width, gui.monitor->display_height);
                 glClear(GL_COLOR_BUFFER_BIT);
                 ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
                 glfwSwapBuffers(window);

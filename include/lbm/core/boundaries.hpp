@@ -125,6 +125,7 @@ namespace lbm
                     (
                         current_dist_vals,
                         current_border_node,
+                        properties.buffered_node_count,
                         distribution_values
                     );
 
@@ -133,7 +134,7 @@ namespace lbm
 
                     v = macroscopic::flow_velocity(
                             access::get_distribution_values_of<A>(
-                                distribution_values, access::get_neighbor(current_border_node, 3, properties.horizontal_nodes)));
+                                distribution_values, access::get_neighbor(current_border_node, 3, properties.horizontal_nodes), properties.buffered_node_count));
 
                     current_dist_vals = maxwell_boltzmann_distribution(v[0], v[1], properties.outlet_density);
 
@@ -141,6 +142,7 @@ namespace lbm
                     (
                         current_dist_vals,
                         current_border_node,
+                        properties.buffered_node_count,
                         distribution_values
                     );
                 }

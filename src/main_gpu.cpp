@@ -23,8 +23,15 @@
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
-    lbm::gui::Gui gui("SYCL Lattice Boltzmann");
-    gui.run();
+    try
+    {
+        lbm::gui::Gui gui("SYCL Lattice Boltzmann");
+        gui.run();
+    }
+    catch(const lbm::exceptions::Exception &exception)
+    {
+        std::cerr << "Exception occured :(\n\n" << exception.to_string();
+    }
 
     /*
     std::unique_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();

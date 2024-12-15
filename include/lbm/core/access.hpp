@@ -225,7 +225,7 @@ namespace lbm
                 /**
                  * @brief Models the access of distribution values according to the bundle data layout.
                  */
-                class BundleAccessor
+                struct BundleAccessor
                 {
                     constexpr static std::string_view layout_string = "bundle";
 
@@ -322,13 +322,14 @@ namespace lbm
             std::vector<double> get_distribution_values_of
             (
                 const std::vector<double> &source, 
-                const unsigned int node_index
+                const unsigned int node_index,
+                const unsigned int total_node_count
             )
             {
                 std::vector<double> dist_vals(9,0);
                 for(auto direction = 0; direction < 9; ++direction)
                 {
-                    dist_vals[direction] = source[A::at(node_index, direction)];
+                    dist_vals[direction] = source[A::at(node_index, direction, total_node_count)];
                 }
                 return dist_vals;
             }
@@ -345,13 +346,14 @@ namespace lbm
             void set_distribution_values_of
             (
                 const std::vector<double> &dist_vals, 
-                const int node_index, 
+                const unsigned int node_index, 
+                const unsigned int total_node_count,
                 std::vector<double> &destination
             )
             {
                 for(auto direction = 0; direction < 9; ++direction)
                 {
-                    destination[A::at(node_index, direction)] = dist_vals[direction];
+                    destination[A::at(node_index, direction, total_node_count)] = dist_vals[direction];
                 }
             }
 

@@ -41,7 +41,7 @@ namespace lbm
             std::vector<double> values = maxwell_boltzmann_distribution(0, 0, 1);
             for(auto i = 0; i < simulation.properties->buffered_node_count; ++i)
             {
-                access::set_distribution_values_of<A>(values, i, *simulation.data->distribution_values_0);
+                access::set_distribution_values_of<A>(values, i, simulation.properties->buffered_node_count, *simulation.data->distribution_values_0);
             }    
 
             boundary_conditions::update_velocity_input_density_output<A>(*simulation.properties, *simulation.data->distribution_values_0);

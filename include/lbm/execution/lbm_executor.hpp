@@ -36,25 +36,29 @@ namespace lbm
          */
         class Executor
         {
+            // protected:
+
+            // explicit Executor();
+
             public:
 
-                /**
-                 * @brief Executes one iteration of the lattice Boltzmann algorithm and stores the value
-                 *        in the specified object.
-                 * 
-                 */
-                virtual void execute() = 0;
+            /**
+             * @brief Executes one iteration of the lattice Boltzmann algorithm and stores the value
+             *        in the specified object.
+             * 
+             */
+            virtual void execute() = 0;
 
-                /**
-                 * @brief Returns whether or not the computational result of an iteration is available at the time of access.
-                 * 
-                 */
-                virtual bool is_ready() const = 0;
+            /**
+             * @brief Returns whether or not the computational result of an iteration is available at the time of access.
+             * 
+             */
+            virtual bool is_ready() const = 0;
 
-                // /**
-                //  * @brief Initializes an object representing the simulation data with the specified data.
-                //  */
-                // virtual void initialize() = 0;
+            // /**
+            //  * @brief Initializes an object representing the simulation data with the specified data.
+            //  */
+            // virtual void initialize() = 0;
 
         };
 

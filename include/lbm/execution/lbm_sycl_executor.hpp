@@ -55,49 +55,7 @@ namespace lbm
              * @brief Construct a new SYCL executor and initializes it such that it stores
              *        the current simulation data present by default.
              */
-            explicit SYCLExecutor()
-            : 
-            device_selector(std::make_unique<sycl::default_selector>()), 
-            queue(std::make_unique<sycl::queue>(*device_selector))
-            {
-                
-                *(algorithm->simulation->data->distribution_values_1) = *(algorithm->simulation->data->distribution_values_0); 
-
-                if(algorithm->simulation->properties->algorithm == "gpu-two-lattice-linear")
-                {
-                    if(algorithm->simulation->properties->data_layout == "stream")
-                    {
-                        algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::StreamAccessor>>(*queue);
-                        lbm::core::setup_pipe_flow_environment<core::access::experimental::StreamAccessor>(*algorithm->simulation);
-                    }
-                    else if(algorithm->simulation->properties->data_layout == "collision")
-                    {
-                        algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::CollisionAccessor>>(*queue);
-                        lbm::core::setup_pipe_flow_environment<core::access::experimental::CollisionAccessor>(*algorithm->simulation);
-                    }
-                    else if(algorithm->simulation->properties->data_layout == "bundle")
-                    {
-                        algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::BundleAccessor>>(*queue);
-                        lbm::core::setup_pipe_flow_environment<core::access::experimental::BundleAccessor>(*algorithm->simulation);
-                    }
-                    else
-                    {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", algorithm->simulation->properties->data_layout));
-                    }
-                }
-                else if(algorithm->simulation->properties->algorithm == "gpu-two-lattice")
-                {
-                    throw exceptions::Exception("This algorithm is not implemented yet.");
-                }
-                else if(algorithm->simulation->properties->algorithm == "gpu-swap")
-                {
-                    throw exceptions::Exception("This algorithm is not implemented yet.");
-                }
-                else
-                {
-                    throw exceptions::Exception(fmt::format("Unknown algorithm: ", algorithm->simulation->properties->data_layout));
-                }
-            };
+            explicit SYCLExecutor();
 
             /**
              * @brief Launches an HPX task to start a new iteration of the simulation.

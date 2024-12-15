@@ -32,22 +32,9 @@ namespace lbm
          */
         class Algorithm
         {
-            protected:
-            
-            /**
-             * @brief This future is used to launch the algorithm and to check whether it is currently within an iteration or not.
-             */
-            hpx::future<void> future;
-            std::shared_ptr<sycl::queue> queue;
-
             public:
 
             std::unique_ptr<core::Simulation> simulation;
-
-            /**
-             * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
-             */
-            inline explicit Algorithm(const sycl::queue &queue) : future(hpx::async([&]{})), simulation(), queue(std::make_shared<sycl::queue>(queue)) {};
   
             /**
              * @brief   Returns whether the algorithm is currently within an iteration (`true`) or not (`false`).
@@ -60,6 +47,19 @@ namespace lbm
              * @param[in, out]  queue   the SYCL queue 
              */
             virtual void execute() = 0; 
+
+            protected:
+            
+            /**
+             * @brief This future is used to launch the algorithm and to check whether it is currently within an iteration or not.
+             */
+            hpx::future<void> future;
+            std::shared_ptr<sycl::queue> queue;
+
+            /**
+             * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
+             */
+            explicit Algorithm(const sycl::queue &queue);
         };
     }
 }

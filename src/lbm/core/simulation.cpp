@@ -155,6 +155,7 @@ properties(std::move(lbm::file_interaction::json_to_properties())),
 data(std::make_unique<Data>(properties->buffered_node_count)),
 results(std::make_unique<Results>(properties->domain_node_count))
 {
+    std::cout << "Constructor of simulation called! " << std::endl;
     /*
     if(properties->data_layout == "stream")
     {

@@ -31,35 +31,27 @@ namespace lbm
     namespace execution
     {
         /**
-         * @brief This abstract class determines the minimum basic functionality for an executor such as it is 
-         *        required for use with the GUI.
+         * @brief This abstract class determines the minimum basic functionality for an executor.
          */
         class Executor
         {
-            // protected:
-
-            // explicit Executor();
 
             public:
 
             /**
-             * @brief Executes one iteration of the lattice Boltzmann algorithm and stores the value
-             *        in the specified object.
-             * 
+             * @brief   Executes one iteration of the lattice Boltzmann algorithm.
              */
             virtual void execute() = 0;
 
             /**
+             * @brief   Executes the specified amount of iterations of the lattice Boltzmann algorithm.
+             */
+            virtual void execute(unsigned int time_steps) = 0;
+
+            /**
              * @brief Returns whether or not the computational result of an iteration is available at the time of access.
-             * 
              */
             virtual bool is_ready() const = 0;
-
-            // /**
-            //  * @brief Initializes an object representing the simulation data with the specified data.
-            //  */
-            // virtual void initialize() = 0;
-
         };
 
     } // ! namespace execution

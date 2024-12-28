@@ -154,24 +154,4 @@ lbm::core::Simulation::Simulation()
 properties(std::move(lbm::file_interaction::json_to_properties())),
 data(std::make_unique<Data>(properties->buffered_node_count)),
 results(std::make_unique<Results>(properties->domain_node_count))
-{
-    std::cout << "Constructor of simulation called! " << std::endl;
-    /*
-    if(properties->data_layout == "stream")
-    {
-        accessor = std::make_unique<access::LBMAccessorObject>(new access::LBMStreamAccessor(properties->horizontal_nodes, properties->buffered_node_count));
-    }
-    else if(properties->data_layout == "collision")
-    {
-        accessor = std::make_unique<access::LBMAccessorObject>(new access::LBMCollisionAccessor(properties->horizontal_nodes));
-    }
-    else if(properties->data_layout == "bundle")
-    {
-        accessor = std::make_unique<access::LBMAccessorObject>(new access::LBMBundleAccessor(properties->horizontal_nodes, properties->buffered_node_count));
-    }
-    else
-    {
-        throw lbm::exceptions::json::PropertyArgumentException("Unknown data layout: " + properties->data_layout);
-    }
-    */
-};
+{};

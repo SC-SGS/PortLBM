@@ -1,17 +1,16 @@
 /**
- * @file    sycl_executor.hpp
+ * @file        sycl_executor.hpp
  * 
- * @author  Marcel Graf
+ * @author      Marcel Graf
  * 
- * @brief   This header file contains the declaration of a class for an HPX executor.
- *          Through this executor, it is possible for the GUI to launch simulation iterations
- *          and to retrieve results.
+ * @brief       This header file contains the declaration of a class for a SYCL executor.
+ *              Through this executor, it is possible to launch simulation iterations.
  * 
- * @version 2.1
+ * @version     2.1
  * 
- * @date    December 2024
+ * @date        December 2024
  * 
- * @copyright Copyright (c) 2024 Marcel Graf
+ * @copyright   Copyright (c) 2024 Marcel Graf
  */
 
 #ifndef SYCL_EXECUTOR_HPP
@@ -58,37 +57,20 @@ namespace lbm
             explicit SYCLExecutor();
 
             /**
-             * @brief Launches an HPX task to start a new iteration of the simulation.
-             *        The computations are managed by the SYCL runtime.
-             * 
+             * @brief   Starts a new iteration of the simulation. The computations are managed by the SYCL runtime.
              */
-            inline void execute() override
-            {
-                algorithm->execute();
-            }
+            inline void execute() override { algorithm->execute(); }
 
             /**
-             * @brief Returns whether or not the future of this executor is ready.
-             * 
+             * @brief   Starts a new simulation running for the specified amount of time steps. 
+             *          The computations are managed by the SYCL runtime.
              */
-            inline bool is_ready() const override
-            {
-                return algorithm->is_ready();
-            }
+            inline void execute(unsigned int time_steps) override { algorithm->execute(time_steps); }
 
-            // /**
-            //  * @brief Initializes the future of this executor using the specified data.
-            //  * 
-            //  * @param data a reference to the simulation data tuple that will be the content of the future
-            //  */
-            // inline void initialize() override
-            // {
-            //     properties = lbm::file_interaction::json_to_properties();
-            //     simulation_data = std::make_unique<lbm::core::SimulationData<LBMAccessor>>(*properties);
-            //     lbm::core::setup_pipe_flow_environment(*properties, *simulation_data);
-            //     *(simulation_data->distribution_values_1) = *(simulation_data->distribution_values_0); 
-            //     simulation_results = std::make_unique<core::SimulationResults>(*properties);
-            // }
+            /**
+             * @brief   Returns whether or not the future of this executor is ready.
+             */
+            inline bool is_ready() const override { return algorithm->is_ready(); }
         };
 
     } // ! namespace execution

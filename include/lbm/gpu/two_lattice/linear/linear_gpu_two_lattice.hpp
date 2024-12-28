@@ -28,12 +28,8 @@
 // LBM core features
 #include "../../../core/access.hpp"
 #include "../../../core/boundaries.hpp"
-#include "../../../core/collision.hpp"
 #include "../../../core/domain_initialization.hpp"
 #include "../../../core/simulation.hpp"
-
-// Linear GPU boundary handling
-//#include "../../boundaries/linear/linear_gpu_boundaries.hpp"
 
 // Algorithm
 #include "../../../execution/algorithm.hpp"
@@ -121,7 +117,9 @@ namespace lbm
                      */
                     void emplace_bounce_back()
                     {
-                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation->data->phase_information->begin(), simulation->data->phase_information->end());
+                        if(simulation == nullptr || simulation->data == nullptr) std::cout << "Bruh \n";
+                        lbm::console::debug_prints<lbm::core::access::experimental::StreamAccessor>(*simulation->data, *simulation->properties);
+                        sycl::buffer<uint8_t, 1> phase_info_sycl(simulation->data->phase_information->data(), simulation->data->phase_information->size());
                         sycl::buffer<double, 1> src_sycl(simulation->data->distribution_values_0->data(), sycl::range<1>(simulation->data->distribution_values_0->size()));
 
                         queue->submit
@@ -131,7 +129,8 @@ namespace lbm
                                 sycl::accessor<uint8_t, 1, constants::read> phase_info_acc = phase_info_sycl.get_access<constants::read>(cgh);
                                 sycl::accessor<double, 1, constants::read_write> src_acc = src_sycl.get_access<constants::read_write>(cgh);
                                 
-                                auto kernel = kernels::boundaries::EmplaceBounceBackKernel<A>(phase_info_acc, src_acc, simulation->properties->horizontal_nodes, simulation->properties->buffered_node_count);
+                                auto kernel = kernels::boundaries::EmplaceBounceBackKernel<A>(
+                                    phase_info_acc, src_acc, simulation->properties->horizontal_nodes, simulation->properties->buffered_node_count);
                                 cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes), kernel);
                             }
                         );
@@ -150,7 +149,7 @@ namespace lbm
                             {
                                 sycl::accessor<double, 1, constants::read_write> src_acc = src_sycl.get_access<constants::read_write>(cgh);
                                 auto kernel = kernels::boundaries::InoutUpdateKernel<A>(src_acc, *simulation->properties);
-                                cgh.parallel_for(sycl::range<2>(simulation->properties->vertical_nodes - 4, 2), kernel);
+                                cgh.parallel_for(sycl::range<2>(simulation->properties->vertical_nodes - 4, 2), kernel); // set to simulation->properties->vertical_nodes - 2 to also treat corners
                             }
                         );
                     }
@@ -173,25 +172,54 @@ namespace lbm
                                 simulation->data->distribution_values_1.swap(simulation->data->distribution_values_0);
                             }
                         );
-                    }
-
-                    /**
-                     * @brief   Runs the two-lattice algorithm with the specified properties.
-                     *          It operates on the provided data.
-                     */
-                    void run()
-                    {
-                        for(auto step = 0; step < simulation->properties->time_steps; ++step)
+                        while(!future.is_ready())
                         {
-                            emplace_bounce_back();
-                            perform_inout_update();
-                            stream_and_collide();
-
-                            simulation->data->distribution_values_1.swap(simulation->data->distribution_values_0);
+                            // This is necessary.
+                            // If you leave this out, GC will kill simulation because it notices that after this execution,
+                            // it will never be used again.
+                            // HENCE, you have to explicitly wait for the future to become ready.
+                            // Otherwise, the result of future is just discarded, and simulation is deleted. Wow.
                         }
                     }
 
-                    explicit LinearGpuTwoLattice(const sycl::queue &queue) : Algorithm(queue) {std::cout << "Constructor of LinearGpuTwoLattice called!" << std::endl;}; 
+                    /**
+                     * @brief   Performs one iteration of the linear two-lattice algorithm. 
+                     *          The instructions are enqueued in the specified queue.
+                     */
+                    inline void execute(unsigned int time_steps) override
+                    {
+                        future = hpx::async
+                        (
+                            [&]
+                            {
+                                for(unsigned int time_step = 0; time_step < time_steps; ++time_step)
+                                {
+                                    emplace_bounce_back();
+                                    perform_inout_update();
+                                    stream_and_collide();
+                                    simulation->data->distribution_values_1.swap(simulation->data->distribution_values_0);
+                                }
+                            }
+                        );
+                    }
+
+                    // /**
+                    //  * @brief   Runs the two-lattice algorithm with the specified properties.
+                    //  *          It operates on the provided data.
+                    //  */
+                    // void run()
+                    // {
+                    //     for(auto step = 0; step < simulation->properties->time_steps; ++step)
+                    //     {
+                    //         emplace_bounce_back();
+                    //         perform_inout_update();
+                    //         stream_and_collide();
+
+                    //         simulation->data->distribution_values_1.swap(simulation->data->distribution_values_0);
+                    //     }
+                    // }
+
+                    explicit LinearGpuTwoLattice(const sycl::queue &queue) : Algorithm(queue) {}; 
                 };
 
                 // /**

@@ -3,16 +3,16 @@
         "algorithm": "gpu-two-lattice-linear",
         "dataLayout": "stream",
         "debugMode": false,
-        "relaxationTime": 1.0,
+        "relaxationTime": 1.4,
         "resultsToCsv": false,
-        "timeSteps": 10000
+        "timeSteps": 100
     },
     "domain": {
-        "horizontalNodes": 98,
-        "verticalNodes": 98
+        "horizontalNodes": 5,
+        "verticalNodes": 10
     },
     "inlets": {
-        "density": 1.001,
+        "density": 1.01,
         "velocity": {
             "x": 0.0,
             "y": 0.0

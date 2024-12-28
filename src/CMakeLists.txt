@@ -3,14 +3,12 @@ set(source_files "${CMAKE_CURRENT_SOURCE_DIR}/lbm/console/console_output.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/core/simulation.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/exceptions/exceptions.cpp"  
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/file_interaction/file_interaction.cpp"  
+  "${CMAKE_CURRENT_SOURCE_DIR}/lbm/execution/lbm_sycl_executor.cpp"
 )
 
 if(WITH_VISUALIZATION)
 
 set(source_files ${source_files}
-  "${CMAKE_CURRENT_SOURCE_DIR}/lbm/execution/lbm_sycl_executor.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/lbm/execution/algorithm.cpp"
-
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/gui/lbm_gui.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/gui/simple_timer.cpp"
 

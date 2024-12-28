@@ -16,13 +16,21 @@
 #include "../include/lbm/core/simulation.hpp"
 #include "../include/lbm/gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 #include "../include/lbm/execution/lbm_sycl_executor.hpp"
+#include "../execution/lbm_sycl_executor.hpp"
+
+#ifdef WITH_VISUALIZATION
 #include "../include/lbm/gui/lbm_gui.hpp"
+#else
+#include "../execution/lbm_sycl_executor.hpp"
+#endif
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/execution.hpp>
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
+    #ifdef WITH_VISUALIZATION
+
     try
     {
         lbm::gui::Gui gui("SYCL Lattice Boltzmann");
@@ -30,8 +38,36 @@ int hpx_main(hpx::program_options::variables_map& vm)
     }
     catch(const lbm::exceptions::Exception &exception)
     {
-        std::cerr << "Exception occured :(\n\n" << exception.to_string();
+        std::cerr << exception.to_string();
     }
+
+    #else
+
+    try
+    {
+        std::unique_ptr<lbm::execution::SYCLExecutor> executor = std::make_unique<lbm::execution::SYCLExecutor>();
+        lbm::console::print_ansi_color_message();
+        lbm::console::print_color_legend();
+
+        fmt::print
+        (
+            "Simulation properties:\n"
+            "-------------------------------------------------------------------------------\n"
+        );
+        fmt::print(fmt::runtime(executor->algorithm->simulation->properties->to_string()));
+        for(unsigned int time_step = 0; time_step < executor->algorithm->simulation->properties->time_steps; ++time_step)
+        {
+            // if(executor->is_ready())
+            executor->execute();
+            // auto test = executor->algorithm->future.get();
+        }
+    }
+    catch(const lbm::exceptions::Exception &exception)
+    {
+        std::cerr << exception.to_string();
+    }
+
+    #endif
 
     /*
     std::unique_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();
@@ -81,7 +117,6 @@ int hpx_main(hpx::program_options::variables_map& vm)
         }
     }
     */
-   std::cout << "About to finalize \n";
     return hpx::local::finalize();
 }
 

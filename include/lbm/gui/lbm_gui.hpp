@@ -5,13 +5,6 @@
  * 
  * @brief       This header file contains all declarations and some implementations of the GUI
  *              for the lattice Boltzmann simulation developed in my Bachelor thesis.
- *              The visualization framework was initially designed with the help of the HPX implementation
- *              from my SimTech project work (https://github.com/MarcelGraf0710/Task-based-Lattice-Boltzmann).
- *              However, it was designed to be as independent as possible from it such that it can easily be
- *              reused in the GPU-based lattice Boltzmann simulation or any other implementation with similar
- *              data structures. Nevertheless, some methods may require adaptions in the future to suit the
- *              needs of the individual implementation. Any interaction with the GUI is supposed to be carried out
- *              through Executors inheriting from the equally named class defined in executor.hpp.
  * 
  * @version     2.0
  * 
@@ -51,6 +44,7 @@
 #include "../core/simulation.hpp"
 #include "../exceptions/exceptions.hpp"
 
+// Standard library
 #include <memory>
 
 namespace lbm
@@ -130,10 +124,15 @@ namespace lbm
         
             std::unique_ptr<ImGuiViewport> viewport;
 
+            /**
+             * @brief   Constructs a Monitor object. Notice that upon first initialization, `primary_monitor` and `video_mode` are
+             *          potentially initialized to `nullptr` because setting them up with proper values requires an existing
+             *          GLFW context.
+             */
             inline explicit Monitor()
             :
             primary_monitor(glfwGetPrimaryMonitor()),
-            video_mode(nullptr),//video_mode(glfwGetVideoMode(primary_monitor)),
+            video_mode(nullptr),
             monitor_x_scale(1.f),
             monitor_y_scale(1.f),
             display_width(0),
@@ -168,6 +167,10 @@ namespace lbm
             std::unique_ptr<std::vector<double>> y_values;
         };
 
+        /**
+         * @brief This structure contains all important data for the GUI.
+         * 
+         */
         struct Gui
         {
             std::unique_ptr<Windows> windows;
@@ -185,7 +188,7 @@ namespace lbm
 
             explicit Gui(const std::string &&window_title);
 
-            int run();
+            void run();
         };
 
         /**
@@ -265,19 +268,20 @@ namespace lbm
                  *        Simulation values are initialized with placeholder values.
                  *        
                  *        Pressing this button when no simulation is active, i.e., after the start of the program, 
-                 *        after a completed simulation or after the abortion of a simulation run enacts the launch of a new simulation run.
+                 *        after a completed simulation or after the abortion of a simulation run enacts the launch of a new 
+                 *        simulation run.
                  *       
                  *        Pressing this button when a simulation is active but paused resumes work on it.
                  * 
                  *        Pressing this button when a simulation is active and not paused has no effect.
                  * 
-                 * @param gui the GUI data
-                 * @param executor a reference to the executor used to execute the simulation is set up with an according default value
+                 * @param[in, out]  gui         reference to the structure containing all GUI data
+                 * @param[in, out]  executor    a reference to the executor used to execute the simulation is set up with 
+                 *                              an according default value
                  */
                 inline void run_button
                 (
                     gui::Gui &gui,
-                    //SimulationControl &gui.simulation_control,
                     std::unique_ptr<execution::SYCLExecutor> &executor
                 )
                 {
@@ -290,6 +294,7 @@ namespace lbm
                     {
                         if(!gui.simulation_control->is_simulation_active)
                         {
+                            executor.reset();
                             executor = std::make_unique<execution::SYCLExecutor>();
                         }
                         gui.simulation_control->is_paused = false;
@@ -310,12 +315,9 @@ namespace lbm
                  * 
                  *        Pressing this button when a simulation is active and not already paused pauses it.
                  * 
-                 * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation
+                 * @param[in, out]  gui reference to the structure containing all GUI data
                  */
-                inline void pause_button
-                (
-                    gui::Gui &gui
-                )
+                inline void pause_button(gui::Gui &gui)
                 {
                     ImGui::PushID(1);
                     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.166f, 0.6f, 0.6f));
@@ -341,15 +343,9 @@ namespace lbm
                  *       
                  *        Pressing this button when a simulation is active aborts it and resets all progress but keeps the last result.
                  * 
-                 * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation
-                 * @param gui_progress reference to an object containing all data on the current progress of a simulation
+                 * @param[in, out]  gui reference to the structure containing all GUI data
                  */
-                inline void abort_button
-                (
-                    //SimulationControl &gui.simulation_control,
-                    //Progress &gui.progress
-                    gui::Gui &gui
-                )
+                inline void abort_button(gui::Gui &gui)
                 {
                     ImGui::PushID(2);
                     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.00f, 0.6f, 0.6f));
@@ -370,10 +366,10 @@ namespace lbm
 
 
             /**
-             * @brief Creates the menu bar of the GUI.
-             *        Its height is stored in the specified Windows object.
+             * @brief   Creates the menu bar of the GUI.
+             *          Its height is stored in the specified Windows object.
              * 
-             * @param window_config a struct containing all information on the GUI windows
+             * @param[in, out]  gui reference to the structure containing all GUI data
              */
             inline void menu_bar(gui::Gui &gui)
             {
@@ -429,10 +425,10 @@ namespace lbm
             }
 
             /**
-             * @brief Creates a gray question mark showing a tooltip when hovered.
+             * @brief   Creates a gray question mark showing a tooltip when hovered.
              * 
-             * @param description The description shown when hovering as a char array 
-             *                    (or C-style string by calling c_str() on a std::string)
+             * @param[in]   description     The description shown when hovering as a char array 
+             *                              (or C-style string by calling `c_str()` on a `std::string`)
              */
             inline void help_marker(const char* description)
             {
@@ -524,7 +520,6 @@ namespace lbm
             inline void save_results_selection
             (
                 bool &results_to_csv,
-                //SimulationControl &gui.simulation_control
                 gui::Gui &gui
             )
             {
@@ -596,12 +591,7 @@ namespace lbm
              * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation  
              * @param gui_progress reference to an object containing all data on the current progress of a simulation
              */
-            inline void show_simulation_status
-            (
-                //SimulationControl &gui.simulation_control,
-                //Progress &gui_progress
-                gui::Gui &gui
-            )
+            inline void show_simulation_status(gui::Gui &gui)
             {
                 if(!gui.simulation_control->is_simulation_active)
                 {
@@ -626,11 +616,7 @@ namespace lbm
              * @param colormap a reference to the currently selected colormap
              * @param plot_title the title of the plot for which the colormap is chosen
              */
-            inline void colormap_picker
-            (
-                ImPlotColormap &colormap,
-                const char *plot_title
-            )
+            inline void colormap_picker(ImPlotColormap &colormap, const char *plot_title)
             {
                 ImPlot::ColormapIcon(colormap);
                 ImGui::SameLine();
@@ -683,18 +669,12 @@ namespace lbm
              */
             inline void destroy(GLFWwindow *window)
             {
-                std::cout << "Shutdown implementation OpenGL3 \n";
                 ImGui_ImplOpenGL3_Shutdown();
-                std::cout << "Shutdown implementation GLFW \n";
                 ImGui_ImplGlfw_Shutdown();
-                std::cout << "Destroying contests \n";
                 ImPlot::DestroyContext();
                 ImGui::DestroyContext();
-                std::cout << "Destroying window \n";
                 glfwDestroyWindow(window);
-                std::cout << "Terminating \n";
                 glfwTerminate();
-                std::cout << "Done. \n";
             }
         } // ! namespace contexts
 
@@ -710,21 +690,10 @@ namespace lbm
              *        It also shows the framerate at which new density and velocity plots are created. 
              *        The window can intentionally not be relocated.
              * 
-             * @param settings a constant reference to the settings object responsible for setting up all necessary simulation properties
-             * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
-             * @param windows a reference to an object storing data on which windows are shown
-             * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation  
-             * @param gui_algorithmic a reference to an object containing all data specifying the algorithm used for the simulation
-             * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
-             * @param gui_progress reference to an object containing all data on the current progress of a simulation
              * @param executor a reference to the executor used to execute the simulation
              */
             inline void simulation_status_window
             (
-                // const Monitor &gui.monitor,
-                // Windows &windows, 
-                // SimulationControl &gui.simulation_control,
-                // Progress &gui.progress,
                 gui::Gui &gui,
                 std::unique_ptr<execution::SYCLExecutor> &executor
             )
@@ -765,20 +734,12 @@ namespace lbm
             *        The window can intentionally not be relocated.
             * 
             * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
-            * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
-            * @param windows a reference to an object storing data on which windows are shown
-            * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation  
-            * @param gui_algorithmic a reference to an object containing all data specifying the algorithm used for the simulation
-            * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
             */
             inline void properties_window
             (
-                // const Monitor &gui.monitor,
                 std::unique_ptr<execution::SYCLExecutor> &executor,
                 std::unique_ptr<core::Properties> &properties_buffer,
                 bool &changed,
-                // Windows &windows,
-                // SimulationControl &gui.simulation_control
                 gui::Gui &gui
             )
             {
@@ -846,7 +807,7 @@ namespace lbm
             * 
             * @param window_settings 
             */
-            void read_from_file_window(/*const Monitor &gui.monitor, Windows &window_settings*/ gui::Gui &gui);
+            void read_from_file_window(gui::Gui &gui);
 
             /**
             * @brief Creates the window visualizing the density of the fluid.
@@ -858,27 +819,10 @@ namespace lbm
             * 
             *        Closing this window yields minor to medium performance improvements.
             * 
-            * @param density_data an array of doubles containing the density values of all nodes
-            *                     (can be retrieved from a std::vector by calling .data() on it)
-            * @param settings a constant reference to the settings object responsible for setting up all necessary simulation properties
-            * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
-            * @param gui.simulation_control a constant reference to an object responsible for tracking control data for the simulation  
-            * @param gui_algorithmic a constant reference to an object containing all data specifying the algorithm used for the simulation
-            * @param gui_simulation_data a constant reference to an object containing all data on which the simulation operates
-            * @param gui_progress a constant reference to an object containing all data on the current progress of a simulation
-            * @param windows a reference to an object storing data on which windows are shown
-            * @param gui_colormaps a reference to an object containing data on the colormaps used in plots
             */
             void density_window
             (
                 const execution::SYCLExecutor &sycl_executor,
-                // const core::Properties &properties,
-                // const Monitor &gui.monitor,
-                // const SimulationControl &gui.simulation_control,
-                // const core::Results &results,
-                // const Progress &gui_progress,
-                // Windows &windows, 
-                // Colormaps &gui_colormaps
                 gui::Gui &gui
             );
 
@@ -895,29 +839,13 @@ namespace lbm
             * 
             *        Closing this window yields medium to major performance improvements.
             * 
-            * @param settings a constant reference to the settings object responsible for setting up all necessary simulation properties
-            * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
-            * @param gui.simulation_control a constant reference to an object responsible for tracking control data for the simulation  
-            * @param gui_algorithmic a constant reference to an object containing all data specifying the algorithm used for the simulation
-            * @param gui_simulation_data a constant reference to an object containing all data on which the simulation operates
-            * @param gui_progress a constant reference to an object containing all data on the current progress of a simulation
-            * @param windows a reference to an object storing data on which windows are shown
-            * @param gui_velocity_quiver_data a reference to an object containing all data for the quiver plot
-            * @param gui_colormaps a reference to an object containing data on the colormaps used in plots
             */
             void velocity_window
             (
                 const execution::SYCLExecutor &sycl_executor,
-                // const core::Properties &properties,
-                // const Monitor &gui.monitor,
-                // const SimulationControl &gui.simulation_control,
-                // const core::Results &results,
-                // const Progress &gui_progress,
-                // Windows &windows, 
-                // VelocityQuiverData &gui_velocity_quiver_data,
-                // Colormaps &gui_colormaps
                 gui::Gui &gui
             );
+
         } // ! namespace windows
 
         /**
@@ -973,8 +901,6 @@ namespace lbm
                 ImPlot::AddColormap("SOLID_MASK", custom.Data, custom.Size, true);
             }
         } // ! namespace misc
-
-
 
     } // ! namespace gui
 

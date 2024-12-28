@@ -5,7 +5,7 @@
 #
 # Copyright:     (C) 2024 Marcel Graf
 #
-# Last modified: November 10, 2024
+# Last modified: December 27, 2024
 
 cmake_minimum_required(VERSION 3.18.2)
 
@@ -43,6 +43,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC HPX::hpx HPX::wrap_main nlohmann_js
 # If the option for live visualization is set, find the necessary packages
 if(WITH_VISUALIZATION)
 
+  add_definitions(-DWITH_VISUALIZATION)
   find_package(OpenGL REQUIRED)
   find_package(glfw3 REQUIRED)
   target_link_libraries(${PROJECT_NAME} PUBLIC glfw OpenGL::GL)

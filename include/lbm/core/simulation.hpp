@@ -22,7 +22,6 @@
 // Dependencies on other LBM core features
 #include "access.hpp"
 #include "constants.hpp"
-#include "defines.hpp"
 
 // Format
 #include <fmt/core.h>

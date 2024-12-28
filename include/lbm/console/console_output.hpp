@@ -71,7 +71,7 @@ namespace lbm
                 "Legend:\n"
                 "-------------------------------------------------------------------------------\n"
                 "\033[31mRED\033[0m:\tValues of the node in the origin\n"
-                "\033[33mYELLOW\033[0m:\tPhase illustration: \033[32m#\033[0m marks a solid node\n\n"
+                "\033[33mYELLOW\033[0m:\tPhase illustration: \033[33m#\033[0m marks a solid node\n\n"
                 "\033[32mGREEN\033[0m:\tbuffer nodes or ghost nodes, or their distribution values\n"
                 "\033[36mCYAN\033[0m:\tMilestones and important events\n"
                 "\033[34mBLUE\033[0m:\t1.) Distribution values of the \"outmost\" node\n"
@@ -144,7 +144,7 @@ namespace lbm
                         if(x == 0 && y == 0) std::cout << "\033[31m";
                         else if(x == (horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
                         current_node_index = core::access::get_node_index(x, y, horizontal_nodes);
-                        current_values = core::access::get_distribution_values_of<A>(distribution_values, current_node_index);
+                        current_values = core::access::get_distribution_values_of<A>(distribution_values, current_node_index, horizontal_nodes * vertical_nodes);
 
                         for(unsigned int i = 0; i < 3; ++i)
                         {
@@ -261,7 +261,7 @@ namespace lbm
      * 
      *          - Distribution values 0
      * 
-         * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+     * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
      * 
      * @param[in] data   a structure of data on which the simulation operates
      */

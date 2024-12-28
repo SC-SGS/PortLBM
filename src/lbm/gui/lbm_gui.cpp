@@ -7,7 +7,7 @@
  *              
  * @version     2.0
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -74,11 +74,10 @@ window_title(std::make_unique<std::string>(window_title)),
 properties_changed(false)
 {};
 
-int lbm::gui::Gui::run()
+void lbm::gui::Gui::run()
 {
     glfwSetErrorCallback(rendering::glfw_error_callback);
-    if (!glfwInit())
-        return 1;
+    if (!glfwInit()) {throw exceptions::Exception("Failed to initialize GLFW.");}
 
     // GL 3.0 + GLSL 130
     const char* glsl_version = "#version 130";
@@ -87,24 +86,22 @@ int lbm::gui::Gui::run()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 
+    // Setting up executor and initializing all important simulation data
     std::unique_ptr<execution::SYCLExecutor> executor = std::make_unique<execution::SYCLExecutor>();
 
     // Create window with graphics context
     monitor->primary_monitor = glfwGetPrimaryMonitor();
     monitor->video_mode = glfwGetVideoMode(monitor->primary_monitor);
     GLFWwindow* window = glfwCreateWindow(monitor->video_mode->width, monitor->video_mode->height, window_title->c_str(), nullptr, nullptr);
-    if (window == nullptr)
-    {
-        return 1;
-    }
+    if (window == nullptr) {throw exceptions::Exception("Failed to create GLFW window.");}
         
     glfwMakeContextCurrent(window);
     //glfwSwapInterval(1); // Enable vsync
-
     contexts::create_contexts();
     styles::set_light_style();
     glfwGetMonitorContentScale(monitor->primary_monitor, &(monitor->monitor_x_scale), &(monitor->monitor_x_scale));
 
+    // IO
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.Fonts->AddFontFromFileTTF("../fonts/DroidSans.ttf", 2 * sqrt(monitor->monitor_x_scale * monitor->monitor_x_scale) * 9.0f);
@@ -118,14 +115,18 @@ int lbm::gui::Gui::run()
     SimpleTimer timer;
     SimpleTimer timer_framerate;
 
-    misc::add_solid_colormap();
-
+    // ImPlot style
     ImPlotStyle& implot_style = ImPlot::GetStyle();
     implot_style.PlotPadding = ImVec2(monitor->monitor_x_scale * 20, monitor->monitor_y_scale * 20);
 
-    colormaps->density_colormap_lower_scale = std::min({executor->algorithm->simulation->properties->inlet_density, executor->algorithm->simulation->properties->outlet_density});
-    colormaps->density_colormap_upper_scale = std::max({executor->algorithm->simulation->properties->inlet_density, executor->algorithm->simulation->properties->outlet_density});
-    colormaps->velocity_colormap_upper_scale = sqrt(pow(executor->algorithm->simulation->properties->inlet_velocity_x, 2) + pow(executor->algorithm->simulation->properties->inlet_velocity_y, 2)); 
+    // ImPlot colormaps
+    misc::add_solid_colormap();
+    colormaps->density_colormap_lower_scale = 
+        std::min({executor->algorithm->simulation->properties->inlet_density, executor->algorithm->simulation->properties->outlet_density});
+    colormaps->density_colormap_upper_scale = 
+        std::max({executor->algorithm->simulation->properties->inlet_density, executor->algorithm->simulation->properties->outlet_density});
+    colormaps->velocity_colormap_upper_scale = 
+        sqrt(pow(executor->algorithm->simulation->properties->inlet_velocity_x, 2) + pow(executor->algorithm->simulation->properties->inlet_velocity_y, 2)); 
 
     // Eternal loop of imaging magic
     while (!glfwWindowShouldClose(window))
@@ -141,32 +142,11 @@ int lbm::gui::Gui::run()
 
         items::menu_bar(*this);
 
-        windows::read_from_file_window(/* *monitor, *windows */ *this);
+        windows::read_from_file_window(*this);
 
-        windows::properties_window
-        (
-            // *monitor,
-            // executor,
-            // *properties_buffered,
-            // properties_changed,
-            // *windows,
-            // *simulation_control
-            executor,
-            properties_buffered,
-            properties_changed,
-            *this
-        );
+        windows::properties_window(executor, properties_buffered, properties_changed, *this);
 
-        windows::simulation_status_window
-        (
-            // *monitor,
-            // *windows,
-            // *simulation_control,
-            // *progress,
-            // executor
-            *this,
-            executor
-        );
+        windows::simulation_status_window(*this, executor);
 
         if(simulation_control->is_simulation_active && !simulation_control->is_paused)
         {
@@ -190,11 +170,20 @@ int lbm::gui::Gui::run()
 
                 for(int i = 0; i < executor->algorithm->simulation->properties->domain_node_count; ++i)
                 {
-                    (*(executor->algorithm->simulation->results->absolute_velocities))[i] = sqrt(pow((*(executor->algorithm->simulation->results->x_velocities))[i], 2) + pow((*(executor->algorithm->simulation->results->y_velocities))[i], 2));
+                    (*(executor->algorithm->simulation->results->absolute_velocities))[i] = 
+                        sqrt(pow((*(executor->algorithm->simulation->results->x_velocities))[i], 2) + pow((*(executor->algorithm->simulation->results->y_velocities))[i], 2));
                 }
 
                 if(windows->enable_velocity_quiver)
                 {
+                    unsigned int dnode_index = 0;
+                    unsigned int node_index = 0;
+                    unsigned int velocity_value_index = 0;
+                    double base_x = 0;
+                    double base_y = 0;
+                    double offset_x = 0;
+                    double offset_y = 0;
+
                     velocity_quiver_data->x_values->assign(2 * executor->algorithm->simulation->properties->domain_node_count, 0);
                     velocity_quiver_data->y_values->assign(2 * executor->algorithm->simulation->properties->domain_node_count, 0);
 
@@ -202,20 +191,28 @@ int lbm::gui::Gui::run()
                     {
                         for(int x = 1; x < executor->algorithm->simulation->properties->horizontal_nodes - 1; ++x)
                         {
-                            unsigned int dnode_index = core::access::get_node_index(x-1, y-1, executor->algorithm->simulation->properties->horizontal_nodes-2);
-                            unsigned int node_index = core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes);
-                            unsigned int velocity_value_index = core::access::results::get_result_index_no_ghosts(core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes), executor->algorithm->simulation->properties->horizontal_nodes);
-                            //std::cout << "Reaching node index " << node_index << ", calculated from coordinates (x = " << x << ", y = " << y << ")\n";
+                            dnode_index = core::access::get_node_index(x-1, y-1, executor->algorithm->simulation->properties->horizontal_nodes-2);
+                            node_index = core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes);
+
+                            velocity_value_index = 
+                                core::access::results::get_result_index_no_ghosts(
+                                    core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes), 
+                                    executor->algorithm->simulation->properties->horizontal_nodes
+                                );
+
                             if(executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index) > 1e-15)
                             {
-                                double base_x = 0.5 + x - 1;
-                                double base_y = 0.5 + y - 1;
+                                base_x = 0.5 + x - 1;
+                                base_y = 0.5 + y - 1;
                                 
                                 (*velocity_quiver_data->x_values)[2 * dnode_index] = base_x;
                                 (*velocity_quiver_data->y_values)[2 * dnode_index] = base_y;
 
-                                double offset_x = base_x + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index)) * executor->algorithm->simulation->results->x_velocities->at(velocity_value_index);
-                                double offset_y = base_y + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index)) * executor->algorithm->simulation->results->y_velocities->at(velocity_value_index);
+                                offset_x = base_x + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index)) 
+                                                        * executor->algorithm->simulation->results->x_velocities->at(velocity_value_index);
+
+                                offset_y = base_y + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index)) 
+                                                        * executor->algorithm->simulation->results->y_velocities->at(velocity_value_index);
 
                                 (*velocity_quiver_data->x_values)[2 * dnode_index + 1] = offset_x;
                                 (*velocity_quiver_data->y_values)[2 * dnode_index + 1] = offset_y;
@@ -223,6 +220,7 @@ int lbm::gui::Gui::run()
                         }  
                     }
                 }
+
                 executor->execute();
 
                 // Check if simulation is finished
@@ -240,47 +238,16 @@ int lbm::gui::Gui::run()
             }
         }
 
-        windows::density_window
-        (   
-            // *executor->algorithm->simulation->properties,
-            // *monitor, 
-            // *simulation_control, 
-            // *executor->algorithm->simulation->results,
-            // *progress, 
-            // *windows, 
-            // *colormaps
-            *executor,
-            *this
-        );
+        windows::density_window(*executor, *this);
 
-        windows::velocity_window
-        (
-            // *executor->algorithm->simulation->properties,
-            // *monitor, 
-            // *simulation_control, 
-            // *executor->algorithm->simulation->results,
-            // *progress, 
-            // *windows, 
-            // *velocity_quiver_data,
-            // *colormaps
-            *executor,
-            *this
-        );
+        windows::velocity_window(*executor,*this);
 
         rendering::render(window, *this);
     }
-    std::cout << "Exiting program \n";
     contexts::destroy(window);
-    std::cout << "Contexts destroyed \n";
-    return 0;
 }
 
-void lbm::gui::windows::read_from_file_window
-(
-    // const Monitor &gui.monitor-> 
-    // Windows &window_settings
-    gui::Gui &gui
-)
+void lbm::gui::windows::read_from_file_window(gui::Gui &gui)
 {
     if(gui.windows->show_read_from_file_window)
     {
@@ -300,13 +267,6 @@ void lbm::gui::windows::read_from_file_window
 void lbm::gui::windows::density_window
 (
     const execution::SYCLExecutor &sycl_executor,
-    // const core::Properties &properties,
-    // const Monitor &gui.monitor,
-    // const SimulationControl &gui.simulation_control,
-    // const core::Results &results,
-    // const Progress &gui_progress,
-    // Windows &windows, 
-    // Colormaps &gui_colormaps
     gui::Gui &gui
 )
 {
@@ -440,14 +400,6 @@ void lbm::gui::windows::density_window
 void lbm::gui::windows::velocity_window
 (
     const execution::SYCLExecutor &sycl_executor,
-    // const core::Properties &properties,
-    // const Monitor &gui.monitor,
-    // const SimulationControl &gui.simulation_control,
-    // const core::Results &results,
-    // const Progress &gui_progress,
-    // Windows &windows, 
-    // VelocityQuiverData &gui.velocity_quiver_data->
-    // Colormaps &gui_colormaps
     gui::Gui &gui
 )
 {

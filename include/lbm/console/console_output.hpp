@@ -51,7 +51,7 @@ namespace lbm
                 "If your terminal does not support those codes, your output may be corrupted.\n"
                 "Please also make sure that the color scheme of your terminal supports the used colors.\n"
                 "The color names listed below should be colored.\n\n" 
-                "Used colors:\t\033[31mred\033[0m, \033[32mgreen\033[0m, \033[36mcyan\033[0m, \033[34mblue\033[0m.\n\n"
+                "Used colors:\t\033[31mred\033[0m, \033[33myellow\033[0m, \033[32mgreen\033[0m, \033[36mcyan\033[0m, \033[34mblue\033[0m.\n\n"
                 "Notice:\t\tSince the text is set to its default format (\\033[0m) multiple times in this program,\n"
                 "\t\tformatted text, especially from exceptions or third party code, may not have its typical color.\n\n"
             );

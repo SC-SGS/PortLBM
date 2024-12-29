@@ -5,32 +5,38 @@
  * 
  * @brief       Entry point of the program executing the GPU lattice Boltzmann application.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        November 2024
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  */
 
+// INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
+
+// Fundamental LBM includes that are always necessary regardless of the CMake configuration
 #include "../include/lbm/file_interaction/file_interaction.hpp"
 #include "../include/lbm/core/simulation.hpp"
 #include "../include/lbm/gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 #include "../include/lbm/execution/lbm_sycl_executor.hpp"
-#include "../execution/lbm_sycl_executor.hpp"
 
-#ifdef WITH_VISUALIZATION
-#include "../include/lbm/gui/lbm_gui.hpp"
-#else
-#include "../execution/lbm_sycl_executor.hpp"
-#endif
-
+// HPX includes that are always necessary regardless of the CMake configuration
 #include <hpx/hpx_init.hpp>
 #include <hpx/execution.hpp>
 
+// Conditional includes
+#ifdef WITH_VISUALIZATION                       // If the flag for building with GUI features is set, ...
+#include "../include/lbm/gui/lbm_gui.hpp"       // include the LBM GUI features, ...
+#else                                           // else, ...
+#include "../execution/lbm_sycl_executor.hpp"   // include only the executor.
+#endif
+
+// DEFINITIONS ////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef WITH_VISUALIZATION // Flag is set if -DWITH_VISUALIZATION=ON, must be specified by user
+
 int hpx_main(hpx::program_options::variables_map& vm)
 {
-    #ifdef WITH_VISUALIZATION
-
     try
     {
         lbm::gui::Gui gui("SYCL Lattice Boltzmann");
@@ -41,8 +47,13 @@ int hpx_main(hpx::program_options::variables_map& vm)
         std::cerr << exception.to_string();
     }
 
-    #else
+    return hpx::local::finalize();
+}
 
+#else // Flag is NOT set if -DWITH_VISUALIZATION=OFF, default case
+
+int hpx_main(hpx::program_options::variables_map& vm)
+{
     try
     {
         std::unique_ptr<lbm::execution::SYCLExecutor> executor = std::make_unique<lbm::execution::SYCLExecutor>();
@@ -55,70 +66,19 @@ int hpx_main(hpx::program_options::variables_map& vm)
             "-------------------------------------------------------------------------------\n"
         );
         fmt::print(fmt::runtime(executor->algorithm->simulation->properties->to_string()));
-        for(unsigned int time_step = 0; time_step < executor->algorithm->simulation->properties->time_steps; ++time_step)
-        {
-            // if(executor->is_ready())
-            executor->execute();
-            // auto test = executor->algorithm->future.get();
-        }
+
+        executor->execute(executor->algorithm->simulation->properties->time_steps);
+        executor->algorithm->block_until_finished();
     }
     catch(const lbm::exceptions::Exception &exception)
     {
         std::cerr << exception.to_string();
     }
 
-    #endif
-
-    /*
-    std::unique_ptr<lbm::core::Properties> properties = lbm::file_interaction::json_to_properties();
-
-    std::unique_ptr<lbm::core::SimulationData<lbm::core::access::LBMStreamAccessor>> simulation_data = 
-        std::make_unique<lbm::core::SimulationData<lbm::core::access::LBMStreamAccessor>>(*properties);
-
-    lbm::core::setup_pipe_flow_environment(*properties, *simulation_data);
-
-    *(simulation_data->distribution_values_1) = *(simulation_data->distribution_values_0); 
-
-    if(properties->debug_mode)
-    {
-        fmt::print("Starting LBM on GPU test with two-lattice algorithm...\n\n");
-
-        lbm::console::print_ansi_color_message();
-        lbm::console::print_color_legend();
-
-        fmt::print
-        (
-            "Simulation properties:\n"
-            "-------------------------------------------------------------------------------\n"
-        );
-        fmt::print(fmt::runtime(properties->to_string()));
-
-
-        lbm::console::debug_prints(*simulation_data);
-
-        try
-        {
-            lbm::gpu::two_lattice::linear::debug::run<lbm::core::access::LBMStreamAccessor>(*properties, *simulation_data);
-        }
-        catch(const lbm::exceptions::Exception &exception)
-        {
-            std::cerr << "Exception while executing " << properties->algorithm << "algorithm.\n\n" << exception.to_string();
-        }
-    }
-    else
-    {
-        try
-        {
-            lbm::gpu::two_lattice::linear::run<lbm::core::access::LBMStreamAccessor>(*properties, *simulation_data);
-        }
-        catch(const lbm::exceptions::Exception &exception)
-        {
-            std::cerr << "Exception while executing " << properties->algorithm << "algorithm.\n\n" << exception.to_string();
-        }
-    }
-    */
     return hpx::local::finalize();
 }
+
+#endif // End of macro-managed definitions based on flag WITH_VISUALIZATION
 
 int main(int argc, char* argv[])
 {

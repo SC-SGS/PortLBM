@@ -107,44 +107,54 @@ namespace lbm
             template <access::experimental::AccessorConcept A>
             void update_velocity_input_density_output
             (
-                const Properties &properties,
-                std::vector<double> &distribution_values
+                const Simulation &simulation
             )
             {
                 std::vector<double> current_dist_vals(9, 0);
                 unsigned int current_border_node = 0;
-                std::array<double, 2> v = {properties.inlet_velocity_x, properties.inlet_velocity_y};
+                
+                std::array<double, 2> v = {simulation.properties->inlet_velocity_x, simulation.properties->inlet_velocity_y};
 
-                for(auto y = 2; y < properties.vertical_nodes - 2; ++y)
+                for(auto y = 1; y < simulation.properties->vertical_nodes - 1; ++y)
                 {
                     // Update inlets
-                    current_border_node = access::get_node_index(1,y,properties.horizontal_nodes);
-                    current_dist_vals = maxwell_boltzmann_distribution(properties.inlet_velocity_x, properties.inlet_velocity_y, properties.inlet_density);
+                    current_border_node = access::get_node_index(0, y, simulation.properties->horizontal_nodes);
+                    current_dist_vals = maxwell_boltzmann_distribution(simulation.properties->inlet_velocity_x, simulation.properties->inlet_velocity_y, simulation.properties->inlet_density);
+                    unsigned int iteration_node_offset = lbm::core::access::results::get_result_index_no_ghosts(current_border_node, simulation.properties->horizontal_nodes);
 
                     access::set_distribution_values_of<A>
                     (
                         current_dist_vals,
                         current_border_node,
-                        properties.buffered_node_count,
-                        distribution_values
+                        simulation.properties->buffered_node_count,
+                        *simulation.data->distribution_values_0
                     );
 
+                    // (*simulation.results->densities)[iteration_node_offset] = simulation.properties->inlet_density;
+                    // (*simulation.results->x_velocities)[iteration_node_offset] = simulation.properties->inlet_velocity_x;
+                    // (*simulation.results->y_velocities)[iteration_node_offset] = simulation.properties->inlet_velocity_y;
+
                     // Update outlets
-                    current_border_node = access::get_node_index(properties.horizontal_nodes - 2, y, properties.horizontal_nodes);
+                    current_border_node = access::get_node_index(simulation.properties->horizontal_nodes - 1, y, simulation.properties->horizontal_nodes);
+                    iteration_node_offset = lbm::core::access::results::get_result_index_no_ghosts(current_border_node, simulation.properties->horizontal_nodes);
 
                     v = macroscopic::flow_velocity(
                             access::get_distribution_values_of<A>(
-                                distribution_values, access::get_neighbor(current_border_node, 3, properties.horizontal_nodes), properties.buffered_node_count));
+                                *simulation.data->distribution_values_0, access::get_neighbor(current_border_node, 3, simulation.properties->horizontal_nodes), simulation.properties->buffered_node_count));
 
-                    current_dist_vals = maxwell_boltzmann_distribution(v[0], v[1], properties.outlet_density);
+                    current_dist_vals = maxwell_boltzmann_distribution(v[0], v[1], simulation.properties->outlet_density);
 
                     access::set_distribution_values_of<A>
                     (
                         current_dist_vals,
                         current_border_node,
-                        properties.buffered_node_count,
-                        distribution_values
+                        simulation.properties->buffered_node_count,
+                        *simulation.data->distribution_values_0
                     );
+
+                    // (*simulation.results->densities)[iteration_node_offset] = simulation.properties->outlet_density;
+                    // (*simulation.results->x_velocities)[iteration_node_offset] = simulation.properties->outlet_velocity_x;
+                    // (*simulation.results->y_velocities)[iteration_node_offset] = simulation.properties->outlet_velocity_y;
                 }
             }
 

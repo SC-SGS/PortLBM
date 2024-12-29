@@ -25,7 +25,7 @@ namespace lbm
 
     namespace core
     {
-        enum Obstacle {NONE, WALLS, CIRCLE};
+        enum Obstacle {NONE, WALLS, CIRCLE, SQUARE, WING, SKYSCRAPER, POROUS, PLATE};
 
         /**
          * @brief Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state.
@@ -45,7 +45,7 @@ namespace lbm
                 access::set_distribution_values_of<A>(values, i, simulation.properties->buffered_node_count, *simulation.data->distribution_values_0);
             }
 
-            boundary_conditions::update_velocity_input_density_output<A>(*simulation.properties, *simulation.data->distribution_values_0);
+            boundary_conditions::update_velocity_input_density_output<A>(simulation);
 
             /* Phase information vector */
             for(auto x = 1; x < simulation.properties->horizontal_nodes - 1; ++x)
@@ -78,13 +78,124 @@ namespace lbm
             {
                 int middle_x =  2 * simulation.properties->horizontal_nodes / 10;
                 int middle_y = simulation.properties->vertical_nodes / 2;
-                int radius = simulation.properties->vertical_nodes / 6;
+                int radius = simulation.properties->vertical_nodes / 10;
 
-                for(auto y = middle_y - 2*radius; y <= middle_y + 2*radius; ++y)
+                for(auto y = middle_y - 2 * radius; y <= middle_y + 2 * radius; ++y)
                 {
-                    for(auto x = middle_x - 2*radius; x <= middle_x + 2*radius; ++x)
+                    for(auto x = middle_x - 2 * radius; x <= middle_x + 2 * radius; ++x)
                     {
                         if(sqrt(abs(middle_x-x) * abs(middle_x-x) + abs(middle_y-y) * abs(middle_y-y) ) <= sqrt(radius * radius))
+                            (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                    }
+                }
+            }
+            else if(obstacle == SQUARE)
+            {
+                int middle_x =  2 * simulation.properties->horizontal_nodes / 10;
+                int middle_y = simulation.properties->vertical_nodes / 2;
+                int length = simulation.properties->vertical_nodes / 5;
+
+                for(auto y = middle_y - 0.5 * length; y <= middle_y + 0.5 * length; ++y)
+                {
+                    for(auto x = middle_x - 0.5 * length; x <= middle_x + 0.5 * length; ++x)
+                    {
+                        (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                    }
+                }
+            }
+            else if(obstacle == PLATE)
+            {
+                int middle_x =  2 * simulation.properties->horizontal_nodes / 10;
+                int middle_y = simulation.properties->vertical_nodes / 2;
+                int length = simulation.properties->vertical_nodes / 5;
+
+                for(auto y = middle_y - 0.5 * length; y <= middle_y + 0.5 * length; ++y)
+                {
+                    for(auto x = middle_x - 0.05 * length; x <= middle_x + 0.05 * length; ++x)
+                    {
+                        (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                    }
+                }
+            }
+            else if(obstacle == SKYSCRAPER)
+            {
+                int height_antenna = simulation.properties->vertical_nodes / 2;
+                int width_antenna = 2;
+
+                int height_second = 2 * simulation.properties->vertical_nodes / 5;
+                int width_second = 0.5 * simulation.properties->vertical_nodes / 6;
+
+                int height_first = simulation.properties->vertical_nodes / 4;
+                int width_first = 0.5 * simulation.properties->vertical_nodes / 4;
+
+                int middle_x =  3 * simulation.properties->horizontal_nodes / 10;
+
+                for(auto y = 0; y <= height_first; ++y)
+                {
+                    for(auto x = middle_x - 0.5 * width_first; x <= middle_x + 0.5 * width_first; ++x)
+                    {
+                        (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                    }
+                }
+
+                for(auto y = height_first + 1; y <= height_second; ++y)
+                {
+                    for(auto x = middle_x - 0.5 * width_second; x <= middle_x + 0.5 * width_second; ++x)
+                    {
+                        (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                    }
+                }
+
+                for(auto y = height_second + 1; y <= height_antenna; ++y)
+                {
+                    for(auto x = middle_x - 0.5 * width_antenna; x <= middle_x + 0.5 * width_antenna; ++x)
+                    {
+                        (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                    }
+                }
+            }
+            else if(obstacle == WING)
+            {
+                int middle_x =  2 * simulation.properties->horizontal_nodes / 10;
+                int middle_y = simulation.properties->vertical_nodes / 2;
+                int radius_max = simulation.properties->vertical_nodes / 5;
+                int scale_x = 1;
+                int scale_y = 5;
+
+                for(int y = middle_y - radius_max; y <= middle_y + radius_max; ++y)
+                {
+                    for(int x = middle_x - radius_max; x <= middle_x; ++x)
+                    {
+                        if(0.2 * abs(x - middle_x) * abs(x - middle_x) + abs(y - middle_y) * abs(y - middle_y) <= radius_max)
+                        {
+                            (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                        }
+                            
+                    }
+                }
+
+                for(auto y = middle_y - 2 * radius_max; y <= middle_y + 2 * radius_max; ++y)
+                {
+                    for(auto x = middle_x; x <= simulation.properties->horizontal_nodes - 1; ++x)
+                    {
+                        if(std::pow(abs(middle_x - x), 1.4) + scale_y * scale_y * abs(middle_y - y) * abs(middle_y - y) <= scale_y * scale_y * radius_max)
+                        {
+                            (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
+                        }
+                            
+                    }
+                }
+            }
+            else if(obstacle == POROUS)
+            {
+                for(int x = 0; x < simulation.properties->horizontal_nodes; ++x)
+                {
+                    
+                    for(int y = 0; y < simulation.properties->vertical_nodes; ++y)
+                    {
+                        int one = 1 + ( std::rand() % 20 );
+                        int two = 1 + ( std::rand() % 20 );
+                        if(x % one == one-1 && y % two == two-1)
                             (*simulation.data->phase_information)[access::get_node_index(x, y, simulation.properties->horizontal_nodes)] = 1;
                     }
                 }

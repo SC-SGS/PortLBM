@@ -51,7 +51,7 @@ vertical_nodes(vertical_nodes+2),
 horizontal_nodes(horizontal_nodes+2),
 non_buffered_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
 buffered_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
-domain_node_count(vertical_nodes * horizontal_nodes),
+domain_node_count(vertical_nodes * (horizontal_nodes + 2)),
 // Inlets
 inlet_velocity_x(inlet_velocity_x),
 inlet_velocity_y(inlet_velocity_y),

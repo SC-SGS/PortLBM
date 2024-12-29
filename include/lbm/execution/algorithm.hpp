@@ -20,6 +20,9 @@
 // Dependencies on other LBM core features
 #include "../core/simulation.hpp"
 
+// LBM exceptions
+#include "../exceptions/exceptions.hpp"
+
 // HPX
 #include <hpx/future.hpp>
 
@@ -37,6 +40,26 @@ namespace lbm
          */
         class Algorithm
         {
+
+            protected:
+            
+            /**
+             * @brief   This future is used to launch the algorithm and to check whether it is currently within an iteration or not.
+             */
+            hpx::future<void> future;
+
+            std::shared_ptr<sycl::queue> queue;
+
+            /**
+             * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
+             */
+            explicit Algorithm(const sycl::queue &queue)
+            : 
+            future(hpx::async([]{})), 
+            queue(std::make_shared<sycl::queue>(queue)), 
+            simulation(std::make_unique<core::Simulation>())
+            {};
+
             public:
 
             std::unique_ptr<core::Simulation> simulation;
@@ -45,6 +68,20 @@ namespace lbm
              * @brief   Returns whether the algorithm is currently within an iteration (`true`) or not (`false`).
              */
             inline bool is_ready() const { return future.is_ready(); }
+
+            /**
+             * @brief   Blocks the thread on which this method is accessed until the algorithm
+             */
+            inline void block_until_finished()
+            {
+                try { future.get(); }
+                catch(const std::exception& e) 
+                {
+                    throw exceptions::algorithm::WaitException(
+                        "A thread accessed a blocking statement causing it to wait for an algorithm that has not been launched."
+                    ); 
+                }
+            }
 
             /**
              * @brief   Performs one iteration of this algorithm.
@@ -60,25 +97,7 @@ namespace lbm
 
             virtual ~Algorithm() = default;
 
-            /**
-             * @brief This future is used to launch the algorithm and to check whether it is currently within an iteration or not.
-             */
-            hpx::future<void> future;
 
-            protected:
-            
-
-            std::shared_ptr<sycl::queue> queue;
-
-            /**
-             * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
-             */
-            explicit Algorithm(const sycl::queue &queue)
-            : 
-            future(hpx::async([&]{})), 
-            queue(std::make_shared<sycl::queue>(queue)), 
-            simulation(std::make_unique<core::Simulation>())
-            {};
         };
     }
 }

@@ -404,7 +404,7 @@ namespace lbm
                 )
                 {
                     return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) 
-                        + (node_index-1) % horizontal_nodes) + time_step * domain_node_count;
+                        + (node_index - 1) % horizontal_nodes) + time_step * domain_node_count;
                 }
 
                 /**
@@ -425,7 +425,7 @@ namespace lbm
                 )
                 {
                     return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) 
-                        + (node_index-1) % horizontal_nodes);
+                        + (node_index - 1) % horizontal_nodes);
                 }
                 
             } // ! namespace results

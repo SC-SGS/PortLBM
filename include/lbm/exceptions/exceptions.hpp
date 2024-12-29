@@ -173,6 +173,27 @@ namespace lbm
             };
         } // ! namespace domain
 
+        /**
+         * @brief This namespace contains exceptions related to the execution of LBM algorithms.
+         */
+        namespace algorithm
+        {
+            /**
+             * @brief   This exception is thrown when a thread waits for an algorithm to finish its execution although
+             *          the target algorithm has not commenced execution or it will never be able to finish.
+             */
+            class WaitException : public Exception
+            {
+                public:
+
+                    explicit WaitException
+                    (
+                        const std::string &message, 
+                        const std::source_location &source_location = std::source_location::current()
+                    );
+            };
+        } // ! namespace algorithm
+
     } // ! namespace exceptions
 
 } // ! namespace lbm

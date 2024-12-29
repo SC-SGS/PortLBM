@@ -5,9 +5,9 @@
  * 
  * @brief       This source file contains the definitions of the LBM exceptions.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        2024-10-10
+ * @date        December 2024
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -88,4 +88,13 @@ lbm::exceptions::domain::OutOfDomainException::OutOfDomainException
 )
 :
 lbm::exceptions::Exception(message, "Out Of Domain Exception", source_location)
+{};
+
+lbm::exceptions::algorithm::WaitException::WaitException
+(
+    const std::string &message,
+    const std::source_location &source_location
+)
+:
+lbm::exceptions::Exception(message, "Wait Exception", source_location)
 {};

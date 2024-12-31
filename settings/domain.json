@@ -5,11 +5,11 @@
         "debugMode": false,
         "relaxationTime": 0.8,
         "resultsToCsv": false,
-        "timeSteps": 100000
+        "timeSteps": 1000
     },
     "domain": {
-        "horizontalNodes": 1000,
-        "verticalNodes": 400
+        "horizontalNodes": 998,
+        "verticalNodes": 998
     },
     "inlets": {
         "density": 1.3,

@@ -168,12 +168,6 @@ void lbm::gui::Gui::run()
                     
                 }
 
-                for(int i = 0; i < executor->algorithm->simulation->properties->domain_node_count; ++i)
-                {
-                    (*(executor->algorithm->simulation->results->absolute_velocities))[i] = 
-                        sqrt(pow((*(executor->algorithm->simulation->results->x_velocities))[i], 2) + pow((*(executor->algorithm->simulation->results->y_velocities))[i], 2));
-                }
-
                 if(windows->enable_velocity_quiver)
                 {
                     unsigned int dnode_index = 0;
@@ -239,8 +233,7 @@ void lbm::gui::Gui::run()
         }
 
         windows::density_window(*executor, *this);
-
-        windows::velocity_window(*executor,*this);
+        windows::velocity_window(*executor, *this);
 
         rendering::render(window, *this);
     }

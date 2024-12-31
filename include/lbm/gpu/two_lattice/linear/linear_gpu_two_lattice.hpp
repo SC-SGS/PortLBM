@@ -84,6 +84,7 @@ namespace lbm
                             sycl::buffer<double, 1> densities_sycl(simulation->results->densities->data(), sycl::range<1>(simulation->results->densities->size()));
                             sycl::buffer<double, 1> x_velocities_sycl(simulation->results->x_velocities->data(), sycl::range<1>(simulation->results->x_velocities->size()));
                             sycl::buffer<double, 1> y_velocities_sycl(simulation->results->y_velocities->data(), sycl::range<1>(simulation->results->y_velocities->size()));
+                            sycl::buffer<double, 1> absolute_velocities_sycl(simulation->results->absolute_velocities->data(), sycl::range<1>(simulation->results->absolute_velocities->size()));
 
                             queue->submit
                             (
@@ -92,9 +93,10 @@ namespace lbm
                                     sycl::accessor<uint8_t, 1, constants::read> phase_info_acc = phase_info_sycl.get_access<constants::read>(cgh);
                                     sycl::accessor<double, 1, constants::read> src_acc = src_sycl.get_access<constants::read>(cgh);
                                     sycl::accessor<double, 1, constants::read_write> dst_acc = dst_sycl.get_access<constants::read_write>(cgh);
-                                    sycl::accessor<double, 1, constants::read_write> densities_acc = densities_sycl.get_access<constants::read_write>(cgh);
-                                    sycl::accessor<double, 1, constants::read_write> x_velocities_acc = x_velocities_sycl.get_access<constants::read_write>(cgh);
-                                    sycl::accessor<double, 1, constants::read_write> y_velocities_acc = y_velocities_sycl.get_access<constants::read_write>(cgh);
+                                    sycl::accessor<double, 1, constants::write> densities_acc = densities_sycl.get_access<constants::write>(cgh);
+                                    sycl::accessor<double, 1, constants::write> x_velocities_acc = x_velocities_sycl.get_access<constants::write>(cgh);
+                                    sycl::accessor<double, 1, constants::write> y_velocities_acc = y_velocities_sycl.get_access<constants::write>(cgh);
+                                    sycl::accessor<double, 1, constants::write> absolute_velocities_acc = absolute_velocities_sycl.get_access<constants::write>(cgh);
                                     
                                     auto kernel = linear::kernels::StreamCollideKernel<A>
                                     (
@@ -104,6 +106,7 @@ namespace lbm
                                         densities_acc,
                                         x_velocities_acc,
                                         y_velocities_acc,
+                                        absolute_velocities_acc,
                                         *simulation->properties
                                     );
                                     cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes), kernel);

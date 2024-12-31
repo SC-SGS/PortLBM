@@ -323,9 +323,10 @@ namespace lbm
                         sycl::accessor<double, 1, constants::read> source_accessor;
 
                         sycl::accessor<double, 1, constants::read_write> destination_accessor;
-                        sycl::accessor<double, 1, constants::read_write> densities_accessor;
-                        sycl::accessor<double, 1, constants::read_write> x_velocities_accessor;
-                        sycl::accessor<double, 1, constants::read_write> y_velocities_accessor;
+                        sycl::accessor<double, 1, constants::write> densities_accessor;
+                        sycl::accessor<double, 1, constants::write> x_velocities_accessor;
+                        sycl::accessor<double, 1, constants::write> y_velocities_accessor;
+                        sycl::accessor<double, 1, constants::write> absolute_velocities_accessor;
 
                         unsigned int vertical_nodes;
                         unsigned int horizontal_nodes;
@@ -349,9 +350,10 @@ namespace lbm
                             const sycl::accessor<uint8_t, 1, constants::read> &phase_info_accessor,
                             const sycl::accessor<double, 1, constants::read> &source_accessor,
                             const sycl::accessor<double, 1, constants::read_write> &destination_accessor,
-                            const sycl::accessor<double, 1, constants::read_write> &densities_accessor,
-                            const sycl::accessor<double, 1, constants::read_write> &x_velocities_accessor,
-                            const sycl::accessor<double, 1, constants::read_write> &y_velocities_accessor,
+                            const sycl::accessor<double, 1, constants::write> &densities_accessor,
+                            const sycl::accessor<double, 1, constants::write> &x_velocities_accessor,
+                            const sycl::accessor<double, 1, constants::write> &y_velocities_accessor,
+                            const sycl::accessor<double, 1, constants::write> &absolute_velocities_accessor,
                             const core::Properties &properties
                         )
                         : 
@@ -361,6 +363,7 @@ namespace lbm
                         densities_accessor(densities_accessor),
                         x_velocities_accessor(x_velocities_accessor),
                         y_velocities_accessor(y_velocities_accessor),
+                        absolute_velocities_accessor(absolute_velocities_accessor),
                         vertical_nodes(properties.vertical_nodes),
                         horizontal_nodes(properties.horizontal_nodes),
                         relaxation_time(properties.relaxation_time)
@@ -409,6 +412,7 @@ namespace lbm
                                 densities_accessor[iteration_node_offset] = density;
                                 x_velocities_accessor[iteration_node_offset] = flow_velocity_x;
                                 y_velocities_accessor[iteration_node_offset] = flow_velocity_y;
+                                absolute_velocities_accessor[iteration_node_offset] = sycl::sqrt(flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y);
 
                                 // Collision
                                 for (const auto& direction : core::constants::all_directions)

@@ -1,25 +1,25 @@
 /**
- * @file    executor.hpp
+ * @file        executor.hpp
  * 
- * @author  Marcel Graf
+ * @author      Marcel Graf
  * 
- * @brief   This header file contains the declaration of an abstract class for an executor.
- *          The GUI is designed to be compatible with various backends.
- *          To ensure compatibility, it is isolated from the implementation,
- *          and any interaction with the backend happens through specific executioners.
- *          They are used to launch the simulation and to retrieve the results.
- *          The only prerequisite is that the backend must provide the following functionality:
- *          - Check whether the simulation result is available without accessing its value
- *          - Asynchronous execution of the computations behind the simulation
- *          Executioners for all supported implementations are supposed to inherit from the abstract class.
- *          Any additional values that may be necessary for custom executioners should be added
- *          in its own class.
+ * @brief       This header file contains the declaration of an abstract class for an executor.
+ *              The GUI is designed to be compatible with various backends.
+ *              To ensure compatibility, it is isolated from the implementation,
+ *              and any interaction with the backend happens through specific executioners.
+ *              They are used to launch the simulation and to retrieve the results.
+ *              The only prerequisite is that the backend must provide the following functionality:
+ *              - Check whether the simulation result is available without accessing its value
+ *              - Asynchronous execution of the computations behind the simulation
+ *              Executioners for all supported implementations are supposed to inherit from the abstract class.
+ *              Any additional values that may be necessary for custom executioners should be added
+ *              in its own class.
  * 
- * @version 2.0
+ * @version     2.0
  * 
- * @date    December 2024
+ * @date        December 2024
  * 
- * @copyright Copyright (c) 2024 Marcel Graf
+ * @copyright   Copyright (c) 2024 Marcel Graf
  */
 
 #ifndef LBM_EXECUTOR_HPP

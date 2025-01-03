@@ -53,11 +53,11 @@ namespace lbm
             /**
              * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
              */
-            explicit Algorithm(const sycl::queue &queue)
+            explicit Algorithm(sycl::queue &queue)
             : 
             future(hpx::async([]{})), 
             queue(std::make_shared<sycl::queue>(queue)), 
-            simulation(std::make_unique<core::Simulation>())
+            simulation(std::make_unique<core::Simulation>(queue))
             {};
 
             public:

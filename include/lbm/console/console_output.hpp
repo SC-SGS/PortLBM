@@ -250,49 +250,57 @@ namespace lbm
             const core::Results &simulation_results 
         );
 
-    /**
-     * @brief   Prints various pieces of debug information to the console. Included information:
-     *        
-     *          - Enumeration of all nodes within the lattice
-     * 
-     *          - Phase information
-     * 
-     *          - Border swap information
-     * 
-     *          - Distribution values 0
-     * 
-     * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
-     * 
-     * @param[in] data   a structure of data on which the simulation operates
-     */
-    template <core::access::experimental::AccessorConcept A> void debug_prints
-    (
-        const core::Data &data,
-        const core::Properties &properties
-    )
-    {
-        std::vector<unsigned int> nodes;
-        for(auto i = 0; i < properties.buffered_node_count; ++i)
+        void print_simulation_results
+        (
+            const core::Properties &properties,
+            const std::vector<double> &densities,
+            const std::vector<double> &x_velocities,
+            const std::vector<double> &y_velocities
+        );
+
+        /**
+         * @brief   Prints various pieces of debug information to the console. Included information:
+         *        
+         *          - Enumeration of all nodes within the lattice
+         * 
+         *          - Phase information
+         * 
+         *          - Border swap information
+         * 
+         *          - Distribution values 0
+         * 
+         * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+         * 
+         * @param[in] data   a structure of data on which the simulation operates
+         */
+        template <core::access::experimental::AccessorConcept A> void debug_prints
+        (
+            const core::Data &data,
+            const core::Properties &properties
+        )
         {
-            nodes.push_back(i);
+            // std::vector<unsigned int> nodes;
+            // for(auto i = 0; i < properties.buffered_node_count; ++i)
+            // {
+            //     nodes.push_back(i);
+            // }
+
+            // std::cout << "Enumeration of all nodes within the lattice: \n"
+            //         << "-------------------------------------------------------------------------------\n";
+
+            // lbm::console::print_vector(nodes, properties.horizontal_nodes);
+            // std::cout << "\n";
+
+            // std::cout << "Phases: \n"
+            //         << "-------------------------------------------------------------------------------\n";
+            // lbm::console::print_phase_vector(*data.phase_information, properties.horizontal_nodes);
+            // std::cout << "\n";
+
+            // std::cout << "Distribution values: \n"
+            //         << "-------------------------------------------------------------------------------\n";
+            // lbm::console::print_distribution_values<A>(*data.distribution_values_0, properties.horizontal_nodes, properties.vertical_nodes);
+            // std::cout << "\n";
         }
-
-        std::cout << "Enumeration of all nodes within the lattice: \n"
-                << "-------------------------------------------------------------------------------\n";
-
-        lbm::console::print_vector(nodes, properties.horizontal_nodes);
-        std::cout << "\n";
-
-        std::cout << "Phases: \n"
-                << "-------------------------------------------------------------------------------\n";
-        lbm::console::print_phase_vector(*data.phase_information, properties.horizontal_nodes);
-        std::cout << "\n";
-
-        std::cout << "Distribution values: \n"
-                << "-------------------------------------------------------------------------------\n";
-        lbm::console::print_distribution_values<A>(*data.distribution_values_0, properties.horizontal_nodes, properties.vertical_nodes);
-        std::cout << "\n";
-    }
 
     } // ! namespace console
 

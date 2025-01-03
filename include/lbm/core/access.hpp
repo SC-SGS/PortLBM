@@ -25,6 +25,8 @@
 #include <vector>
 #include <array>
 #include <concepts>
+#include <iostream>
+#include <cassert>
 
 namespace lbm
 {
@@ -194,7 +196,13 @@ namespace lbm
                     static inline
                     unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count)
                     {
-                        return 9 * node + direction;  
+                        //return 9 * node + direction;
+                        //return total_buffered_node_count * direction + node;  
+                        // return 0;
+                        // std::cout << "Accessing with values node = " << node << ", direction = " << direction << " and total_buffered_node_count = " << total_buffered_node_count << "\n"; 
+                        // std::cout << "Index: " << (9 * node) + direction << " is smaller than " << 9 * total_buffered_node_count << "? " << (((9 * node) + direction) < 9 * total_buffered_node_count) << "\n\n";
+                        //assert((((unsigned int)9 * node) + direction) < 9 * total_buffered_node_count);
+                        return 9 * node + direction;
                     }
                 };
 

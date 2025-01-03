@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann simulations.
  * 
- * @version     3.0
+ * @version     4.0
  * 
  * @date        December 2024
  * 
@@ -29,6 +29,9 @@
 // Standary library
 #include <complex>
 #include <memory>
+
+// SYCL
+#include <sycl/sycl.hpp>
 
 namespace lbm
 {
@@ -178,8 +181,14 @@ namespace lbm
         /**
          * @brief This structure contains the results of the simulation in a structure-of-arrays representation.
          */
-        struct Results
+        class Results
         {
+            private:
+
+            std::shared_ptr<sycl::queue> queue;
+
+            public:
+
             /**
              * @brief   A unique pointer to a vector containing the densities of all nodes in the simulation domain.
              *          Solid nodes should always have the value '-1.0' for better distinction from the fluid nodes.
@@ -188,7 +197,10 @@ namespace lbm
              *          are not meaningful, and have to be scaled by a factor to retrieve pressure values. 
              *          However, they are meaningful for compressible fluids.
              */
-            std::unique_ptr<std::vector<double>> densities;
+            std::unique_ptr<std::vector<double>> densities_cpu;
+
+            /** @brief  GPU allocated densities */
+            double *densities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the x components of the velocity vectors of all nodes 
@@ -196,7 +208,10 @@ namespace lbm
              *          further regarding their velocities. All differenciation between solid and fluid nodes is realized
              *          through the density values.
              */
-            std::unique_ptr<std::vector<double>> x_velocities;
+            std::unique_ptr<std::vector<double>> x_velocities_cpu;
+
+            /** @brief  GPU allocated x components of the velocity vectors */
+            double *x_velocities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the y components of the velocity vectors of all nodes 
@@ -204,13 +219,19 @@ namespace lbm
              *          further regarding their velocities. All differenciation between solid and fluid nodes is realized
              *          through the density values.
              */
-            std::unique_ptr<std::vector<double>> y_velocities;
+            std::unique_ptr<std::vector<double>> y_velocities_cpu;
+
+            /** @brief  GPU allocated y components of the velocity vectors */
+            double *y_velocities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the absolutes of the velocity vectors of each node.
              *          It is required for visualization purposes only and remains unused otherwise.
              */
-            std::unique_ptr<std::vector<double>> absolute_velocities;
+            std::unique_ptr<std::vector<double>> absolute_velocities_cpu;
+
+            /** @brief  GPU allocated absolutes of the velocity vectors */
+            double *absolute_velocities_gpu;
 
             /**
              * @brief   Constructs a new simulation results object based on the provided properties structure.
@@ -219,38 +240,47 @@ namespace lbm
              * 
              * @param[in] size the size of each vector should be set to the amount of actual nodes (neither ghost nor buffer)
              */
-            explicit Results(const size_t &size);
+            explicit Results(const size_t &size, sycl::queue &queue);
 
-            /**
-             * @brief Constructs a new results object using the specified vectors.
-             */
-            explicit Results
-            (
-                const std::vector<double> &densities,
-                const std::vector<double> &pressures,
-                const std::vector<double> &x_velocities,
-                const std::vector<double> &y_velocities,
-                const std::vector<double> &absolute_velocities
-            );
+            ~Results()
+            {
+                sycl::free(densities_gpu, *queue);
+                sycl::free(x_velocities_gpu, *queue);
+                sycl::free(y_velocities_gpu, *queue);
+                sycl::free(absolute_velocities_gpu, *queue);
+            }
         };
 
         /**
          * @brief This structure contains all data on which the simulation operates internally.
          */
-        struct Data
+        class Data
         {
-            std::unique_ptr<std::vector<uint8_t>> phase_information;
-            std::unique_ptr<std::vector<uint8_t>> is_buffer;
-            std::unique_ptr<std::vector<double>> distribution_values_0;
-            std::unique_ptr<std::vector<double>> distribution_values_1;
-            std::unique_ptr<std::vector<unsigned int>> boundary_interactions;
+            private:
+
+            std::shared_ptr<sycl::queue> queue;
+
+            public:
+
+            uint8_t *phase_information;
+
+            double *distribution_values_0;
+
+            double *distribution_values_1;
 
             /**
              * @brief Constructs a new Data object with an accessor object of the specified type.
              * 
              * @param[in] buffered_node_count the amount of nodes in the lattice including ghosts and buffers.
              */
-            explicit Data(const size_t &buffered_node_count);
+            explicit Data(const size_t &total_node_count, const sycl::queue &queue, bool two_lattice);
+
+            ~Data()
+            {
+                sycl::free(phase_information, *queue);
+                sycl::free(distribution_values_0, *queue);
+                sycl::free(distribution_values_1, *queue);
+            }
         };
 
         /**
@@ -266,7 +296,7 @@ namespace lbm
              * @brief Constructor for the Simulation struct.
              * @throws `lbm::exceptions::json::PropertyArgumentException` if an unknown data layout is read from the JSON file
              */
-            explicit Simulation();
+            explicit Simulation(sycl::queue &queue);
         };
 
     } // ! namespace core

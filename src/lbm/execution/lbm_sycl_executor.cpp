@@ -21,24 +21,28 @@ lbm::execution::SYCLExecutor::SYCLExecutor()
 device_selector(std::make_unique<sycl::default_selector>()), 
 queue(std::make_unique<sycl::queue>(*device_selector))
 {
-    std::unique_ptr<core::Properties> properties = lbm::file_interaction::json_to_properties();
+    std::cout << "lbm_sycl_executor.cpp:\tWithin constructor\n";
+    std::unique_ptr<core::Properties> properties = std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties());
 
     if(properties->algorithm == "gpu-two-lattice-linear")
     {
+        std::cout << "lbm_sycl_executor.cpp:\tAlgorithm detected: Linear GPU two-lattice\n";
         if(properties->data_layout == "stream")
         {
+            std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
             algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::StreamAccessor>>(*queue);
-            lbm::core::setup_pipe_flow_environment<core::access::experimental::StreamAccessor>(*algorithm->simulation, core::Obstacle::PLATE);
+            std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
+            lbm::core::setup_pipe_flow_environment<core::access::experimental::StreamAccessor>(*algorithm->simulation, *queue, core::domain_initialization::Obstacle::NONE);
         }
         else if(properties->data_layout == "collision")
         {
             algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::CollisionAccessor>>(*queue);
-            lbm::core::setup_pipe_flow_environment<core::access::experimental::CollisionAccessor>(*algorithm->simulation, core::Obstacle::PLATE);
+            lbm::core::setup_pipe_flow_environment<core::access::experimental::CollisionAccessor>(*algorithm->simulation, *queue, core::domain_initialization::Obstacle::NONE);
         }
         else if(properties->data_layout == "bundle")
         {
             algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::BundleAccessor>>(*queue);
-            lbm::core::setup_pipe_flow_environment<core::access::experimental::BundleAccessor>(*algorithm->simulation, core::Obstacle::PLATE);
+            lbm::core::setup_pipe_flow_environment<core::access::experimental::BundleAccessor>(*algorithm->simulation, *queue, core::domain_initialization::Obstacle::NONE);
         }
         else
         {

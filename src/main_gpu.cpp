@@ -17,8 +17,7 @@
 // Fundamental LBM includes that are always necessary regardless of the CMake configuration
 #include "../include/lbm/file_interaction/file_interaction.hpp"
 #include "../include/lbm/core/simulation.hpp"
-#include "../include/lbm/gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
-#include "../include/lbm/execution/lbm_sycl_executor.hpp"
+// #include "../include/lbm/execution/lbm_sycl_executor.hpp"
 
 // HPX includes that are always necessary regardless of the CMake configuration
 #include <hpx/hpx_init.hpp>
@@ -56,6 +55,7 @@ int hpx_main(hpx::program_options::variables_map& vm)
 {
     try
     {
+        std::cout << "main.cpp:\tCreating SYCL executor\n";
         std::unique_ptr<lbm::execution::SYCLExecutor> executor = std::make_unique<lbm::execution::SYCLExecutor>();
         lbm::console::print_ansi_color_message();
         lbm::console::print_color_legend();

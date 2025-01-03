@@ -26,7 +26,7 @@
 #include <iostream>
 
 // Linear GPU two-lattice
-#include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
+#include "../gpu/two_lattice/linear/usm_linear_gpu_two_lattice.hpp"
 
 namespace lbm
 {

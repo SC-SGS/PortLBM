@@ -47,35 +47,32 @@ void lbm::file_interaction::properties_to_json
     file.close();
 }
 
-std::unique_ptr<lbm::core::Properties> lbm::file_interaction::json_to_properties(const std::string &path)
+lbm::core::Properties lbm::file_interaction::json_to_properties(const std::string &path)
 {
     std::ifstream file(path);
     nlohmann::json data = nlohmann::json::parse(file);
     file.close();
 
-    return std::make_unique<lbm::core::Properties>
+    return lbm::core::Properties
     (
-        lbm::core::Properties
-        (
-            // Algorithmic properties
-            data.at("algorithmic").at("algorithm").get<std::string>(),
-            data.at("algorithmic").at("dataLayout").get<std::string>(),
-            data.at("algorithmic").at("debugMode").get<bool>(),
-            data.at("algorithmic").at("resultsToCsv").get<bool>(),
-            data.at("algorithmic").at("relaxationTime").get<double>(),
-            data.at("algorithmic").at("timeSteps").get<unsigned int>(),
-            // Domain properties
-            data.at("domain").at("verticalNodes").get<unsigned int>(),
-            data.at("domain").at("horizontalNodes").get<unsigned int>(),
-            // Inlets
-            data.at("inlets").at("velocity").at("x").get<double>(),
-            data.at("inlets").at("velocity").at("y").get<double>(),
-            data.at("inlets").at("density").get<double>(),
-            // Outlets
-            data.at("outlets").at("velocity").at("x").get<double>(),
-            data.at("outlets").at("velocity").at("y").get<double>(),
-            data.at("outlets").at("density").get<double>()
-        )
+        // Algorithmic properties
+        data.at("algorithmic").at("algorithm").get<std::string>(),
+        data.at("algorithmic").at("dataLayout").get<std::string>(),
+        data.at("algorithmic").at("debugMode").get<bool>(),
+        data.at("algorithmic").at("resultsToCsv").get<bool>(),
+        data.at("algorithmic").at("relaxationTime").get<double>(),
+        data.at("algorithmic").at("timeSteps").get<unsigned int>(),
+        // Domain properties
+        data.at("domain").at("verticalNodes").get<unsigned int>(),
+        data.at("domain").at("horizontalNodes").get<unsigned int>(),
+        // Inlets
+        data.at("inlets").at("velocity").at("x").get<double>(),
+        data.at("inlets").at("velocity").at("y").get<double>(),
+        data.at("inlets").at("density").get<double>(),
+        // Outlets
+        data.at("outlets").at("velocity").at("x").get<double>(),
+        data.at("outlets").at("velocity").at("y").get<double>(),
+        data.at("outlets").at("density").get<double>()
     );
 }
 

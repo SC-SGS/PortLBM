@@ -67,8 +67,8 @@ simulation_control(std::make_unique<SimulationControl>()),
 progress(std::make_unique<Progress>()),
 monitor(std::make_unique<Monitor>()),
 colormaps(std::make_unique<Colormaps>()),
-properties_stored(lbm::file_interaction::json_to_properties()),
-properties_buffered(lbm::file_interaction::json_to_properties()),
+properties_stored(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties())),
+properties_buffered(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties())),
 velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_stored->domain_node_count)),
 window_title(std::make_unique<std::string>(window_title)),
 properties_changed(false)
@@ -194,7 +194,7 @@ void lbm::gui::Gui::run()
                                     executor->algorithm->simulation->properties->horizontal_nodes
                                 );
 
-                            if(executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index) > 1e-15)
+                            if(executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index) > 1e-15)
                             {
                                 base_x = 0.5 + x - 1;
                                 base_y = 0.5 + y - 1;
@@ -202,11 +202,11 @@ void lbm::gui::Gui::run()
                                 (*velocity_quiver_data->x_values)[2 * dnode_index] = base_x;
                                 (*velocity_quiver_data->y_values)[2 * dnode_index] = base_y;
 
-                                offset_x = base_x + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index)) 
-                                                        * executor->algorithm->simulation->results->x_velocities->at(velocity_value_index);
+                                offset_x = base_x + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index)) 
+                                                        * executor->algorithm->simulation->results->x_velocities_cpu->at(velocity_value_index);
 
-                                offset_y = base_y + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities->at(velocity_value_index)) 
-                                                        * executor->algorithm->simulation->results->y_velocities->at(velocity_value_index);
+                                offset_y = base_y + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index)) 
+                                                        * executor->algorithm->simulation->results->y_velocities_cpu->at(velocity_value_index);
 
                                 (*velocity_quiver_data->x_values)[2 * dnode_index + 1] = offset_x;
                                 (*velocity_quiver_data->y_values)[2 * dnode_index + 1] = offset_y;
@@ -323,7 +323,7 @@ void lbm::gui::windows::density_window
                 ImPlot::PlotHeatmap
                 (
                     "",
-                    sycl_executor.algorithm->simulation->results->densities->data(),
+                    sycl_executor.algorithm->simulation->results->densities_cpu->data(),
                     sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
                     sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
                     gui.colormaps->density_colormap_lower_scale,
@@ -337,7 +337,7 @@ void lbm::gui::windows::density_window
                 ImPlot::PlotHeatmap
                 (
                     "Solid mask for density",
-                    sycl_executor.algorithm->simulation->results->densities->data(),
+                    sycl_executor.algorithm->simulation->results->densities_cpu->data(),
                     sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
                     sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
                     -1,
@@ -355,7 +355,7 @@ void lbm::gui::windows::density_window
                     {
                         ImGui::BeginTooltip();
                         ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
-                        double value = sycl_executor.algorithm->simulation->results->densities->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x));
+                        double value = sycl_executor.algorithm->simulation->results->densities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x));
                         if(value != -1)
                         {
                             ImGui::Text("Density: %f", value);
@@ -464,7 +464,7 @@ void lbm::gui::windows::velocity_window
                 ImPlot::PlotHeatmap
                 (
                     "Absolute velocities",
-                    sycl_executor.algorithm->simulation->results->absolute_velocities->data(),
+                    sycl_executor.algorithm->simulation->results->absolute_velocities_cpu->data(),
                     sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
                     sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
                     gui.colormaps->velocity_colormap_lower_scale, 
@@ -480,7 +480,7 @@ void lbm::gui::windows::velocity_window
                 ImPlot::PlotHeatmap
                 (
                     "Solid mask for velocity",
-                    sycl_executor.algorithm->simulation->results->densities->data(),
+                    sycl_executor.algorithm->simulation->results->densities_cpu->data(),
                     sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
                     sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
                     -1,
@@ -501,7 +501,7 @@ void lbm::gui::windows::velocity_window
                         "Quiver plot", 
                         gui.velocity_quiver_data->x_values->data(), 
                         gui.velocity_quiver_data->y_values->data(), 
-                        2 * sycl_executor.algorithm->simulation->results->absolute_velocities->size(), 
+                        2 * sycl_executor.algorithm->simulation->results->absolute_velocities_cpu->size(), 
                         ImPlotLineFlags_Segments
                     );
                 }
@@ -515,10 +515,10 @@ void lbm::gui::windows::velocity_window
                         ImGui::BeginTooltip();
                         ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
 
-                        if(sycl_executor.algorithm->simulation->results->densities->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * (int)floor(mouse.y) + (int)floor(mouse.x)) != -1)
+                        if(sycl_executor.algorithm->simulation->results->densities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * (int)floor(mouse.y) + (int)floor(mouse.x)) != -1)
                         {
-                            ImGui::Text("x velocity: %.6f", sycl_executor.algorithm->simulation->results->x_velocities->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
-                            ImGui::Text("y velocity: %.6f", sycl_executor.algorithm->simulation->results->y_velocities->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
+                            ImGui::Text("x velocity: %.6f", sycl_executor.algorithm->simulation->results->x_velocities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
+                            ImGui::Text("y velocity: %.6f", sycl_executor.algorithm->simulation->results->y_velocities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
                         }
                         else
                         {

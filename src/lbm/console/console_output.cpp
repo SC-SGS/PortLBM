@@ -164,7 +164,7 @@ void lbm::console::print_simulation_results
     {
         std::cout << "t = " << i << "\n";
         std::cout << "-------------------------------------------------------------------------------- \n";
-        lbm::console::print_velocities(properties, *simulation_results.x_velocities, *simulation_results.y_velocities, i);
+        lbm::console::print_velocities(properties, *simulation_results.x_velocities_cpu, *simulation_results.y_velocities_cpu, i);
         std::cout << "\n";
     }
     std::cout << "\n\n";
@@ -175,7 +175,38 @@ void lbm::console::print_simulation_results
     {
         std::cout << "t = " << i << "\n";
         std::cout << "-------------------------------------------------------------------------------- \n";
-        lbm::console::print_densities(properties, *simulation_results.densities, i);
+        lbm::console::print_densities(properties, *simulation_results.densities_cpu, i);
+        std::cout << "\n";
+    }
+    std::cout << "\n";
+}
+
+void lbm::console::print_simulation_results
+(
+    const core::Properties &properties,
+    const std::vector<double> &densities,
+    const std::vector<double> &x_velocities,
+    const std::vector<double> &y_velocities
+)
+{
+    std::cout << "Velocity values: \n\n";
+
+    for(auto i = 0; i < properties.time_steps; ++i)
+    {
+        std::cout << "t = " << i << "\n";
+        std::cout << "-------------------------------------------------------------------------------- \n";
+        lbm::console::print_velocities(properties, x_velocities, y_velocities, i);
+        std::cout << "\n";
+    }
+    std::cout << "\n\n";
+
+    std::cout << "Density values: \n\n";
+    
+    for(auto i = 0; i < properties.time_steps; ++i)
+    {
+        std::cout << "t = " << i << "\n";
+        std::cout << "-------------------------------------------------------------------------------- \n";
+        lbm::console::print_densities(properties, densities, i);
         std::cout << "\n";
     }
     std::cout << "\n";

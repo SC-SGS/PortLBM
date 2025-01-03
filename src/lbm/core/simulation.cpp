@@ -5,7 +5,7 @@
  * 
  * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann simulations.
  * 
- * @version     3.0
+ * @version     4.0
  * 
  * @date        December 2024
  * 
@@ -16,6 +16,7 @@
 #include "../../../include/lbm/core/simulation.hpp"
 #include "../../../include/lbm/file_interaction/file_interaction.hpp"
 #include "../../../include/lbm/exceptions/exceptions.hpp"
+
 
 lbm::core::Properties::Properties
 (
@@ -62,6 +63,7 @@ outlet_velocity_y(outlet_velocity_y),
 outlet_density(outlet_density)
 {};
 
+
 std::string lbm::core::Properties::to_string() const
 {
     return fmt::format
@@ -98,8 +100,9 @@ std::string lbm::core::Properties::to_string() const
         outlet_velocity_x,
         outlet_velocity_y,
         outlet_density
-        );
+    );
 }
+
 
 lbm::core::ExpandedDomainData::ExpandedDomainData
 (
@@ -117,41 +120,45 @@ subdomain_count_vertical(subdomain_count_vertical),
 subdomain_count_horizontal(subdomain_count_horizontal)
 {};
 
-lbm::core::Results::Results(const size_t &size)
-:
-densities(std::make_unique<std::vector<double>>(size, -1.0f)),
-x_velocities(std::make_unique<std::vector<double>>(size, 0.0f)),
-y_velocities(std::make_unique<std::vector<double>>(size, 0.0f)),
-absolute_velocities(std::make_unique<std::vector<double>>(size, 0.0f))
-{};
 
-lbm::core::Results::Results
-(
-    const std::vector<double> &densities,
-    const std::vector<double> &pressures,
-    const std::vector<double> &x_velocities,
-    const std::vector<double> &y_velocities,
-    const std::vector<double> &absolute_velocities  
-)
+lbm::core::Results::Results(const size_t &size, sycl::queue &queue)
 :
-densities(std::make_unique<std::vector<double>>(densities)),
-x_velocities(std::make_unique<std::vector<double>>(x_velocities)),
-y_velocities(std::make_unique<std::vector<double>>(y_velocities)),
-absolute_velocities(std::make_unique<std::vector<double>>(absolute_velocities))
-{};
+queue(std::make_shared<sycl::queue>(queue)),
 
-lbm::core::Data::Data(const size_t &buffered_node_count)
-:
-phase_information(std::make_unique<std::vector<uint8_t>>(buffered_node_count, 0)),
-is_buffer(std::make_unique<std::vector<uint8_t>>(buffered_node_count, 0)),
-distribution_values_0(std::make_unique<std::vector<double>>(buffered_node_count * 9, 0.0f)),
-distribution_values_1(std::make_unique<std::vector<double>>(buffered_node_count * 9, 0.0f)),
-boundary_interactions(std::make_unique<std::vector<unsigned int>>(buffered_node_count * 9, 0))
-{};
+densities_cpu(std::make_unique<std::vector<double>>(size, -1.0f)),
+densities_gpu(sycl::malloc_device<double>(size, queue)),
 
-lbm::core::Simulation::Simulation()
+x_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
+x_velocities_gpu(sycl::malloc_device<double>(size, queue)),
+
+y_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
+y_velocities_gpu(sycl::malloc_device<double>(size, queue)),
+
+absolute_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
+absolute_velocities_gpu(sycl::malloc_device<double>(size, queue))
+{
+    queue.fill(densities_gpu, -1.0, size).wait();
+};
+
+
+lbm::core::Data::Data(const size_t &total_node_count, const sycl::queue &queue, bool two_lattice)
 :
-properties(std::move(lbm::file_interaction::json_to_properties())),
-data(std::make_unique<Data>(properties->buffered_node_count)),
-results(std::make_unique<Results>(properties->domain_node_count))
-{};
+queue(std::make_shared<sycl::queue>(queue)),
+phase_information(sycl::malloc_device<uint8_t>(total_node_count, queue)),
+distribution_values_0(sycl::malloc_device<double>(9 * total_node_count, queue))
+{
+    if(two_lattice) distribution_values_1 = sycl::malloc_device<double>(9 * total_node_count, queue);
+    else distribution_values_1 = NULL;
+};
+
+
+lbm::core::Simulation::Simulation(sycl::queue &queue)
+:
+properties(std::make_unique<Properties>(file_interaction::json_to_properties())),
+results(std::make_unique<Results>(properties->domain_node_count, queue))
+{
+    if(properties->algorithm == "gpu-two-lattice-linear" || properties->algorithm == "gpu-two-lattice")
+        data = std::make_unique<Data>(properties->buffered_node_count, queue, true);
+    else
+        data = std::make_unique<Data>(properties->buffered_node_count, queue, false);
+};

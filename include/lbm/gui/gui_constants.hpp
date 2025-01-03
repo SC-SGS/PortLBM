@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains constants for the GUI.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        November 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  */
@@ -15,9 +15,12 @@
 #ifndef GUI_CONSTANTS_HPP
 #define GUI_CONSTANTS_HPP
 
+// ImPlot
+#include "../../external/implot/implot.h"
+
+// Standary library
 #include <array>
 #include <string_view>
-#include "../../external/implot/implot.h"
 
 namespace lbm
 {
@@ -33,6 +36,8 @@ namespace lbm
 
             constexpr std::array<std::string_view, 3> algorithms = {"gpu-two-lattice", "gpu-two-lattice-linear", "gpu-swap"};
             constexpr std::array<std::string_view, 3> data_layouts = {"collision", "stream", "bundle"};
+            constexpr std::array<std::string_view, 8> scenarios = 
+                {"none", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};
             
             /**
              * @brief An array containing all default colormaps offered by ImPlot.
@@ -63,4 +68,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif
+#endif // ! GUI_CONSTANTS_HPP

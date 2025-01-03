@@ -3,15 +3,13 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       Updated version of the lattice Boltzmann access functions first introduced in my SimTech project work:
- *              https://github.com/MarcelGraf0710/Task-based-Lattice-Boltzmann.
- *              The major change is that accessor objects are used to achieve different access patterns since SYCL
- *              is not compatible with function pointers.
- *              The data layouts were proposed by Mattila et al.
+ * @brief       This header file contains the definitions of classes modelling data layouts for storing distribution values
+ *              proposed by Mattila et al, as well as functions for retrieving the index of neighbor nodes and simulation
+ *              results.
  * 
  * @version     2.2
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -20,13 +18,12 @@
 #ifndef ACCESS_HPP
 #define ACCESS_HPP
 
+// Standard library
 #include <string_view>
 #include <tuple>
 #include <vector>
 #include <array>
 #include <concepts>
-#include <iostream>
-#include <cassert>
 
 namespace lbm
 {
@@ -41,223 +38,94 @@ namespace lbm
         namespace access
         {
             /**
-             * @brief This abstract non-instanciable accessor class defines the root of an accessor hierarchy.
-             *        It is used as the base type of valid accessor objects.
-             *        These accessor objects are used to implement substituable access functions.
+             * @brief Models the access of distribution values according to the collision data layout.
              */
-            class LBMAccessorObject
+            struct CollisionAccessor
             {
-                protected:
+                static constexpr std::string_view layout_string = "collision";
 
-                    /**
-                     * @brief This constructor is only available to child classes to set up the amount of
-                     *        horizontal nodes. It is not available otherwise, and no instances of this type
-                     *        can be constructed.
-                     * 
-                     * @param[in] horizontal_nodes the amount of horizontal nodes in the lattice
-                     */
-                    explicit LBMAccessorObject(const unsigned int horizontal_nodes);
-
-                public:
-
-                    unsigned int horizontal_nodes;
-
-                    constexpr static std::string_view layout_string = "generic LBM accessor";
-
-                    /**
-                     * @brief Retrieves the index of the distribution value within the according vector
-                     *        following the data layout of this accessor object.
-                     * 
-                     * @param[in] node      index of the node 
-                     * @param[in] direction index of the direction
-                     * 
-                     * @return the index of the corresponding distribution value
-                     */
-                    virtual unsigned int operator()(const unsigned int node, const unsigned int direction) const = 0;
+                /**
+                 * @brief Retrieves the index of the distribution value within the according vector
+                 *        following the collision layout.
+                 * 
+                 * @param[in]   node                        index of the node 
+                 * @param[in]   direction                   index of the direction
+                 * @param[in]   total_buffered_node_count   blind parameter in this case, kept for interface compatibility
+                 * 
+                 * @return  the index of the corresponding distribution value
+                 */
+                static inline
+                unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count)
+                {
+                    return 9 * node + direction;
+                }
             };
 
             /**
-             * @brief Instances of this class model the access of distribution values according to the collision data layout.
+             * @brief Models the access of distribution values according to the stream data layout.
              */
-            class LBMCollisionAccessor : public LBMAccessorObject
+            struct StreamAccessor
             {
-                public:
+                static constexpr std::string_view layout_string = "stream";
 
-                    /**
-                     * @brief Constructs a new collision accessor object.
-                     * 
-                     * @param[in] horizontal_nodes the amount of horizontal nodes in the lattice
-                     */
-                    explicit LBMCollisionAccessor(const unsigned int horizontal_nodes);
-
-                    constexpr static std::string_view layout_string = "collision";
-
-                    /**
-                     * @brief Retrieves the index of the distribution value within the according vector
-                     *        following the collision layout.
-                     * 
-                     * @param[in] node      index of the node 
-                     * @param[in] direction index of the direction
-                     * 
-                     * @return the index of the corresponding distribution value
-                     */
-                    inline unsigned int operator()(const unsigned int node, const unsigned int direction) const override 
-                    {
-                        return 9 * node + direction;  
-                    }
+                /**
+                 * @brief Retrieves the index of the distribution value within the according vector
+                 *        following the stream layout.
+                 * 
+                 * @param[in] node                          index of the node 
+                 * @param[in] direction                     index of the direction
+                 * @param[in] total_buffered_node_count     total amount of nodes in the lattice including buffers and ghosts
+                 * 
+                 * @return the index of the corresponding distribution value
+                 */
+                static inline
+                unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
+                {
+                    return total_buffered_node_count * direction + node;
+                }
             };
 
             /**
-             * @brief Instances of this class model the access of distribution values according to the stream data layout.
+             * @brief Models the access of distribution values according to the bundle data layout.
              */
-            class LBMStreamAccessor : public LBMAccessorObject
+            struct BundleAccessor
             {
-                unsigned int buffered_node_count;
+                static constexpr std::string_view layout_string = "bundle";
 
-                public:
-
-                    /**
-                     * @brief Constructs a new stream accessor object.
-                     * 
-                     * @param[in] horizontal_nodes      the amount of horizontal nodes in the lattice
-                     * @param[in] buffered_node_count   the total amount of nodes in the lattice including buffers
-                     */
-                    explicit LBMStreamAccessor(const unsigned int horizontal_nodes, const unsigned int buffered_node_count); 
-
-                    constexpr static std::string_view layout_string = "stream";
-
-                    /**
-                     * @brief Retrieves the index of the distribution value within the according vector
-                     *        following the stream layout.
-                     * 
-                     * @param[in] node      index of the node 
-                     * @param[in] direction index of the direction
-                     * 
-                     * @return the index of the corresponding distribution value
-                     */
-                    inline unsigned int operator()(const unsigned int node, const unsigned int direction) const override 
-                    {
-                        return buffered_node_count * direction + node;
-                    }
+                /**
+                 * @brief Retrieves the index of the distribution value within the according vector
+                 *        following the stream layout.
+                 * 
+                 * @param[in] node                          index of the node 
+                 * @param[in] direction                     index of the direction
+                 * @param[in] total_buffered_node_count     total amount of nodes in the lattice including buffers and ghosts
+                 * 
+                 * @return the index of the corresponding distribution value
+                 */
+                static inline
+                unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
+                {
+                    return 3 * (direction / 3) * total_buffered_node_count + (direction % 3) + 3 * node; 
+                }
             };
 
             /**
-             * @brief Instances of this class model the access of distribution values according to the bundle data layout.
+             * @brief   This concept is used to restrict the template parameter of methods relying on an accessor function.
+             *          During compile time, the compatibility of the specified class is checked.
+             *          Any methods or classes operating on distribution values must use a data layout and an according
+             *          access pattern. The intended use is to specify both as a template parameter accepting any AccessorConcept,
+             *          that is, any of the following classes:
+             * 
+             *          - `lbm::core::access::CollisionAccessor`
+             * 
+             *          - `lbm::core::access::StreamAccessor`
+             * 
+             *          - `lbm::core::access::BundleAccessor`
+             * 
+             * @tparam T this class is tested for membership in the set of accessors during compile time
              */
-            class LBMBundleAccessor : public LBMAccessorObject
-            {
-                unsigned int buffered_node_count;
-
-                public:
-
-                    /**
-                     * @brief Constructs a new bundle accessor object.
-                     * 
-                     * @param[in] horizontal_nodes      the amount of horizontal nodes in the lattice
-                     * @param[in] buffered_node_count   the total amount of nodes in the lattice including buffers
-                     */
-                    explicit LBMBundleAccessor(const unsigned int horizontal_nodes, const unsigned int buffered_node_count); 
-
-                    constexpr static std::string_view layout_string = "bundle";
-
-                    /**
-                     * @brief Retrieves the index of the distribution value within the according vector
-                     *        following the bundle layout.
-                     * 
-                     * @param[in] node      index of the node 
-                     * @param[in] direction index of the direction
-                     * 
-                     * @return the index of the corresponding distribution value
-                     */
-                    inline unsigned int operator()(const unsigned int node, const unsigned int direction) const override 
-                    {
-                        return 3 * (direction / 3) * buffered_node_count + (direction % 3) + 3 * node; 
-                    }
-            };
-
-            namespace experimental
-            {
-                /**
-                 * @brief Models the access of distribution values according to the collision data layout.
-                 */
-                struct CollisionAccessor
-                {
-                    static constexpr std::string_view layout_string = "collision";
-
-                    /**
-                     * @brief Retrieves the index of the distribution value within the according vector
-                     *        following the collision layout.
-                     * 
-                     * @param[in] node      index of the node 
-                     * @param[in] direction index of the direction
-                     * 
-                     * @return the index of the corresponding distribution value
-                     */
-                    static inline
-                    unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count)
-                    {
-                        //return 9 * node + direction;
-                        //return total_buffered_node_count * direction + node;  
-                        // return 0;
-                        // std::cout << "Accessing with values node = " << node << ", direction = " << direction << " and total_buffered_node_count = " << total_buffered_node_count << "\n"; 
-                        // std::cout << "Index: " << (9 * node) + direction << " is smaller than " << 9 * total_buffered_node_count << "? " << (((9 * node) + direction) < 9 * total_buffered_node_count) << "\n\n";
-                        //assert((((unsigned int)9 * node) + direction) < 9 * total_buffered_node_count);
-                        return 9 * node + direction;
-                    }
-                };
-
-                /**
-                 * @brief Models the access of distribution values according to the stream data layout.
-                 */
-                struct StreamAccessor
-                {
-                    constexpr static std::string_view layout_string = "stream";
-
-                    /**
-                     * @brief Retrieves the index of the distribution value within the according vector
-                     *        following the stream layout.
-                     * 
-                     * @param[in] node                          index of the node 
-                     * @param[in] direction                     index of the direction
-                     * @param[in] total_buffered_node_count     total amount of nodes in the lattice including buffers and ghosts
-                     * 
-                     * @return the index of the corresponding distribution value
-                     */
-                    static inline
-                    unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
-                    {
-                        return total_buffered_node_count * direction + node;
-                    }
-                };
-
-                /**
-                 * @brief Models the access of distribution values according to the bundle data layout.
-                 */
-                struct BundleAccessor
-                {
-                    constexpr static std::string_view layout_string = "bundle";
-
-                    /**
-                     * @brief Retrieves the index of the distribution value within the according vector
-                     *        following the stream layout.
-                     * 
-                     * @param[in] node                          index of the node 
-                     * @param[in] direction                     index of the direction
-                     * @param[in] total_buffered_node_count     total amount of nodes in the lattice including buffers and ghosts
-                     * 
-                     * @return the index of the corresponding distribution value
-                     */
-                    static inline
-                    unsigned int at(const unsigned int node, const unsigned int direction, const unsigned int total_buffered_node_count) 
-                    {
-                        return 3 * (direction / 3) * total_buffered_node_count + (direction % 3) + 3 * node; 
-                    }
-                };
-
-                template <class T>
-                concept AccessorConcept = std::same_as<T, CollisionAccessor> || std::same_as<T, StreamAccessor> || std::same_as<T, BundleAccessor>;
-
-            } // ! namespace experimental
+            template <class T>
+            concept AccessorConcept = std::same_as<T, CollisionAccessor> || std::same_as<T, StreamAccessor> || std::same_as<T, BundleAccessor>;
             
             /**
             * @brief Retrieves the coordinates of the node with the specified node index.
@@ -265,9 +133,10 @@ namespace lbm
             * @param[in] node_index         the index of the node in question
             * @param[in] horizontal_nodes   the amount of horizontal nodes in the lattice
             * 
-            * @return a tuple containing the x and y coordinate of the specified node.
+            * @return a two-dimensional array containing the x and y coordinate of the specified node.
             */
-            inline std::array<unsigned int, 2> get_node_coordinates
+            inline 
+            std::array<unsigned int, 2> get_node_coordinates
             (
                 const unsigned int node_index,
                 const unsigned int horizontal_nodes
@@ -285,7 +154,8 @@ namespace lbm
              * 
              * @return the node index of the neighbor
              */
-            inline unsigned int get_neighbor
+            inline 
+            unsigned int get_neighbor
             (
                 const unsigned int node_index, 
                 const unsigned int direction,
@@ -318,83 +188,14 @@ namespace lbm
             }
 
             /**
-             * @brief This function returns the distribution values of the node with the specified index 
-             *        using the specified accessor object.
-             * 
-             * @param[in] source        the distribution values will be read from this vector
-             * @param[in] node_index    this is the index of the node in the domain
-             * 
-             * @return a vector containing the distribution values
-             */
-            template<experimental::AccessorConcept A> inline 
-            std::vector<double> get_distribution_values_of
-            (
-                const std::vector<double> &source, 
-                const unsigned int node_index,
-                const unsigned int total_node_count
-            )
-            {
-                std::vector<double> dist_vals(9,0);
-                for(auto direction = 0; direction < 9; ++direction)
-                {
-                    dist_vals[direction] = source[A::at(node_index, direction, total_node_count)];
-                }
-                return dist_vals;
-            }
-
-            /**
-             * @brief This function sets all distribution values of the node with the specified index 
-             *        to the specified values according to the access pattern specified by the accessor object.
-             * 
-             * @param[in] dist_vals     a vector containing the values to which the distribution values shall be set
-             * @param[in] node_index    this is the index of the node in the domain
-             * @param[in] destination   the distribution values will be written to this vector
-             */
-            template<experimental::AccessorConcept A> inline
-            void set_distribution_values_of
-            (
-                const std::vector<double> &dist_vals, 
-                const unsigned int node_index, 
-                const unsigned int total_node_count,
-                std::vector<double> &destination
-            )
-            {
-                for(auto direction = 0; direction < 9; ++direction)
-                {
-                    destination[A::at(node_index, direction, total_node_count)] = dist_vals[direction];
-                }
-            }
-
-            /**
-             * @brief This namespace contains functions for the access of simulation results within the
-             *        SimulationResults structure.
+             * @brief   This namespace contains functions for the access of simulation results.
              */
             namespace results
             {
                 /**
-                 * @brief Determines the index of the entry that the specified node index is mapped to
-                 *        in the specified time step.
-                 * 
-                 * @param[in] node_index        index of the node in question
-                 * @param[in] total_node_count  total amount of nodes in the lattice including buffer and ghost nodes
-                 * @param[in] time_step         the time step to which the value belongs
-                 * 
-                 * @return the index of the respective value in any vector within the SimulationResults structure     
-                 */
-                inline unsigned int get_result_index
-                (
-                    const unsigned int node_index,
-                    const unsigned int total_node_count,
-                    const unsigned int time_step
-                )
-                {
-                    return node_index + time_step * total_node_count;
-                }
-
-                /**
-                 * @brief Determines the index of any result array that a macroscopic observable of the node with the
-                 *        specified index is mapped to at the specified time if ghost nodes are ignored.
-                 *        That is, this function is used if no values are stored for the outer "halo".
+                 * @brief   Determines the index of any result array that a macroscopic observable of the node with the
+                 *          specified index is mapped to at the specified time if ghost nodes are ignored.
+                 *          That is, this function is used if no values are stored for the outer "halo".
                  * 
                  * @param[in] node_index        index of the node in question
                  * @param[in] horizontal_nodes  the total amount of horizontal nodes within the domain including ghost nodes
@@ -403,7 +204,7 @@ namespace lbm
                  * 
                  * @return the index of the respective value in any vector within the SimulationResults structure     
                  */
-                inline unsigned int get_result_index_no_ghosts
+                inline unsigned int get_result_index
                 (
                     const unsigned int node_index,
                     const unsigned int horizontal_nodes,
@@ -426,7 +227,7 @@ namespace lbm
                  * 
                  * @return the index of the respective value in any vector within the SimulationResults structure     
                  */
-                inline unsigned int get_result_index_no_ghosts
+                inline unsigned int get_result_index
                 (
                     const unsigned int node_index,
                     const unsigned int horizontal_nodes

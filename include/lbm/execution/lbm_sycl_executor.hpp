@@ -1,14 +1,14 @@
 /**
- * @file        sycl_executor.hpp
+ * @file        lbm_sycl_executor.hpp
  * 
  * @author      Marcel Graf
  * 
- * @brief       This header file contains the declaration of a class for a SYCL executor.
- *              Through this executor, it is possible to launch simulation iterations.
+ * @brief       This header file contains the declaration of a class for a SYCL executor. Through this executor, it is possible
+ *              to launch simulations using a SYCL-based backend.
  * 
  * @version     2.1
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024 Marcel Graf
  */
@@ -16,17 +16,18 @@
 #ifndef SYCL_EXECUTOR_HPP
 #define SYCL_EXECUTOR_HPP
 
-#include "lbm_executor.hpp"
+// Dependencies on LBM execution features
 #include "algorithm.hpp"
+#include "lbm_executor.hpp"
 
 // Dependencies on other LBM core features
 #include "../core/domain_initialization.hpp"
 
-// Standard library
-#include <iostream>
-
 // Linear GPU two-lattice
 #include "../gpu/two_lattice/linear/usm_linear_gpu_two_lattice.hpp"
+
+// Standard library
+#include <iostream>
 
 namespace lbm
 {
@@ -35,8 +36,9 @@ namespace lbm
     {
 
         /**
-         * @brief   Executor class for a SYCL backend.
-         *          It is used to execute the specified algorithm using the specified accessor object class.
+         * @brief   Executor class for a SYCL backend. It stores an `lbm::execution::Algorithm` specifying both the algorithm
+         *          and the data it operates on. That is, the algorithm is a small closed system of its own. The executor can
+         *          query whether or not an algorithm is ready, that is, whether it has finished its assigned work load or not.
          */
         class SYCLExecutor : public Executor
         {
@@ -77,4 +79,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif
+#endif // ! SYCL_EXECUTOR_HPP

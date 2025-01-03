@@ -42,6 +42,37 @@ namespace lbm
             namespace linear
             {
 
+                // /**
+                //  * @brief Returns whether the node with the specified index is a ghost node.
+                //  *        This is the case when at least one of the node coordinates is zero or the maximum extent 
+                //  *        in the according dimension, or if the node is solid.
+                //  * 
+                //  * @param[in] node_index        index of the node in question
+                //  * @param[in] vertical_nodes    the amount of vertical nodes including ghost nodes and buffers
+                //  * @param[in] horizontal_nodes  the amount of horizontal nodes including ghost nodes and buffers
+                //  * @param[in] phase_information whether the node is solid (`true`) or fluid (`false`)
+                //  * 
+                //  * @return whether or not the node is a ghost node
+                //  */
+                // bool is_valid_fluid_node
+                // (
+                //     const unsigned int node_index, 
+                //     const unsigned int vertical_nodes,
+                //     const unsigned int horizontal_nodes,
+                //     const int8_t phase_information
+                // )
+                // {
+                //     // if(phase_information) { return true; }
+                //     // else
+                //     // {
+                //     //     std::array<unsigned int, 2> coordinates = access::get_node_coordinates(node_index, horizontal_nodes);
+                        
+                //     //     return ((coordinates[0] == 0) || (coordinates[0] == (horizontal_nodes - 1))) || ((coordinates[1] == 0) || (coordinates[1] == (vertical_nodes - 1)));
+                //     // }
+                //     std::array<unsigned int, 2> coordinates = core::access::get_node_coordinates(node_index, horizontal_nodes);
+                //     return phase_information + (coordinates[0] % horizontal_nodes - 1) + (coordinates[1] % vertical_nodes - 1);
+                // }
+
                 /**
                  * @brief This namespace contains all kernels for the two-lattice algorithm.
                  */
@@ -51,15 +82,15 @@ namespace lbm
                     /**
                      * @brief   This kernel performs the streaming step of a two-lattice iteration.
                      * 
-                     * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                     * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                      */
-                    template<core::access::experimental::AccessorConcept A>
+                    template<core::access::AccessorConcept A>
                     class StreamKernel 
                     {
 
                         private:
 
-                        uint8_t *phase_information;
+                        int8_t *phase_information;
                         double *source;
                         double *destination;
 
@@ -89,7 +120,7 @@ namespace lbm
                          */
                         void operator()(const sycl::id<1> &id) const
                         {
-                            if(!core::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_information[id]))
+                            if(!phase_information[id])
                             {
                                 for (const auto& direction : core::constants::all_directions)
                                 {
@@ -103,14 +134,14 @@ namespace lbm
                     /**
                      * @brief   This kernel performs the update of the macroscopic observables.
                      * 
-                     * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                     * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                      */
-                    template<core::access::experimental::AccessorConcept A>
+                    template<core::access::AccessorConcept A>
                     class MacroscopicObservablesKernel
                     {
                         private:
 
-                        uint8_t *phase_information;
+                        int8_t *phase_information;
                         double *destination;
 
                         double *densities;
@@ -147,10 +178,10 @@ namespace lbm
                          */
                         void operator()(const sycl::id<1> &id) const 
                         {
-                            if(!core::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_information[id]))
+                            if(!phase_information[id])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes);
+                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
                                 double dist_vals[9];
                                 double density = 0;
 
@@ -183,15 +214,15 @@ namespace lbm
                     /**
                      * @brief   This kernel performs the collision step of a two-lattice iteration.
                      * 
-                     * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                     * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                      */
-                    template<core::access::experimental::AccessorConcept A> 
+                    template<core::access::AccessorConcept A> 
                     class CollideKernel
                     {
 
                         private:
 
-                        uint8_t *phase_information;
+                        int8_t *phase_information;
                         double *destination;
 
                         double *densities;
@@ -229,10 +260,10 @@ namespace lbm
                          */
                         void operator()(const sycl::id<1> &id) const 
                         {
-                            if(!lbm::core::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_information[id]))
+                            if(!phase_information[id])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes);
+                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
 
                                 double& x_velocity = x_velocities[iteration_node_offset];
                                 double& y_velocity = y_velocities[iteration_node_offset];
@@ -271,14 +302,14 @@ namespace lbm
                      * @brief   This kernel performs the streaming step, the update of the macroscopic observables and 
                      *          collision step of a two-lattice iteration.
                      * 
-                     * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                     * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                      */          
-                    template<core::access::experimental::AccessorConcept A>
+                    template<core::access::AccessorConcept A>
                     class StreamCollideKernel
                     {
                         private:
 
-                        uint8_t *phase_information;
+                        int8_t *phase_information;
                         double *source;
                         double *destination;
 
@@ -319,10 +350,10 @@ namespace lbm
                          */
                         void operator()(const sycl::item<1> &id) const
                         {
-                            if(!lbm::core::is_ghost_node(id, vertical_nodes, horizontal_nodes, phase_information[id]))
+                            if(!phase_information[id])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index_no_ghosts(id, horizontal_nodes);
+                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
 
                                 double distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
                                 double result = 0;
@@ -385,14 +416,14 @@ namespace lbm
                         /**
                          * @brief   Kernel for emplacing the bounce-back values.
                          * 
-                         * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                         * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                          */
-                        template<core::access::experimental::AccessorConcept A>
+                        template<core::access::AccessorConcept A>
                         class EmplaceBounceBackKernel
                         {
                             private:
 
-                            uint8_t *phase_information;
+                            int8_t *phase_information;
                             double *destination;
 
                             unsigned int horizontal_nodes;
@@ -409,7 +440,7 @@ namespace lbm
 
                             void operator()(const sycl::item<1> &id) const
                             {
-                                if(phase_information[id])
+                                if(phase_information[id] > 0)
                                 {
                                     for(const auto& dir : core::constants::all_directions)
                                     {
@@ -424,9 +455,9 @@ namespace lbm
                         /**
                          * @brief Kernel for updating the inlets and outlets.
                          * 
-                         * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                         * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                          */
-                        template<core::access::experimental::AccessorConcept A>
+                        template<core::access::AccessorConcept A>
                         class InoutUpdateKernel
                         {
                             private:
@@ -489,9 +520,9 @@ namespace lbm
                         /**
                          * @brief Kernel for updating the inlets and outlets.
                          * 
-                         * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                         * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                          */
-                        template<core::access::experimental::AccessorConcept A>
+                        template<core::access::AccessorConcept A>
                         class LegacyInoutUpdateKernel
                         {
 
@@ -567,13 +598,13 @@ namespace lbm
                         /**
                          * @brief   Debug method that enacts a CPU-based computation that is semantically identical to `lbm::gpu::boundaries::linear::InoutUpdateKernel::operator()`.
                          * 
-                         * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                         * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                          * 
                          * @param densities 
                          * @param properties 
                          * @param distribution_values_accessor 
                          */
-                        template<core::access::experimental::AccessorConcept A> 
+                        template<core::access::AccessorConcept A> 
                         void inout_update_debugger
                         (
                             const double densities[2],
@@ -670,13 +701,13 @@ namespace lbm
                         /**
                          * @brief   Debug method that enacts a CPU-based computation that is semantically identical to `lbm::gpu::boundaries::linear::InoutUpdateKernel::operator()`.
                          * 
-                         * @tparam  A any `core::access::experimental::AccessorConcept` from access.hpp 
+                         * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                          * 
                          * @param densities 
                          * @param properties 
                          * @param distribution_values_accessor 
                          */
-                        template<core::access::experimental::AccessorConcept A> 
+                        template<core::access::AccessorConcept A> 
                         void legacy_inout_update_debugger
                         (
                             const double densities[2],
@@ -790,4 +821,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif // ! TL_KERNELS_HPP
+#endif // ! LINEAR_TWO_LATTICE_KERNELS_HPP

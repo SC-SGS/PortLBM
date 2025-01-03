@@ -27,6 +27,7 @@ lbm::core::Properties::Properties
     const bool results_to_csv,
     const double relaxation_time,
     const unsigned int time_steps,
+    const Obstacle obstacle,
     // Domain properties
     const unsigned int vertical_nodes,
     const unsigned int horizontal_nodes,
@@ -47,6 +48,7 @@ debug_mode(debug_mode),
 results_to_csv(results_to_csv),
 relaxation_time(relaxation_time),
 time_steps(time_steps),
+obstacle(obstacle),
 // Domain properties
 vertical_nodes(vertical_nodes+2),
 horizontal_nodes(horizontal_nodes+2),
@@ -144,7 +146,7 @@ absolute_velocities_gpu(sycl::malloc_device<double>(size, queue))
 lbm::core::Data::Data(const size_t &total_node_count, const sycl::queue &queue, bool two_lattice)
 :
 queue(std::make_shared<sycl::queue>(queue)),
-phase_information(sycl::malloc_device<uint8_t>(total_node_count, queue)),
+phase_information(sycl::malloc_device<int8_t>(total_node_count, queue)),
 distribution_values_0(sycl::malloc_device<double>(9 * total_node_count, queue))
 {
     if(two_lattice) distribution_values_1 = sycl::malloc_device<double>(9 * total_node_count, queue);

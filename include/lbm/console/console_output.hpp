@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declarations of various functions for console outputs.
  * 
- * @version     1.3
+ * @version     1.4
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -56,8 +56,8 @@ namespace lbm
                 "\t\tformatted text, especially from exceptions or third party code, may not have its typical color.\n\n"
             );
 
-            std::string note_to_myself = fmt::format(fg(fmt::rgb(255, 0, 0)), "Note to myself: the fmt library also supports colored output...\n\n");
-            fmt::print("{}", note_to_myself);
+            // std::string note_to_myself = fmt::format(fg(fmt::rgb(255, 0, 0)), "Note to myself: the fmt library also supports colored output...\n\n");
+            // fmt::print("{}", note_to_myself);
         }
 
         /**
@@ -115,13 +115,13 @@ namespace lbm
          *          They are displayed in the original order, i.e. the origin is located at the lower left corner of 
          *          the printed distribution chart.
          * 
-         * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+         * @tparam A any `core::access::AccessorConcept` from access.hpp
          * 
          * @param[in] distribution_values   a vector containing the distribution values of all nodes 
          * @param[in] horizontal_nodes      total horizontal nodes in the subdomain
          * @param[in] vertical_nodes        total vertical nodes in the subdomain
          */
-        template <core::access::experimental::AccessorConcept A> inline 
+        template <core::access::AccessorConcept A> inline 
         void print_distribution_values
         (
             const std::vector<double> &distribution_values,
@@ -142,10 +142,14 @@ namespace lbm
                     for(unsigned int x = 0; x < horizontal_nodes; ++x)
                     {
                         if(x == 0 && y == 0) std::cout << "\033[31m";
-                        else if(x == (horizontal_nodes - 1) && y == (vertical_nodes -1)) std::cout << "\033[34m";
+                        else if(x == (horizontal_nodes - 1) && y == (vertical_nodes - 1)) std::cout << "\033[34m";
                         current_node_index = core::access::get_node_index(x, y, horizontal_nodes);
-                        current_values = core::access::get_distribution_values_of<A>(distribution_values, current_node_index, horizontal_nodes * vertical_nodes);
-
+                        std::vector<double> current_values(9,0);
+                        for(auto direction = 0; direction < 9; ++direction)
+                        {
+                            current_values[direction] = 
+                                distribution_values[A::at(current_node_index, direction, horizontal_nodes * vertical_nodes)];
+                        }
                         for(unsigned int i = 0; i < 3; ++i)
                         {
                             size_t direction = print_dirs.at(core::access::get_node_index(i, j, 3));
@@ -170,7 +174,7 @@ namespace lbm
          */
         void print_phase_vector
         (
-            const std::vector<uint8_t> &vector,
+            const std::vector<int8_t> &vector,
             const unsigned int horizontal_nodes
         );
 
@@ -239,10 +243,11 @@ namespace lbm
         );
 
         /**
-         * @brief   Prints the simulation results, i.e. the velocity vectors and density values, for all time steps.
+         * @brief   Prints the simulation results, i.e. the velocity vectors and density values.
          * 
          * @param[in]   properties          a struct containing the extents of the simulation domain
-         * @param[in]   simulation_results  the structure containing the simulation results (density and component-wise velocity values)
+         * @param[in]   simulation_results  the structure containing the simulation results 
+         *                                  (density and component-wise velocity values)
          */
         void print_simulation_results
         (
@@ -250,6 +255,14 @@ namespace lbm
             const core::Results &simulation_results 
         );
 
+        /**
+         * @brief   Prints the simulation results, i.e. the velocity vectors and density values.
+         * 
+         * @param[in]   properties      a struct containing the extents of the simulation domain
+         * @param[in]   densities       a vector containing the density values
+         * @param[in]   x_velocities    a vector containing the velocity values in x-direction
+         * @param[in]   y_velocities    a vector containing the velocity values in y-direction
+         */
         void print_simulation_results
         (
             const core::Properties &properties,
@@ -265,41 +278,43 @@ namespace lbm
          * 
          *          - Phase information
          * 
-         *          - Border swap information
-         * 
          *          - Distribution values 0
          * 
-         * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
          * 
-         * @param[in] data   a structure of data on which the simulation operates
+         * @tparam A any `core::access::AccessorConcept` from access.hpp
+         * 
+         * @param[in]   properties          a struct containing the extents of the simulation domain
+         * @param[in]   distribution_values a vector containing all distribution values
+         * @param[in]   phase_information   a vector containing the phase information
          */
-        template <core::access::experimental::AccessorConcept A> void debug_prints
+        template <core::access::AccessorConcept A> 
+        void debug_prints
         (
-            const core::Data &data,
-            const core::Properties &properties
+            const core::Properties &properties,
+            const std::vector<double> &distribution_values,
+            const std::vector<int8_t> &phase_information
         )
         {
-            // std::vector<unsigned int> nodes;
-            // for(auto i = 0; i < properties.buffered_node_count; ++i)
-            // {
-            //     nodes.push_back(i);
-            // }
+            std::vector<unsigned int> nodes(properties.buffered_node_count, 0);
 
-            // std::cout << "Enumeration of all nodes within the lattice: \n"
-            //         << "-------------------------------------------------------------------------------\n";
+            for(auto i = 0; i < properties.buffered_node_count; ++i) { nodes[i] = i; }
 
-            // lbm::console::print_vector(nodes, properties.horizontal_nodes);
-            // std::cout << "\n";
+            std::cout << "Enumeration of all nodes within the lattice: \n"
+                    << "-------------------------------------------------------------------------------\n";
 
-            // std::cout << "Phases: \n"
-            //         << "-------------------------------------------------------------------------------\n";
-            // lbm::console::print_phase_vector(*data.phase_information, properties.horizontal_nodes);
-            // std::cout << "\n";
+            lbm::console::print_vector(nodes, properties.horizontal_nodes);
+            std::cout << "\n";
 
-            // std::cout << "Distribution values: \n"
-            //         << "-------------------------------------------------------------------------------\n";
-            // lbm::console::print_distribution_values<A>(*data.distribution_values_0, properties.horizontal_nodes, properties.vertical_nodes);
-            // std::cout << "\n";
+            std::cout << "Phases: \n"
+                    << "-------------------------------------------------------------------------------\n";
+            lbm::console::print_phase_vector(phase_information, properties.horizontal_nodes);
+            std::cout << "\n";
+
+            std::cout << "Distribution values: \n"
+                    << "-------------------------------------------------------------------------------\n";
+            lbm::console::print_distribution_values<A>(
+                distribution_values, properties.horizontal_nodes, properties.vertical_nodes);
+            std::cout << "\n";
         }
 
     } // ! namespace console

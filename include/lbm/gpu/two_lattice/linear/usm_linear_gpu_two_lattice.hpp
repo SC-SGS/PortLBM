@@ -64,9 +64,9 @@ namespace lbm
                 /**
                  * @brief Class representation of the linear SYCL implementation of the two-lattice algorithm.
                  * 
-                 * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+                 * @tparam A any `core::access::AccessorConcept` from access.hpp
                  */
-                template <core::access::experimental::AccessorConcept A>
+                template <core::access::AccessorConcept A>
                 class LinearGpuTwoLattice : public execution::Algorithm
                 {
                     private:
@@ -174,9 +174,9 @@ namespace lbm
                 /**
                  * @brief Class representation of the linear SYCL debug implementation of the two-lattice algorithm.
                  * 
-                 * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+                 * @tparam A any `core::access::AccessorConcept` from access.hpp
                  */
-                template <core::access::experimental::AccessorConcept A>
+                template <core::access::AccessorConcept A>
                 class LinearGpuTwoLatticeDebug : public execution::Algorithm
                 {
                     private:

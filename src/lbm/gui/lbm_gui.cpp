@@ -189,7 +189,7 @@ void lbm::gui::Gui::run()
                             node_index = core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes);
 
                             velocity_value_index = 
-                                core::access::results::get_result_index_no_ghosts(
+                                core::access::results::get_result_index(
                                     core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes), 
                                     executor->algorithm->simulation->properties->horizontal_nodes
                                 );

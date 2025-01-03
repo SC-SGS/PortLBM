@@ -44,4 +44,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif
+#endif // ! LBM_CONSTANTS_HPP

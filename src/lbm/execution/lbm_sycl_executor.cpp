@@ -21,45 +21,85 @@ lbm::execution::SYCLExecutor::SYCLExecutor()
 device_selector(std::make_unique<sycl::default_selector>()), 
 queue(std::make_unique<sycl::queue>(*device_selector))
 {
-    std::cout << "lbm_sycl_executor.cpp:\tWithin constructor\n";
     std::unique_ptr<core::Properties> properties = std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties());
 
-    if(properties->algorithm == "gpu-two-lattice-linear")
+    if(!properties->debug_mode)
     {
-        std::cout << "lbm_sycl_executor.cpp:\tAlgorithm detected: Linear GPU two-lattice\n";
-        if(properties->data_layout == "stream")
+        if(properties->algorithm == "gpu-two-lattice-linear")
         {
-            std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
-            algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::StreamAccessor>>(*queue);
-            std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-            lbm::core::setup_pipe_flow_environment<core::access::experimental::StreamAccessor>(*algorithm->simulation, *queue, core::domain_initialization::Obstacle::NONE);
+            if(properties->data_layout == "stream")
+            {
+                algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::StreamAccessor>>(*queue);
+                lbm::core::setup_pipe_flow_environment<core::access::StreamAccessor>(*algorithm->simulation, *queue, properties->obstacle);
+            }
+            else if(properties->data_layout == "collision")
+            {
+                algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::CollisionAccessor>>(*queue);
+                lbm::core::setup_pipe_flow_environment<core::access::CollisionAccessor>(*algorithm->simulation, *queue, properties->obstacle);
+            }
+            else if(properties->data_layout == "bundle")
+            {
+                algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::BundleAccessor>>(*queue);
+                lbm::core::setup_pipe_flow_environment<core::access::BundleAccessor>(*algorithm->simulation, *queue, properties->obstacle);
+            }
+            else
+            {
+                throw exceptions::Exception(fmt::format("Unknown data layout: ", properties->data_layout));
+            }
         }
-        else if(properties->data_layout == "collision")
+        else if(properties->algorithm == "gpu-two-lattice")
         {
-            algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::CollisionAccessor>>(*queue);
-            lbm::core::setup_pipe_flow_environment<core::access::experimental::CollisionAccessor>(*algorithm->simulation, *queue, core::domain_initialization::Obstacle::NONE);
+            throw exceptions::Exception("This algorithm is not implemented yet.");
         }
-        else if(properties->data_layout == "bundle")
+        else if(properties->algorithm == "gpu-swap")
         {
-            algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::experimental::BundleAccessor>>(*queue);
-            lbm::core::setup_pipe_flow_environment<core::access::experimental::BundleAccessor>(*algorithm->simulation, *queue, core::domain_initialization::Obstacle::NONE);
+            throw exceptions::Exception("This algorithm is not implemented yet.");
         }
         else
         {
-            throw exceptions::Exception(fmt::format("Unknown data layout: ", properties->data_layout));
+            throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties->data_layout));
         }
-    }
-    else if(properties->algorithm == "gpu-two-lattice")
-    {
-        throw exceptions::Exception("This algorithm is not implemented yet.");
-    }
-    else if(properties->algorithm == "gpu-swap")
-    {
-        throw exceptions::Exception("This algorithm is not implemented yet.");
+        *(algorithm->simulation->data->distribution_values_1) = *(algorithm->simulation->data->distribution_values_0); 
     }
     else
     {
-        throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties->data_layout));
+        if(properties->algorithm == "gpu-two-lattice-linear")
+        {
+            std::cout << "lbm_sycl_executor.cpp:\tAlgorithm detected: Linear GPU two-lattice\n";
+            if(properties->data_layout == "stream")
+            {
+                std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
+                algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::StreamAccessor>>(*queue);
+                std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
+                lbm::core::setup_pipe_flow_environment<core::access::StreamAccessor>(*algorithm->simulation, *queue, core::Obstacle::NONE);
+            }
+            else if(properties->data_layout == "collision")
+            {
+                algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::CollisionAccessor>>(*queue);
+                lbm::core::setup_pipe_flow_environment<core::access::CollisionAccessor>(*algorithm->simulation, *queue, core::Obstacle::NONE);
+            }
+            else if(properties->data_layout == "bundle")
+            {
+                algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::BundleAccessor>>(*queue);
+                lbm::core::setup_pipe_flow_environment<core::access::BundleAccessor>(*algorithm->simulation, *queue, core::Obstacle::NONE);
+            }
+            else
+            {
+                throw exceptions::Exception(fmt::format("Unknown data layout: ", properties->data_layout));
+            }
+        }
+        else if(properties->algorithm == "gpu-two-lattice")
+        {
+            throw exceptions::Exception("This algorithm is not implemented yet.");
+        }
+        else if(properties->algorithm == "gpu-swap")
+        {
+            throw exceptions::Exception("This algorithm is not implemented yet.");
+        }
+        else
+        {
+            throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties->data_layout));
+        }
+        *(algorithm->simulation->data->distribution_values_1) = *(algorithm->simulation->data->distribution_values_0); 
     }
-    *(algorithm->simulation->data->distribution_values_1) = *(algorithm->simulation->data->distribution_values_0); 
 };

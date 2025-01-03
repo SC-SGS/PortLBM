@@ -1,13 +1,15 @@
 /**
- * @file    simple_timer.cpp
- * @author  Marcel Graf
+ * @file        simple_timer.cpp
  * 
- * @brief   This source file contains the implementation of the simple timer class defined in simple_timer.hpp.
+ * @author      Marcel Graf
  * 
- * @version 1.0
- * @date    2024-08-29
+ * @brief       This source file contains the implementation of the simple timer class defined in simple_timer.hpp.
  * 
- * @copyright Copyright (c) 2024
+ * @version     1.0
+ * 
+ * @date        2024-08-29
+ * 
+ * @copyright   Copyright (c) 2024
  * 
  */
 

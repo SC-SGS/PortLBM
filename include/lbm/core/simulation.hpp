@@ -78,11 +78,12 @@ namespace lbm
         /**
          * @brief Returns the inverse direction of that specified.
          */
-        inline constexpr 
-        unsigned int invert_direction(const unsigned int dir)
-        {
-            return 8 - dir;
-        }
+        inline constexpr unsigned int invert_direction(const unsigned int dir) { return 8 - dir; }
+
+        /**
+         * @brief   This enum is used to specify the obstacle that is included in the simulation domain.
+         */
+        enum Obstacle {NONE, WALLS, CIRCLE, SQUARE, WING, SKYSCRAPER, POROUS, PLATE};
 
         /**
          * @brief This structure contains all important properties of the simulation.
@@ -96,6 +97,7 @@ namespace lbm
             double relaxation_time;
             bool results_to_csv;
             unsigned int time_steps;
+            Obstacle obstacle;
 
             // Extents of the simulation domain
             unsigned int vertical_nodes;
@@ -132,6 +134,7 @@ namespace lbm
                 const bool results_to_csv,
                 const double relaxation_time,
                 const unsigned int time_steps,
+                const Obstacle obstacle,
                 // Domain properties
                 const unsigned int vertical_nodes,
                 const unsigned int horizontal_nodes,
@@ -262,7 +265,7 @@ namespace lbm
 
             public:
 
-            uint8_t *phase_information;
+            int8_t *phase_information;
 
             double *distribution_values_0;
 

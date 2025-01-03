@@ -5,9 +5,9 @@
  * 
  * @brief       Entry point of the program executing the GPU lattice Boltzmann application.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  */
@@ -17,7 +17,6 @@
 // Fundamental LBM includes that are always necessary regardless of the CMake configuration
 #include "../include/lbm/file_interaction/file_interaction.hpp"
 #include "../include/lbm/core/simulation.hpp"
-// #include "../include/lbm/execution/lbm_sycl_executor.hpp"
 
 // HPX includes that are always necessary regardless of the CMake configuration
 #include <hpx/hpx_init.hpp>
@@ -49,13 +48,12 @@ int hpx_main(hpx::program_options::variables_map& vm)
     return hpx::local::finalize();
 }
 
-#else // Flag is NOT set if -DWITH_VISUALIZATION=OFF, default case
+#else // ! WITH_VISUALIZATION
 
 int hpx_main(hpx::program_options::variables_map& vm)
 {
     try
     {
-        std::cout << "main.cpp:\tCreating SYCL executor\n";
         std::unique_ptr<lbm::execution::SYCLExecutor> executor = std::make_unique<lbm::execution::SYCLExecutor>();
         lbm::console::print_ansi_color_message();
         lbm::console::print_color_legend();
@@ -65,6 +63,7 @@ int hpx_main(hpx::program_options::variables_map& vm)
             "Simulation properties:\n"
             "-------------------------------------------------------------------------------\n"
         );
+
         fmt::print(fmt::runtime(executor->algorithm->simulation->properties->to_string()));
 
         executor->execute(executor->algorithm->simulation->properties->time_steps);
@@ -79,6 +78,7 @@ int hpx_main(hpx::program_options::variables_map& vm)
 }
 
 #endif // End of macro-managed definitions based on flag WITH_VISUALIZATION
+
 
 int main(int argc, char* argv[])
 {

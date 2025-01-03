@@ -1,14 +1,16 @@
 /**
- * @file    simple_timer.hpp
- * @author  Marcel Graf
+ * @file        simple_timer.hpp
  * 
- * @brief   This header file contains the declaration of a class modelling a simple timer.
- *          It is based on elements from std::chrono. 
+ * @author      Marcel Graf
  * 
- * @version 1.0
- * @date    2024-08-29
+ * @brief       This header file contains the declaration of a class modelling a simple timer.
+ *              It is based on elements from std::chrono. 
  * 
- * @copyright Copyright (c) 2024
+ * @version     1.0
+ * 
+ * @date        2024-08-29
+ * 
+ * @copyright   Copyright (c) 2024
  * 
  */
 
@@ -46,4 +48,4 @@ class SimpleTimer
         std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
 };
 
-#endif
+#endif // ! SIMPLE_TIMER_HPP

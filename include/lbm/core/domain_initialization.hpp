@@ -5,9 +5,9 @@
  * 
  * @brief       In this header file, functionality for setting up the simulation domain is declared and defined.
  * 
- * @version     1.1
+ * @version     2.1
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -27,9 +27,23 @@ namespace lbm
     namespace core
     {
 
+        /**
+         * @brief   This namespace contains various methods that are used during the initialization of the simulation domain,
+         *          They are not meant to be accessed outside of certain methods that are responsible for domain initialization.
+         *          Use the methods of the parent namespace `lbm::core` instead.
+         */
         namespace domain_initialization
         {
-            template<access::experimental::AccessorConcept A> 
+            /**
+             * @brief   Sets the standstill distribution values of the simulation domain on the GPU.
+             * 
+             * @tparam  A   any `core::access::AccessorConcept` from access.hpp 
+             * 
+             * @param[in]   queue                   the SYCL queue to which the distribution values residing on the GPU belong
+             * @param[in]   buffered_node_count     the total amount of nodes within the simulation domain including buffers and ghost nodes
+             * @param[in]   distribution_values     a pointer to GPU-allocated memory at which the distribution values reside
+             */
+            template<access::AccessorConcept A> 
             void set_standstill_values
             (
                 sycl::queue &queue, 
@@ -39,7 +53,9 @@ namespace lbm
             {
                 std::vector<double> distribution_values_standstill = maxwell_boltzmann_distribution(0, 0, 1);
                 double *distribution_values_standstill_gpu = sycl::malloc_device<double>(distribution_values_standstill.size(), queue);
-                queue.copy(distribution_values_standstill.data(), distribution_values_standstill_gpu, distribution_values_standstill.size()).wait();
+                queue.copy(
+                    distribution_values_standstill.data(), distribution_values_standstill_gpu, distribution_values_standstill.size()
+                ).wait();
 
                 auto event_fill_dist_vals = queue.parallel_for
                 (
@@ -54,24 +70,20 @@ namespace lbm
                 );
 
                 event_fill_dist_vals.wait();
-
                 sycl::free(distribution_values_standstill_gpu, queue);
             }
 
             /**
-             * @brief Updates the ghost nodes that represent inlet and outlet edges.
-             *        When updating, a velocity border condition will be considered for the input
-             *        and a density border condition for the output.
-             *        The inlet velocity is constant throughout all inlet nodes whereas the outlet nodes
-             *        all have the specified density.
-             *        The corresponding values are lbm::constants defined in `constants.hpp`.
+             * @brief   Sets the inlet and outlet properties as specified within the simulation object.
              * 
-             * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+             * @tparam  A any `core::access::AccessorConcept` from access.hpp
              * 
-             * @param[in]       properties          the properties structure containing the inlet and outlet density and velocity    
-             * @param[in, out]  distribution_values a vector containing the distribution values of all nodes
+             * @param[in]   queue               the SYCL queue on which the distribution values that are to be set reside
+             * @param[in]   simulation          the simulation object contains a `core::Properties` object 
+             *                                  storing the inlet and outlet density and velocity    
+             * @param[in]   distribution_values a pointer to GPU-allocated memory at which the distribution values reside
              */
-            template <access::experimental::AccessorConcept A>
+            template <access::AccessorConcept A>
             void set_inout_distribution_values
             (
                 sycl::queue &queue, 
@@ -84,10 +96,14 @@ namespace lbm
                 unsigned int total_node_count = simulation.properties->buffered_node_count;
 
                 std::vector<double> distribution_inlet = 
-                    maxwell_boltzmann_distribution(simulation.properties->inlet_velocity_x, simulation.properties->inlet_velocity_y, simulation.properties->inlet_density);
+                    maxwell_boltzmann_distribution(
+                        simulation.properties->inlet_velocity_x, simulation.properties->inlet_velocity_y, simulation.properties->inlet_density
+                    );
                 
                 std::vector<double> distribution_outlet = 
-                    maxwell_boltzmann_distribution(simulation.properties->outlet_velocity_x, simulation.properties->outlet_velocity_y, simulation.properties->outlet_density);
+                    maxwell_boltzmann_distribution(
+                        simulation.properties->outlet_velocity_x, simulation.properties->outlet_velocity_y, simulation.properties->outlet_density
+                    );
 
                 double *distribution_inlet_gpu = sycl::malloc_device<double>(distribution_inlet.size(), queue);
                 double *distribution_outlet_gpu = sycl::malloc_device<double>(distribution_outlet.size(), queue);
@@ -130,10 +146,15 @@ namespace lbm
                 sycl::free(distribution_outlet_gpu, queue);
             }
 
-            enum Obstacle {NONE, WALLS, CIRCLE, SQUARE, WING, SKYSCRAPER, POROUS, PLATE};
-
+            /**
+             * @brief   Adds the phase information for the `core::WALLS` scenario to the specified vector.
+             *          The content of the vector is to be copied to the GPU at a later stage.
+             * 
+             * @param[in]       properties              the structure containing the extents of the simulation domain
+             * @param[in, out]  phase_information_cpu   a vector containing the phase information
+             */
             inline 
-            void add_walls(const Properties &properties, std::vector<uint8_t> &phase_information_cpu)
+            void add_walls(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
                 for(auto y = 2; y < (properties.vertical_nodes - 1) / 2; ++y)
                 {
@@ -154,8 +175,15 @@ namespace lbm
                 }
             }
 
+            /**
+             * @brief   Adds the phase information for the `core::CIRCLE` scenario to the specified vector.
+             *          The content of the vector is to be copied to the GPU at a later stage.
+             * 
+             * @param[in]       properties              the structure containing the extents of the simulation domain
+             * @param[in, out]  phase_information_cpu   a vector containing the phase information
+             */
             inline
-            void add_circle(const Properties &properties, std::vector<uint8_t> &phase_information_cpu)
+            void add_circle(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
                 int middle_x =  2 * properties.horizontal_nodes / 10;
                 int middle_y = properties.vertical_nodes / 2;
@@ -171,8 +199,15 @@ namespace lbm
                 }
             }
 
+            /**
+             * @brief   Adds the phase information for the `core::SQUARE` scenario to the specified vector.
+             *          The content of the vector is to be copied to the GPU at a later stage.
+             * 
+             * @param[in]       properties              the structure containing the extents of the simulation domain
+             * @param[in, out]  phase_information_cpu   a vector containing the phase information
+             */
             inline
-            void add_square(const Properties &properties, std::vector<uint8_t> &phase_information_cpu)
+            void add_square(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
                 int middle_x =  2 * properties.horizontal_nodes / 10;
                 int middle_y = properties.vertical_nodes / 2;
@@ -187,8 +222,15 @@ namespace lbm
                 }
             }
 
+            /**
+             * @brief   Adds the phase information for the `core::PLATE` scenario to the specified vector.
+             *          The content of the vector is to be copied to the GPU at a later stage.
+             * 
+             * @param[in]       properties              the structure containing the extents of the simulation domain
+             * @param[in, out]  phase_information_cpu   a vector containing the phase information
+             */
             inline
-            void add_plate(const Properties &properties, std::vector<uint8_t> &phase_information_cpu)
+            void add_plate(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
                 int middle_x =  properties.horizontal_nodes / 5;
                 int middle_y = properties.vertical_nodes / 2;
@@ -203,8 +245,15 @@ namespace lbm
                 }
             }
 
+            /**
+             * @brief   Adds the phase information for the `core::SKYSCRAPER` scenario to the specified vector.
+             *          The content of the vector is to be copied to the GPU at a later stage.
+             * 
+             * @param[in]       properties              the structure containing the extents of the simulation domain
+             * @param[in, out]  phase_information_cpu   a vector containing the phase information
+             */
             inline
-            void add_skyscraper(const Properties &properties, std::vector<uint8_t> &phase_information_cpu)
+            void add_skyscraper(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
                 int height_antenna = properties.vertical_nodes / 2;
                 int width_antenna = 2;
@@ -242,8 +291,15 @@ namespace lbm
                 }
             }
 
+            /**
+             * @brief   Adds the phase information for the `core::WING` scenario to the specified vector.
+             *          The content of the vector is to be copied to the GPU at a later stage.
+             * 
+             * @param[in]       properties              the structure containing the extents of the simulation domain
+             * @param[in, out]  phase_information_cpu   a vector containing the phase information
+             */
             inline
-            void add_wing(const Properties &properties, std::vector<uint8_t> &phase_information_cpu)
+            void add_wing(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
                 int middle_x =  2 * properties.horizontal_nodes / 10;
                 int middle_y = properties.vertical_nodes / 2;
@@ -275,8 +331,15 @@ namespace lbm
                 }
             }
 
+            /**
+             * @brief   Adds the phase information for the `core::POROUS` scenario to the specified vector.
+             *          The content of the vector is to be copied to the GPU at a later stage.
+             * 
+             * @param[in]       properties              the structure containing the extents of the simulation domain
+             * @param[in, out]  phase_information_cpu   a vector containing the phase information
+             */
             inline
-            void add_porous_medium(const Properties &properties, std::vector<uint8_t> &phase_information_cpu)
+            void add_porous_medium(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
                 for(int x = 0; x < properties.horizontal_nodes; ++x)
                 {
@@ -294,36 +357,53 @@ namespace lbm
         }   // ! namespace domain_initialization
         
         /**
-         * @brief Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state.
-         *        The domain consists of solid nodes on the upper and lower boundary and fluid nodes otherwise.
+         * @brief   Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state.
+         *          The domain consists of solid nodes on the upper and lower boundary, and further solid obstacles
+         *          depending on the scenario specified within the simulation object.
          * 
-         * @tparam A any `core::access::experimental::AccessorConcept` from access.hpp
+         * @tparam A any `core::access::AccessorConcept` from access.hpp
          * 
+         * @param[in]       queue       the SYCL queue to which the values residing on the GPU belong
          * @param[in, out]  simulation  reference to the structure containing all simulation data 
          * @param[in]       obstacle    what kind of obstacle is added to the domain
          */
-        template<access::experimental::AccessorConcept A> 
+        template<access::AccessorConcept A> 
         void setup_pipe_flow_environment
         (
             Simulation &simulation, 
             sycl::queue &queue, 
-            domain_initialization::Obstacle obstacle = domain_initialization::NONE
+            Obstacle obstacle = NONE
         )
         {
-            std::cout << "domain_initialization.hpp:\tEntering set_standstill_values\n";
-            domain_initialization::set_standstill_values<A>(queue, simulation.properties->buffered_node_count, simulation.data->distribution_values_0);
-            domain_initialization::set_inout_distribution_values<A>(queue, simulation, simulation.data->distribution_values_0);
-            if(simulation.properties->algorithm == "gpu-two-lattice-linear" || simulation.properties->algorithm == "gpu-two-lattice")
+            domain_initialization::set_standstill_values<A>(
+                queue, simulation.properties->buffered_node_count, simulation.data->distribution_values_0
+            );
+            domain_initialization::set_inout_distribution_values<A>(
+                queue, simulation, simulation.data->distribution_values_0
+            );
+
+            if
+            (
+                simulation.properties->algorithm == "gpu-two-lattice-linear" || 
+                simulation.properties->algorithm == "gpu-two-lattice"
+            )
             {
-                domain_initialization::set_standstill_values<A>(queue, simulation.properties->buffered_node_count, simulation.data->distribution_values_1);
-                domain_initialization::set_inout_distribution_values<A>(queue, simulation, simulation.data->distribution_values_1);
+                domain_initialization::set_standstill_values<A>(
+                    queue, simulation.properties->buffered_node_count, simulation.data->distribution_values_1
+                );
+                domain_initialization::set_inout_distribution_values<A>(
+                    queue, simulation, simulation.data->distribution_values_1
+                );
             }
 
-            // std::vector<double> dist_vals(9 * simulation.properties->buffered_node_count, 0);
-            // queue.copy(simulation.data->distribution_values_0, dist_vals.data(), 9 * simulation.properties->buffered_node_count).wait();
-            // console::print_distribution_values<A>(dist_vals, simulation.properties->horizontal_nodes, simulation.properties->vertical_nodes);
+            if(simulation.properties->debug_mode)
+            {
+                std::vector<double> dist_vals(9 * simulation.properties->buffered_node_count, 0);
+                queue.copy(simulation.data->distribution_values_0, dist_vals.data(), 9 * simulation.properties->buffered_node_count).wait();
+                console::print_distribution_values<A>(dist_vals, simulation.properties->horizontal_nodes, simulation.properties->vertical_nodes);
+            }
 
-            std::vector<uint8_t> phase_information_cpu(simulation.properties->buffered_node_count, 0);
+            std::vector<int8_t> phase_information_cpu(simulation.properties->buffered_node_count, 0);
 
             /* Phase information vector */
             for(auto x = 1; x < simulation.properties->horizontal_nodes - 1; ++x)
@@ -331,28 +411,38 @@ namespace lbm
                 phase_information_cpu[access::get_node_index(x, 1, simulation.properties->horizontal_nodes)] = 1;
                 phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 2, simulation.properties->horizontal_nodes)] = 1;
             }
+            for(int y = 0; y < simulation.properties->vertical_nodes - 1; ++y)
+            {
+                phase_information_cpu[access::get_node_index(0, y, simulation.properties->horizontal_nodes)] = -1;
+                phase_information_cpu[access::get_node_index(simulation.properties->horizontal_nodes - 1, y, simulation.properties->horizontal_nodes)] = -1;
+            }
+            for(int x = 0; x < simulation.properties->horizontal_nodes - 1; ++x)
+            {
+                phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 1, simulation.properties->horizontal_nodes)] = -1;
+                phase_information_cpu[access::get_node_index(x, 0, simulation.properties->horizontal_nodes)] = -1;
+            }   
 
             switch(obstacle)
             {
-                case domain_initialization::WALLS:
+                case WALLS:
                     domain_initialization::add_walls(*simulation.properties, phase_information_cpu); 
                     break;
-                case domain_initialization::CIRCLE:
+                case CIRCLE:
                     domain_initialization::add_circle(*simulation.properties, phase_information_cpu); 
                     break;
-                case domain_initialization::SQUARE:
+                case SQUARE:
                     domain_initialization::add_square(*simulation.properties, phase_information_cpu); 
                     break;
-                case domain_initialization::PLATE:
+                case PLATE:
                     domain_initialization::add_plate(*simulation.properties, phase_information_cpu); 
                     break;
-                case domain_initialization::SKYSCRAPER:
+                case SKYSCRAPER:
                     domain_initialization::add_skyscraper(*simulation.properties, phase_information_cpu); 
                     break;
-                case domain_initialization::WING:
+                case WING:
                     domain_initialization::add_wing(*simulation.properties, phase_information_cpu); 
                     break;
-                case domain_initialization::POROUS:
+                case POROUS:
                     domain_initialization::add_porous_medium(*simulation.properties, phase_information_cpu); 
                     break;
                 default:
@@ -361,9 +451,12 @@ namespace lbm
             
             queue.copy(phase_information_cpu.data(), simulation.data->phase_information, simulation.properties->buffered_node_count).wait();
 
-            // std::vector<uint8_t> phase_information_check(simulation.properties->buffered_node_count, 0);
-            // queue.copy(simulation.data->phase_information, phase_information_check.data(), simulation.properties->buffered_node_count).wait();
-            // console::print_phase_vector(phase_information_check, simulation.properties->horizontal_nodes);
+            if(simulation.properties->debug_mode)
+            {
+                std::vector<int8_t> phase_information_check(simulation.properties->buffered_node_count, 0);
+                queue.copy(simulation.data->phase_information, phase_information_check.data(), simulation.properties->buffered_node_count).wait();
+                console::print_phase_vector(phase_information_check, simulation.properties->horizontal_nodes);
+            }
         }
 
     } // ! namespace core

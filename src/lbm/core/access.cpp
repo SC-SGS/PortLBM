@@ -19,31 +19,31 @@
 
 #include "../../../include/lbm/core/access.hpp"
 
-lbm::core::access::LBMAccessorObject::LBMAccessorObject(const unsigned int horizontal_nodes) 
-: horizontal_nodes(horizontal_nodes){};
+// lbm::core::access::LBMAccessorObject::LBMAccessorObject(const unsigned int horizontal_nodes) 
+// : horizontal_nodes(horizontal_nodes){};
 
 
-lbm::core::access::LBMCollisionAccessor::LBMCollisionAccessor(const unsigned int horizontal_nodes)
-: lbm::core::access::LBMAccessorObject::LBMAccessorObject(horizontal_nodes){};
+// lbm::core::access::LBMCollisionAccessor::LBMCollisionAccessor(const unsigned int horizontal_nodes)
+// : lbm::core::access::LBMAccessorObject::LBMAccessorObject(horizontal_nodes){};
 
 
-lbm::core::access::LBMStreamAccessor::LBMStreamAccessor
-(
-    const unsigned int horizontal_nodes,
-    const unsigned int buffered_node_count
-) 
-: 
-lbm::core::access::LBMAccessorObject::LBMAccessorObject(horizontal_nodes),
-buffered_node_count(buffered_node_count) 
-{};
+// lbm::core::access::LBMStreamAccessor::LBMStreamAccessor
+// (
+//     const unsigned int horizontal_nodes,
+//     const unsigned int buffered_node_count
+// ) 
+// : 
+// lbm::core::access::LBMAccessorObject::LBMAccessorObject(horizontal_nodes),
+// buffered_node_count(buffered_node_count) 
+// {};
 
 
-lbm::core::access::LBMBundleAccessor::LBMBundleAccessor
-(
-    const unsigned int horizontal_nodes,
-    const unsigned int buffered_node_count
-) 
-: 
-lbm::core::access::LBMAccessorObject::LBMAccessorObject(horizontal_nodes),
-buffered_node_count(buffered_node_count) 
-{};
+// lbm::core::access::LBMBundleAccessor::LBMBundleAccessor
+// (
+//     const unsigned int horizontal_nodes,
+//     const unsigned int buffered_node_count
+// ) 
+// : 
+// lbm::core::access::LBMAccessorObject::LBMAccessorObject(horizontal_nodes),
+// buffered_node_count(buffered_node_count) 
+// {};

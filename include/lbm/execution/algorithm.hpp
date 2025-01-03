@@ -4,11 +4,11 @@
  * @author      Marcel Graf
  * 
  * @brief       In this header file, an abstract class for algorithms is defined.
- *              All algorithms inherit from this this base class and implement the execute method.
+ *              All algorithms inherit from this this base class and implement the execute methods.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -36,7 +36,8 @@ namespace lbm
     {
 
         /**
-         * @brief Abstract base class of all Lattice Boltzmann algorithms.
+         * @brief   Abstract base class of all Lattice Boltzmann algorithms.
+         *          Its non-abstract child classes must implement the execute methods.
          */
         class Algorithm
         {
@@ -96,10 +97,10 @@ namespace lbm
             virtual void execute(unsigned int time_steps) = 0; 
 
             virtual ~Algorithm() = default;
-
-
         };
-    }
-}
 
-#endif
+    } // ! namespace execution
+
+} // ! namespace lbm
+
+#endif // ! LBM_ALGORITHM_HPP

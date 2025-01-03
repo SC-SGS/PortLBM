@@ -3,13 +3,14 @@
         "algorithm": "gpu-two-lattice-linear",
         "dataLayout": "bundle",
         "debugMode": false,
+        "obstacle": "plate",
         "relaxationTime": 0.8,
         "resultsToCsv": false,
         "timeSteps": 10000
     },
     "domain": {
-        "horizontalNodes": 8002,
-        "verticalNodes": 8002
+        "horizontalNodes": 500,
+        "verticalNodes": 200
     },
     "inlets": {
         "density": 1.3,

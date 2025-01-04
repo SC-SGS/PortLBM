@@ -137,6 +137,7 @@ namespace lbm
                                 emplace_bounce_back();
                                 perform_inout_update();
                                 stream_and_collide();
+
                                 double *tmp = simulation->data->distribution_values_1;
                                 simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
                                 simulation->data->distribution_values_0 = tmp;
@@ -246,7 +247,7 @@ namespace lbm
                         update_macroscopic_observables();
                         queue->copy(simulation->results->x_velocities_gpu, simulation->results->x_velocities_cpu->data(), simulation->properties->domain_node_count).wait();
                         queue->copy(simulation->results->y_velocities_gpu, simulation->results->y_velocities_cpu->data(), simulation->properties->domain_node_count).wait();
-                        //queue->copy(simulation->results->absolute_velocities_gpu, simulation->results->absolute_velocities_cpu->data(), simulation->properties->domain_node_count).wait();
+                        queue->copy(simulation->results->absolute_velocities_gpu, simulation->results->absolute_velocities_cpu->data(), simulation->properties->domain_node_count).wait();
                         queue->copy(simulation->results->densities_gpu, simulation->results->densities_cpu->data(), simulation->properties->domain_node_count).wait();
 
                         std::cout << "Velocities: \n"

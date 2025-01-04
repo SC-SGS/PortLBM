@@ -1,19 +1,19 @@
 {
     "algorithmic": {
         "algorithm": "gpu-two-lattice-linear",
-        "dataLayout": "collision",
+        "dataLayout": "stream",
         "debugMode": false,
-        "obstacle": "skyscraper",
-        "relaxationTime": 1.0,
+        "relaxationTime": 0.6,
         "resultsToCsv": false,
-        "timeSteps": 100000
+        "timeSteps": 10000
     },
     "domain": {
-        "horizontalNodes": 2000,
-        "verticalNodes": 500
+        "horizontalNodes": 1000,
+        "scenario": "plate",
+        "verticalNodes": 1000
     },
     "inlets": {
-        "density": 1.2600000008940697,
+        "density": 1.3,
         "velocity": {
             "x": 0.0,
             "y": 0.0

@@ -1355,7 +1355,7 @@ void ImGui::ProgressBar(float fraction, const ImVec2& size_arg, const char* over
     // Render
     RenderFrame(bb.Min, bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
     bb.Expand(ImVec2(-style.FrameBorderSize, -style.FrameBorderSize));
-    RenderRectFilledRangeH(window->DrawList, bb, GetColorU32(ImGuiCol_PlotHistogram), fill_n0, fill_n1, style.FrameRounding);
+    RenderRectFilledRangeH(window->DrawList, bb, GetColorU32(/*ImGuiCol_PlotHistogram*/ ImGuiCol_ButtonActive), fill_n0, fill_n1, style.FrameRounding); // Marcel
 
     // Default displaying the fraction as percentage string, but user can override it
     // Don't display text for indeterminate bars by default

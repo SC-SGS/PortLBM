@@ -1,13 +1,13 @@
 /**
- * @file        lbm_gui.cpp
+ * @file        lbm_cpp
  * 
  * @author      Marcel Graf
  * 
- * @brief       This file contains implementations for GUI operations declared in lbm_gui.hpp.
+ * @brief       This file contains implementations for GUI operations declared in lbm_hpp.
  *              
- * @version     2.0
+ * @version     2.1
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -15,6 +15,7 @@
 
 #include "../../../include/lbm/gui/lbm_gui.hpp"
 #include <nlohmann/json.hpp>
+
 
 lbm::gui::Windows::Windows() 
 :
@@ -28,6 +29,7 @@ enable_velocity_quiver(false),
 menu_bar_size(0.0f)
 {};
 
+
 lbm::gui::SimulationControl::SimulationControl() 
 :
 is_paused(false),
@@ -36,6 +38,7 @@ results_to_csv(false),
 result_file_name("results.csv")
 {};
 
+
 lbm::gui::Progress::Progress() 
 :
 current_iter(0),
@@ -43,6 +46,7 @@ progress(0.0),
 framerate(0.0),
 frametime(0)
 {};
+
 
 lbm::gui::Colormaps::Colormaps() 
 :
@@ -54,11 +58,13 @@ velocity_colormap_lower_scale(0.0),
 velocity_colormap_upper_scale(0.0f)
 {};
 
+
 lbm::gui::VelocityQuiverData::VelocityQuiverData(const size_t &size) 
 :
 x_values{std::make_unique<std::vector<double>>(size)},
 y_values{std::make_unique<std::vector<double>>(size)}
 {};
+
 
 lbm::gui::Gui::Gui(const std::string &&window_title)
 :
@@ -67,16 +73,17 @@ simulation_control(std::make_unique<SimulationControl>()),
 progress(std::make_unique<Progress>()),
 monitor(std::make_unique<Monitor>()),
 colormaps(std::make_unique<Colormaps>()),
-properties_stored(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties("../settings/settings.json", -2))),
-properties_buffered(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties("../settings/settings.json", -2))),
-velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_stored->domain_node_count)),
+properties_gui(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties("../settings/settings.json", -2))),
+velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_gui->domain_node_count)),
 window_title(std::make_unique<std::string>(window_title)),
-properties_changed(false)
+properties_changed(false),
+executor(std::make_unique<execution::SYCLExecutor>())
 {};
+
 
 void lbm::gui::Gui::run()
 {
-    glfwSetErrorCallback(rendering::glfw_error_callback);
+    glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {throw exceptions::Exception("Failed to initialize GLFW.");}
 
     // GL 3.0 + GLSL 130
@@ -86,9 +93,6 @@ void lbm::gui::Gui::run()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 
-    // Setting up executor and initializing all important simulation data
-    std::unique_ptr<execution::SYCLExecutor> executor = std::make_unique<execution::SYCLExecutor>();
-
     // Create window with graphics context
     monitor->primary_monitor = glfwGetPrimaryMonitor();
     monitor->video_mode = glfwGetVideoMode(monitor->primary_monitor);
@@ -97,8 +101,8 @@ void lbm::gui::Gui::run()
         
     glfwMakeContextCurrent(window);
     //glfwSwapInterval(1); // Enable vsync
-    contexts::create_contexts();
-    styles::set_light_style();
+    create_contexts();
+    set_light_style();
     glfwGetMonitorContentScale(monitor->primary_monitor, &(monitor->monitor_x_scale), &(monitor->monitor_x_scale));
 
     // IO
@@ -120,7 +124,7 @@ void lbm::gui::Gui::run()
     implot_style.PlotPadding = ImVec2(monitor->monitor_x_scale * 20, monitor->monitor_y_scale * 20);
 
     // ImPlot colormaps
-    misc::add_solid_colormap();
+    add_solid_colormap();
     colormaps->density_colormap_lower_scale = 
         std::min({executor->algorithm->simulation->properties->inlet_density, executor->algorithm->simulation->properties->outlet_density});
     colormaps->density_colormap_upper_scale = 
@@ -138,13 +142,13 @@ void lbm::gui::Gui::run()
 
         monitor->viewport = std::make_unique<ImGuiViewport>(*ImGui::GetMainViewport());
 
-        items::menu_bar(*this);
+        menu_bar();
 
-        windows::read_from_file_window(*this);
+        //read_from_file_window();
 
-        windows::properties_window(executor, *this);
+        properties_window();
 
-        windows::simulation_status_window(*this, executor);
+        simulation_status_window();
 
         if(simulation_control->is_simulation_active && !simulation_control->is_paused)
         {
@@ -160,11 +164,6 @@ void lbm::gui::Gui::run()
                 timer.restart();
                 progress->current_iter++;
                 progress->progress = (double)progress->current_iter / executor->algorithm->simulation->properties->time_steps;
-
-                if(simulation_control->results_to_csv)
-                {
-                    
-                }
 
                 if(windows->enable_velocity_quiver)
                 {
@@ -221,28 +220,23 @@ void lbm::gui::Gui::run()
                     progress->current_iter = 0;
                     progress->progress = 0;
                     simulation_control->is_simulation_active = false;
-
-                    if(simulation_control->results_to_csv)
-                    {
-
-                    }
                 }
             }
         }
 
-        windows::density_window(*executor, *this);
-        windows::velocity_window(*executor, *this);
+        density_window();
+        velocity_window();
 
-        rendering::render(window, *this);
+        render(window);
     }
-    contexts::destroy(window);
+    destroy(window);
 }
 
-void lbm::gui::windows::read_from_file_window(gui::Gui &gui)
+void lbm::gui::Gui::read_from_file_window()
 {
-    if(gui.windows->show_read_from_file_window)
+    if(windows->show_read_from_file_window)
     {
-        if(ImGui::Begin("Read from file", &gui.windows->show_read_from_file_window))
+        if(ImGui::Begin("Read from file", &windows->show_read_from_file_window))
         {
             ImGui::Text("This feature may be available in the future.");
             ImGui::PushItemWidth(ImGui::GetWindowWidth() / 2);
@@ -255,20 +249,17 @@ void lbm::gui::windows::read_from_file_window(gui::Gui &gui)
     }
 }
 
-void lbm::gui::windows::density_window
-(
-    const execution::SYCLExecutor &sycl_executor,
-    gui::Gui &gui
-)
+
+void lbm::gui::Gui::density_window()
 {
-    if(gui.windows->show_density)
+    if(windows->show_density && windows->enable_live_visualization)
     {
         ImGui::SetNextWindowPos
         (
             ImVec2
             (
-                (1.0 / 4) * gui.monitor->viewport->WorkSize.x, 
-                1.0 / 2 * gui.windows->menu_bar_size + 1.0 / 2 * gui.monitor->viewport->WorkSize.y
+                (1.0 / 4) * monitor->viewport->WorkSize.x, 
+                1.0 / 2 * windows->menu_bar_size + 1.0 / 2 * monitor->viewport->WorkSize.y
             ), 
             ImGuiCond_Appearing
         ); 
@@ -277,25 +268,25 @@ void lbm::gui::windows::density_window
         (
             ImVec2
             (
-                (3.0 / 4) * gui.monitor->viewport->WorkSize.x, 
-                1.0 / 2 * gui.monitor->viewport->WorkSize.y - 1.0 / 2 * gui.windows->menu_bar_size
+                (3.0 / 4) * monitor->viewport->WorkSize.x, 
+                1.0 / 2 * monitor->viewport->WorkSize.y - 1.0 / 2 * windows->menu_bar_size
             ), 
             ImGuiCond_Appearing
         );
 
-        if(ImGui::Begin("Density", &gui.windows->show_density))
+        if(ImGui::Begin("Density", &windows->show_density))
         {
             ImGui::PushItemWidth(ImGui::GetWindowWidth() / 10);
-            items::colormap_picker(gui.colormaps->density_colormap, "Density");
+            colormap_picker(colormaps->density_colormap, "Density");
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
             ImGui::SameLine();
-            ImGui::InputDouble("Lower scale", &gui.colormaps->density_colormap_lower_scale, 0.05, 0.1);
+            ImGui::InputDouble("Lower scale", &colormaps->density_colormap_lower_scale, 0.001, 0.01);
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
             ImGui::SameLine();
-            ImGui::InputDouble("Upper scale", &gui.colormaps->density_colormap_upper_scale, 0.05, 0.1);
-            ImPlot::PushColormap(gui.colormaps->density_colormap);
+            ImGui::InputDouble("Upper scale", &colormaps->density_colormap_upper_scale, 0.001, 0.01);
+            ImPlot::PushColormap(colormaps->density_colormap);
 
             if
             (
@@ -304,7 +295,7 @@ void lbm::gui::windows::density_window
                     "Density",
                     ImVec2
                     (
-                        ImGui::GetContentRegionAvail().x - gui.monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
+                        ImGui::GetContentRegionAvail().x - monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
                         ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                     ),
                     ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs
@@ -321,87 +312,83 @@ void lbm::gui::windows::density_window
                 ImPlot::PlotHeatmap
                 (
                     "",
-                    sycl_executor.algorithm->simulation->results->densities_cpu->data(),
-                    sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
-                    sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
-                    gui.colormaps->density_colormap_lower_scale,
-                    gui.colormaps->density_colormap_upper_scale,
+                    executor->algorithm->simulation->results->densities_cpu->data(),
+                    executor->algorithm->simulation->properties->vertical_nodes - 2,
+                    executor->algorithm->simulation->properties->horizontal_nodes - 2,
+                    colormaps->density_colormap_lower_scale,
+                    colormaps->density_colormap_upper_scale,
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2, sycl_executor.algorithm->simulation->properties->vertical_nodes - 2)
+                    ImPlotPoint(executor->algorithm->simulation->properties->horizontal_nodes - 2, executor->algorithm->simulation->properties->vertical_nodes - 2)
                 );
 
                 ImPlot::PushColormap("SOLID_MASK");
                 ImPlot::PlotHeatmap
                 (
                     "Solid mask for density",
-                    sycl_executor.algorithm->simulation->results->densities_cpu->data(),
-                    sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
-                    sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
+                    executor->algorithm->simulation->results->densities_cpu->data(),
+                    executor->algorithm->simulation->properties->vertical_nodes - 2,
+                    executor->algorithm->simulation->properties->horizontal_nodes - 2,
                     -1,
                     1, 
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2, sycl_executor.algorithm->simulation->properties->vertical_nodes - 2)
+                    ImPlotPoint(executor->algorithm->simulation->properties->horizontal_nodes - 2, executor->algorithm->simulation->properties->vertical_nodes - 2)
                 );
 
                 if (ImPlot::IsPlotHovered()) 
                 {
                     ImPlotPoint mouse = ImPlot::GetPlotMousePos();
 
-                    if(0 <= mouse.x && mouse.x < (sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) && 0 <= mouse.y && mouse.y < (sycl_executor.algorithm->simulation->properties->vertical_nodes - 2))
+                    if(
+                        0 <= mouse.x && mouse.x < (executor->algorithm->simulation->properties->horizontal_nodes - 2) 
+                        && 0 <= mouse.y && mouse.y < (executor->algorithm->simulation->properties->vertical_nodes - 2)
+                    )
                     {
                         ImGui::BeginTooltip();
                         ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
-                        double value = sycl_executor.algorithm->simulation->results->densities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x));
-                        if(value != -1)
-                        {
-                            ImGui::Text("Density: %f", value);
-                        }
-                        else
-                        {
-                            ImGui::Text("Solid node");
-                        }
+                        double value = 
+                            executor->algorithm->simulation->results->densities_cpu->at((executor->algorithm->simulation->properties->horizontal_nodes - 2) * 
+                            ((int)floor(mouse.y)) + (int)floor(mouse.x));
+
+                        if(value != -1) { ImGui::Text("Density: %f", value); }
+                        else { ImGui::Text("Solid node"); }
                         ImGui::EndTooltip();
                     }
                 }
-
                 ImPlot::EndPlot();
             }
             ImGui::SameLine();
             ImPlot::ColormapScale
             (
                 "Density",
-                gui.colormaps->density_colormap_lower_scale,
-                gui.colormaps->density_colormap_upper_scale, 
+                colormaps->density_colormap_lower_scale,
+                colormaps->density_colormap_upper_scale, 
                 ImVec2
                 (
-                    gui.monitor->monitor_x_scale * 100,
+                    monitor->monitor_x_scale * 100,
                     ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                 ), 
                 "%g", 
                 ImPlotColormapScaleFlags_None, 
-                gui.colormaps->density_colormap
+                colormaps->density_colormap
             );   
         }
         ImGui::End();
     }
 }
 
-void lbm::gui::windows::velocity_window
-(
-    const execution::SYCLExecutor &sycl_executor,
-    gui::Gui &gui
-)
+
+void lbm::gui::Gui::velocity_window()
 {
-    if(gui.windows->show_velocity)
+    if(windows->show_velocity && windows->enable_live_visualization)
     {
         ImGui::SetNextWindowPos
         (
             ImVec2
             (
-                (1.0 / 4) * gui.monitor->viewport->WorkSize.x, 
-                gui.windows->menu_bar_size
+                (1.0 / 4) * monitor->viewport->WorkSize.x, 
+                windows->menu_bar_size
             ), 
             ImGuiCond_Appearing
         ); 
@@ -410,32 +397,31 @@ void lbm::gui::windows::velocity_window
         (
             ImVec2
             (
-                (3.0 / 4) * gui.monitor->viewport->WorkSize.x,
-                (1.0 / 2) * gui.monitor->viewport->WorkSize.y - 1.0 / 2 * gui.windows->menu_bar_size
+                (3.0 / 4) * monitor->viewport->WorkSize.x,
+                (1.0 / 2) * monitor->viewport->WorkSize.y - 1.0 / 2 * windows->menu_bar_size
             ), 
             ImGuiCond_Appearing
         );
 
-        if(ImGui::Begin("Velocity", &gui.windows->show_velocity))
+        if(ImGui::Begin("Velocity", &windows->show_velocity))
         {
             ImGui::PushItemWidth(ImGui::GetWindowWidth() / 10);
-            items::colormap_picker(gui.colormaps->velocity_colormap, "Velocity");
+            colormap_picker(colormaps->velocity_colormap, "Velocity");
 
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
             ImGui::SameLine();
-            ImGui::InputDouble("Lower scale", &gui.colormaps->velocity_colormap_lower_scale, 0.01, 0.1);
+            ImGui::InputDouble("Lower scale", &colormaps->velocity_colormap_lower_scale, 0.01, 0.1);
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
             ImGui::SameLine();
-            ImGui::InputDouble("Upper scale", &gui.colormaps->velocity_colormap_upper_scale, 0.01, 0.1);
+            ImGui::InputDouble("Upper scale", &colormaps->velocity_colormap_upper_scale, 0.01, 0.1);
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
             ImGui::SameLine();
-            if(ImGui::Checkbox("Enable vector plot", &gui.windows->enable_velocity_quiver)){}
+            if(ImGui::Checkbox("Enable vector plot", &windows->enable_velocity_quiver)){}
 
-
-            ImPlot::PushColormap(gui.colormaps->velocity_colormap);
+            ImPlot::PushColormap(colormaps->velocity_colormap);
 
             if
             (
@@ -444,7 +430,7 @@ void lbm::gui::windows::velocity_window
                     "Velocity",
                     ImVec2
                     (
-                        ImGui::GetContentRegionAvail().x - gui.monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
+                        ImGui::GetContentRegionAvail().x - monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
                         ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                     ),
                     ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs
@@ -462,14 +448,14 @@ void lbm::gui::windows::velocity_window
                 ImPlot::PlotHeatmap
                 (
                     "Absolute velocities",
-                    sycl_executor.algorithm->simulation->results->absolute_velocities_cpu->data(),
-                    sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
-                    sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
-                    gui.colormaps->velocity_colormap_lower_scale, 
-                    gui.colormaps->velocity_colormap_upper_scale, 
+                    executor->algorithm->simulation->results->absolute_velocities_cpu->data(),
+                    executor->algorithm->simulation->properties->vertical_nodes - 2,
+                    executor->algorithm->simulation->properties->horizontal_nodes - 2,
+                    colormaps->velocity_colormap_lower_scale, 
+                    colormaps->velocity_colormap_upper_scale, 
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2, sycl_executor.algorithm->simulation->properties->vertical_nodes - 2)
+                    ImPlotPoint(executor->algorithm->simulation->properties->horizontal_nodes - 2, executor->algorithm->simulation->properties->vertical_nodes - 2)
                 );
 
                 ImPlot::PopColormap(1);
@@ -478,28 +464,28 @@ void lbm::gui::windows::velocity_window
                 ImPlot::PlotHeatmap
                 (
                     "Solid mask for velocity",
-                    sycl_executor.algorithm->simulation->results->densities_cpu->data(),
-                    sycl_executor.algorithm->simulation->properties->vertical_nodes - 2,
-                    sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2,
+                    executor->algorithm->simulation->results->densities_cpu->data(),
+                    executor->algorithm->simulation->properties->vertical_nodes - 2,
+                    executor->algorithm->simulation->properties->horizontal_nodes - 2,
                     -1,
                     1, 
                     nullptr, 
                     ImPlotPoint(0,0),
-                    ImPlotPoint(sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2, sycl_executor.algorithm->simulation->properties->vertical_nodes - 2)
+                    ImPlotPoint(executor->algorithm->simulation->properties->horizontal_nodes - 2, executor->algorithm->simulation->properties->vertical_nodes - 2)
                 );
 
                 ImPlot::PopColormap(1);
                 ImPlot::PushColormap(ImPlotColormap_Greys);
                 ImPlot::SetNextLineStyle(ImVec4(0, 0, 0, 0.5), 3.f);
 
-                if(gui.windows->enable_velocity_quiver)
+                if(windows->enable_velocity_quiver)
                 {
                     ImPlot::PlotLine
                     (
                         "Quiver plot", 
-                        gui.velocity_quiver_data->x_values->data(), 
-                        gui.velocity_quiver_data->y_values->data(), 
-                        2 * sycl_executor.algorithm->simulation->results->absolute_velocities_cpu->size(), 
+                        velocity_quiver_data->x_values->data(), 
+                        velocity_quiver_data->y_values->data(), 
+                        2 * executor->algorithm->simulation->results->absolute_velocities_cpu->size(), 
                         ImPlotLineFlags_Segments
                     );
                 }
@@ -508,20 +494,33 @@ void lbm::gui::windows::velocity_window
                 {
                     ImPlotPoint mouse = ImPlot::GetPlotMousePos();
 
-                    if(0 <= mouse.x && mouse.x < (sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) && 0 <= mouse.y && mouse.y < (sycl_executor.algorithm->simulation->properties->vertical_nodes - 2))
+                    if
+                    (
+                        0 <= mouse.x && mouse.x < (executor->algorithm->simulation->properties->horizontal_nodes - 2) && 
+                        0 <= mouse.y && mouse.y < (executor->algorithm->simulation->properties->vertical_nodes - 2)
+                    )
                     {
                         ImGui::BeginTooltip();
                         ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
 
-                        if(sycl_executor.algorithm->simulation->results->densities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * (int)floor(mouse.y) + (int)floor(mouse.x)) != -1)
+                        if
+                        (
+                            executor->algorithm->simulation->results->densities_cpu->at((executor->algorithm->simulation->properties->horizontal_nodes - 2) 
+                            * (int)floor(mouse.y) + (int)floor(mouse.x)) 
+                            != -1
+                        )
                         {
-                            ImGui::Text("x velocity: %.6f", sycl_executor.algorithm->simulation->results->x_velocities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
-                            ImGui::Text("y velocity: %.6f", sycl_executor.algorithm->simulation->results->y_velocities_cpu->at((sycl_executor.algorithm->simulation->properties->horizontal_nodes - 2) * ((int)floor(mouse.y)) + (int)floor(mouse.x)));
+                            ImGui::Text(
+                                "x velocity: %.6f", 
+                                executor->algorithm->simulation->results->x_velocities_cpu->at((executor->algorithm->simulation->properties->horizontal_nodes - 2) * 
+                                ((int)floor(mouse.y)) + (int)floor(mouse.x))
+                            );
+                            ImGui::Text(
+                                "y velocity: %.6f", 
+                                executor->algorithm->simulation->results->y_velocities_cpu->at((executor->algorithm->simulation->properties->horizontal_nodes - 2) * 
+                                ((int)floor(mouse.y)) + (int)floor(mouse.x)));
                         }
-                        else
-                        {
-                            ImGui::Text("Solid node"); 
-                        }
+                        else { ImGui::Text("Solid node");}
                         ImGui::EndTooltip();
                     }
                 }
@@ -532,16 +531,16 @@ void lbm::gui::windows::velocity_window
             ImPlot::ColormapScale
             (
                 "Velocity",
-                gui.colormaps->velocity_colormap_lower_scale, 
-                gui.colormaps->velocity_colormap_upper_scale, 
+                colormaps->velocity_colormap_lower_scale, 
+                colormaps->velocity_colormap_upper_scale, 
                 ImVec2
                 (
-                    gui.monitor->monitor_x_scale * 100,
+                    monitor->monitor_x_scale * 100,
                     ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                 ), 
                 "%g", 
                 ImPlotColormapScaleFlags_None, 
-                gui.colormaps->velocity_colormap
+                colormaps->velocity_colormap
             );   
         }
         ImGui::End();

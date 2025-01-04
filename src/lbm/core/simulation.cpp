@@ -27,8 +27,8 @@ lbm::core::Properties::Properties
     const bool results_to_csv,
     const double relaxation_time,
     const unsigned int time_steps,
-    const Obstacle obstacle,
     // Domain properties
+    const std::string &&scenario,
     const unsigned int vertical_nodes,
     const unsigned int horizontal_nodes,
     // Inlets
@@ -48,8 +48,8 @@ debug_mode(debug_mode),
 results_to_csv(results_to_csv),
 relaxation_time(relaxation_time),
 time_steps(time_steps),
-obstacle(obstacle),
 // Domain properties
+scenario(scenario),
 vertical_nodes(vertical_nodes+2),
 horizontal_nodes(horizontal_nodes+2),
 non_buffered_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
@@ -78,6 +78,7 @@ std::string lbm::core::Properties::to_string() const
         "\tRelaxation time: {:.6f} \n"
         "\tTime steps: {} \n"
         "Domain properties: \n"
+        "\tScenario: {}\n"
         "\tVertical nodes: {} \n"
         "\tHorizontal nodes: {} \n"
         "\tNode count: {} \n"
@@ -93,6 +94,7 @@ std::string lbm::core::Properties::to_string() const
         results_to_csv,
         relaxation_time,
         time_steps,
+        scenario,
         vertical_nodes,
         horizontal_nodes,
         non_buffered_node_count,

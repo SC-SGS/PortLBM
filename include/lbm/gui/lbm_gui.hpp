@@ -6,9 +6,9 @@
  * @brief       This header file contains all declarations and some implementations of the GUI
  *              for the lattice Boltzmann simulation developed in my Bachelor thesis.
  * 
- * @version     2.0
+ * @version     2.1
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -167,38 +167,19 @@ namespace lbm
             std::unique_ptr<std::vector<double>> y_values;
         };
 
+// GUI class //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         /**
          * @brief This structure contains all important data for the GUI.
          * 
          */
-        struct Gui
+        class Gui
         {
-            std::unique_ptr<Windows> windows;
-            std::unique_ptr<SimulationControl> simulation_control;
-            std::unique_ptr<Progress> progress;
-            std::unique_ptr<Monitor> monitor;
-            std::unique_ptr<Colormaps> colormaps;
-            std::unique_ptr<core::Properties> properties_stored;
-            std::unique_ptr<core::Properties> properties_buffered;
-            std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
-            std::unique_ptr<std::string> window_title;
-            std::unique_ptr<execution::SYCLExecutor> executor;
+            private:
 
-            bool properties_changed;
+// Styles /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            explicit Gui(const std::string &&window_title);
-
-            void run();
-        };
-
-        /**
-         * @brief This namespace contains helper functions for setting up the style of ImGui and ImPlot.
-         */
-        namespace styles
-        {
-            /**
-             * @brief Sets the style of ImGui and ImPlot to light colors.
-             */
+            /** @brief Sets the style of ImGui and ImPlot to light colors. */
             inline void set_light_style()
             {
                 ImGui::StyleColorsLight();
@@ -214,9 +195,7 @@ namespace lbm
                 ImPlot::StyleColorsLight();
             }
 
-            /**
-             * @brief Sets the style of ImGui and ImPlot to dark colors.
-             */
+            /** @brief Sets the style of ImGui and ImPlot to dark colors. */
             inline void set_dark_style()
             {
                 ImGui::StyleColorsDark();
@@ -232,9 +211,7 @@ namespace lbm
                 ImPlot::StyleColorsDark();
             }
 
-            /**
-             * @brief Sets the style of ImGui and ImPlot to the classical ImGui style.
-             */
+            /** @brief Sets the style of ImGui and ImPlot to the classical ImGui style. */
             inline void set_classic_style()
             {
                 ImGui::StyleColorsClassic();
@@ -250,177 +227,134 @@ namespace lbm
                 ImPlot::StyleColorsClassic();
             }
 
-        } // ! namespace styles
-
-        /**
-         * @brief This namespace contains various items used by the GUI.
-         */
-        namespace items
-        {
+// BUTTONS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
-             * @brief This namespace contains important buttons used to control the simulation.
+             * @brief Creates a run button that is capable of launching a new simulation or resuming a paused simulation.
+             *        Simulation values are initialized with placeholder values.
+             *        
+             *        Pressing this button when no simulation is active, i.e., after the start of the program, 
+             *        after a completed simulation or after the abortion of a simulation run enacts the launch of a new 
+             *        simulation run.
+             *       
+             *        Pressing this button when a simulation is active but paused resumes work on it.
+             * 
+             *        Pressing this button when a simulation is active and not paused has no effect.
+             * 
              */
-            namespace buttons
+            inline void run_button()
             {
-                /**
-                 * @brief Creates a run button that is capable of launching a new simulation or resuming a paused simulation.
-                 *        Simulation values are initialized with placeholder values.
-                 *        
-                 *        Pressing this button when no simulation is active, i.e., after the start of the program, 
-                 *        after a completed simulation or after the abortion of a simulation run enacts the launch of a new 
-                 *        simulation run.
-                 *       
-                 *        Pressing this button when a simulation is active but paused resumes work on it.
-                 * 
-                 *        Pressing this button when a simulation is active and not paused has no effect.
-                 * 
-                 * @param[in, out]  gui         reference to the structure containing all GUI data
-                 * @param[in, out]  executor    a reference to the executor used to execute the simulation is set up with 
-                 *                              an according default value
-                 */
-                inline void run_button
-                (
-                    gui::Gui &gui,
-                    std::unique_ptr<execution::SYCLExecutor> &executor
-                )
-                {
-                    ImGui::PushID(0);
-                    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.333f, 0.6f, 0.6f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.333f, 0.75f, 0.75f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.333f, 0.9f, 0.9f));
+                ImGui::PushID(0);
+                ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.333f, 0.5f, 0.6f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.333f, 0.75f, 0.75f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.333f, 0.9f, 0.9f));
 
-                    if (ImGui::Button("run", ImVec2(1.0/3 * ImGui::GetWindowSize().x*0.5f, 0.0f)))
-                    {
-                        if(!gui.simulation_control->is_simulation_active)
+                if (ImGui::Button("run", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)))
+                {
+                    if(!simulation_control->is_simulation_active)
                         {
+                            file_interaction::properties_to_json(*properties_gui);
+                            properties_gui.reset();
+                            properties_gui = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
+                            properties_changed = false;
                             executor.reset();
                             executor = std::make_unique<execution::SYCLExecutor>();
                         }
-                        gui.simulation_control->is_paused = false;
-                        gui.simulation_control->is_simulation_active = true;
-                    }
 
-                    ImGui::PopStyleColor(3);
-                    ImGui::PopID();
+                    simulation_control->is_paused = false;
+                    simulation_control->is_simulation_active = true;
                 }
 
-                /**
-                 * @brief Creates a pause button that is capable of pausing an active simulation.
-                 *        
-                 *        Pressing this button when no simulation is active, i.e., after the start of the program, 
-                 *        after a completed simulation or after the abortion of a simulation run has no effect.
-                 *       
-                 *        Pressing this button when a simulation is active but already paused has no effect.
-                 * 
-                 *        Pressing this button when a simulation is active and not already paused pauses it.
-                 * 
-                 * @param[in, out]  gui reference to the structure containing all GUI data
-                 */
-                inline void pause_button(gui::Gui &gui)
-                {
-                    ImGui::PushID(1);
-                    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.166f, 0.6f, 0.6f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.166f, 0.75f, 0.75f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.166f, 0.9f, 0.9f));
-                    if(ImGui::Button("pause", ImVec2(1.0/3 * ImGui::GetWindowSize().x*0.5f, 0.0f)))                           
-                    {
-                        gui.simulation_control->is_paused = true;
-                    }
-                    ImGui::PopStyleColor(3);
-                    ImGui::PopID();
-                }
-
-                /**
-                 * @brief Creates an abort button that is capable of aborting an active simulation.
-                 *        All progess counters are reset to zero.
-                 *        Values are not re-initialized such that the last progress remains visible unless the user performs any changes.
-                 *        TODO: Currently, simulation results are only written to a CSV file if the simulation executes entirely without
-                 *        interruptions or crashes. In the future, simulation results may be written to a CSV file right when they are available.
-                 *        
-                 *        Pressing this button when no simulation is active, i.e., after the start of the program, 
-                 *        after a completed simulation or after the abortion of a simulation run has no effect.
-                 *       
-                 *        Pressing this button when a simulation is active aborts it and resets all progress but keeps the last result.
-                 * 
-                 * @param[in, out]  gui reference to the structure containing all GUI data
-                 */
-                inline void abort_button(gui::Gui &gui)
-                {
-                    ImGui::PushID(2);
-                    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.00f, 0.6f, 0.6f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.0f, 0.75f, 0.75f));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.0f, 0.9f, 0.9f));
-                    if (ImGui::Button("abort", ImVec2(1.0/3 * ImGui::GetWindowSize().x*0.5f, 0.0f)) && gui.simulation_control->is_simulation_active)                           
-                    {
-                        gui.simulation_control->is_paused = false;
-                        gui.simulation_control->is_simulation_active = false;
-                        gui.progress->current_iter = 0;
-                        gui.progress->progress = 0;
-                    }    
-                    ImGui::PopStyleColor(3);
-                    ImGui::PopID();
-                }
-
-            } // ! namespace buttons
-
+                ImGui::PopStyleColor(3);
+                ImGui::PopID();
+            }
 
             /**
-             * @brief   Creates the menu bar of the GUI.
-             *          Its height is stored in the specified Windows object.
+             * @brief Creates a pause button that is capable of pausing an active simulation.
+             *        
+             *        Pressing this button when no simulation is active, i.e., after the start of the program, 
+             *        after a completed simulation or after the abortion of a simulation run has no effect.
+             *       
+             *        Pressing this button when a simulation is active but already paused has no effect.
              * 
-             * @param[in, out]  gui reference to the structure containing all GUI data
+             *        Pressing this button when a simulation is active and not already paused pauses it.
+             * 
              */
-            inline void menu_bar(gui::Gui &gui)
+            inline void pause_button()
+            {
+                ImGui::PushID(1);
+                ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.166f, 0.5f, 0.6f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.166f, 0.75f, 0.75f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.166f, 0.9f, 0.9f));
+                if(ImGui::Button("pause", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)))                           
+                {
+                    simulation_control->is_paused = true;
+                }
+                ImGui::PopStyleColor(3);
+                ImGui::PopID();
+            }
+
+            /**
+             * @brief Creates an abort button that is capable of aborting an active simulation.
+             *        All progess counters are reset to zero.
+             *        Values are not re-initialized such that the last progress remains visible unless the user performs any changes.
+             *        
+             *        Pressing this button when no simulation is active, i.e., after the start of the program, 
+             *        after a completed simulation or after the abortion of a simulation run has no effect.
+             *       
+             *        Pressing this button when a simulation is active aborts it and resets all progress but keeps the last result.
+             */
+            inline void abort_button()
+            {
+                ImGui::PushID(2);
+                ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.00f, 0.5f, 0.6f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.0f, 0.75f, 0.75f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.0f, 0.9f, 0.9f));
+                if (ImGui::Button("abort", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)) && simulation_control->is_simulation_active)                           
+                {
+                    simulation_control->is_paused = false;
+                    simulation_control->is_simulation_active = false;
+                    progress->current_iter = 0;
+                    progress->progress = 0;
+                }    
+                ImGui::PopStyleColor(3);
+                ImGui::PopID();
+            }
+
+            /** @brief Creates the menu bar of the GUI. Its height is stored in the specified Windows object. */
+            inline void menu_bar()
             {
                 if (ImGui::BeginMainMenuBar()) 
                 {
                     if (ImGui::BeginMenu("Windows"))
                     {
-                        if (ImGui::MenuItem("Properties", NULL, gui.windows->show_properties)) 
+                        if (ImGui::MenuItem("Properties", NULL, windows->show_properties)) 
                         {
-                            gui.windows->show_properties = !gui.windows->show_properties;
+                            windows->show_properties = !windows->show_properties;
                         }
-                        if (ImGui::MenuItem("Simulation status", NULL, gui.windows->show_simulation_status)) 
+                        if (ImGui::MenuItem("Simulation status", NULL, windows->show_simulation_status)) 
                         { 
-                            gui.windows->show_simulation_status = !gui.windows->show_simulation_status;
+                            windows->show_simulation_status = !windows->show_simulation_status;
                         }
-                        if (ImGui::MenuItem("Density", NULL, gui.windows->show_density)) 
+                        if (ImGui::MenuItem("Density", NULL, windows->show_density)) 
                         { 
-                            gui.windows->show_density = !gui.windows->show_density;
+                            windows->show_density = !windows->show_density;
                         }
-                        if (ImGui::MenuItem("Velocity", NULL, gui.windows->show_velocity)) 
+                        if (ImGui::MenuItem("Velocity", NULL, windows->show_velocity)) 
                         { 
-                            gui.windows->show_velocity = !gui.windows->show_velocity;
+                            windows->show_velocity = !windows->show_velocity;
                         }
                         ImGui::EndMenu();
                     }
                     if (ImGui::BeginMenu("Theme"))
                     {
-                        if (ImGui::MenuItem("Light")) 
-                        {
-                            styles::set_light_style();
-                        }
-                        if (ImGui::MenuItem("Dark")) 
-                        { 
-                            styles::set_dark_style();
-                        }
-                        if (ImGui::MenuItem("Classic")) 
-                        { 
-                            styles::set_classic_style();
-                        }
-                        ImGui::EndMenu();
-                    }
-                    if (ImGui::BeginMenu("Load from file"))
-                    {
-                        if (ImGui::MenuItem("Show window", NULL, gui.windows->show_read_from_file_window)) 
-                        {
-                            gui.windows->show_read_from_file_window = !gui.windows->show_read_from_file_window;
-                        }
+                        if (ImGui::MenuItem("Light"))   { set_light_style(); }
+                        if (ImGui::MenuItem("Dark"))    { set_dark_style(); }
+                        if (ImGui::MenuItem("Classic")) { set_classic_style(); }
                         ImGui::EndMenu();
                     }
                 }
-                gui.windows->menu_bar_size = ImGui::GetWindowHeight();
+                windows->menu_bar_size = ImGui::GetWindowHeight();
                 ImGui::EndMainMenuBar();
             }
 
@@ -442,67 +376,64 @@ namespace lbm
                 }
             }
 
-            /**
-             * @brief Creates an ImGui Combo for the selection of the algorithm.
-             * 
-             * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
-             * @param gui_algorithmic a reference to an object containing all data specifying the algorithm used for the simulation
-             */
-            inline void algorithm_selection
-            (
-                core::Properties &properties_buffer,
-                bool &changed
-            )
+// Selection fields ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+            /** @brief Creates an ImGui Combo for the selection of the algorithm. */
+            inline void algorithm_selection()
             {
                 ImGui::SeparatorText("Algorithmic");
                 bool is_selected;
 
-                if (ImGui::BeginCombo("Algorithm", properties_buffer.algorithm.c_str()))
+                if (ImGui::BeginCombo("Algorithm",  properties_gui->algorithm.c_str()))
                 {
                     for (int n = 0; n < lbm::gui::constants::algorithms.size(); n++)
                     {
-                        is_selected = (properties_buffer.algorithm == lbm::gui::constants::algorithms[n]); 
+                        is_selected = ( properties_gui->algorithm == lbm::gui::constants::algorithms[n]); 
 
                         if (ImGui::Selectable(lbm::gui::constants::algorithms[n].data(), is_selected))
                         {
-                            properties_buffer.algorithm = lbm::gui::constants::algorithms[n];
-                            changed = true;
+                            properties_gui->algorithm = lbm::gui::constants::algorithms[n];
+                            properties_changed = true;
                         }
-                        if (is_selected)
-                        {
-                            ImGui::SetItemDefaultFocus(); 
-                        }   
+                        if (is_selected) { ImGui::SetItemDefaultFocus(); }   
                     }
                     ImGui::EndCombo();
                 }
             }
 
-            /**
-             * @brief Creates an ImGui Combo for the selection of the data layout (and the corresponding access pattern).
-             * 
-             * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
-             * @param gui_algorithmic a reference to an object containing all data specifying the algorithm used for the simulation
-             */
-            inline void data_layout_selection
-            (
-                core::Properties &properties_buffer,
-                bool &changed
-            )
+            /** @brief Creates an ImGui Combo for the selection of the data layout (and the corresponding access pattern). */
+            inline void data_layout_selection()
             {
-                if (ImGui::BeginCombo("Data layout", properties_buffer.data_layout.c_str())) 
+                if (ImGui::BeginCombo("Data layout",  properties_gui->data_layout.c_str())) 
                 {
                     for (int n = 0; n < lbm::gui::constants::data_layouts.size(); n++)
                     {
-                        bool is_selected = (properties_buffer.data_layout == lbm::gui::constants::data_layouts[n]); 
+                        bool is_selected = ( properties_gui->data_layout == lbm::gui::constants::data_layouts[n]); 
                         if (ImGui::Selectable(lbm::gui::constants::data_layouts[n].data(), is_selected))
                         {
-                            properties_buffer.data_layout = lbm::gui::constants::data_layouts[n];
-                            changed = true;
+                            properties_gui->data_layout = lbm::gui::constants::data_layouts[n];
+                            properties_changed = true;
                         }
-                        if (is_selected)
+                        if (is_selected) { ImGui::SetItemDefaultFocus(); }      
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+
+            /** @brief Creates an ImGui Combo for the selection of the data layout (and the corresponding access pattern). */
+            inline void scenario_selection()
+            {
+                if (ImGui::BeginCombo("Scenario", properties_gui->scenario.c_str())) 
+                {
+                    for (int n = 0; n < lbm::gui::constants::scenarios.size(); n++)
+                    {
+                        bool is_selected = ( properties_gui->scenario == lbm::gui::constants::scenarios[n]); 
+                        if (ImGui::Selectable(lbm::gui::constants::scenarios[n].data(), is_selected))
                         {
-                            ImGui::SetItemDefaultFocus();
-                        }      
+                            properties_gui->scenario = lbm::gui::constants::scenarios[n];
+                            properties_changed = true;
+                        }
+                        if (is_selected) { ImGui::SetItemDefaultFocus(); }      
                     }
                     ImGui::EndCombo();
                 }
@@ -512,103 +443,84 @@ namespace lbm
              * @brief Creates a checkbox governing whether or not simulation results should be stored in a csv file
              *        and a text input field where the filename is specified.
              *        Up to 200 characters are allowed.
-             * 
-             * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
-             * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation 
-             * @param gui_simulation_data a reference to an object containing all data on which the simulation operates
              */
-            inline void save_results_selection
-            (
-                bool &results_to_csv,
-                gui::Gui &gui
-            )
+            inline void save_results_selection()
             {
-                if(ImGui::Checkbox("Save results", &gui.simulation_control->results_to_csv))
+                if(ImGui::Checkbox("Save results", &simulation_control->results_to_csv))
                 {
-                    results_to_csv = gui.simulation_control->results_to_csv;
+                    //results_to_csv = simulation_control->results_to_csv;
                 }
 
                 ImGui::SameLine();
                 ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                 ImGui::SameLine();
 
-                ImGui::InputTextWithHint("File name", "enter_name.csv", gui.simulation_control->result_file_name, IM_ARRAYSIZE(gui.simulation_control->result_file_name));
+                ImGui::InputTextWithHint(
+                    "File name", "enter_name.csv", simulation_control->result_file_name, IM_ARRAYSIZE(simulation_control->result_file_name)
+                );
             }
 
             /**
              * @brief Creates various input fields for properties regarding the simulation and its domain.
              *        The density and velocity plots are automatically adapting to new domain extents.
-             *        
              *        Notice that any previous simulation results are replaced by fedault values when resizing.
-             * 
-             *        TODO: Notice that the current specification does not entirely prevent faulty setups.
-             * 
-             * @param settings a reference to the settings object responsible for setting up all necessary simulation properties
-             * @param current_sim_data a reference to the tuple storing the current simulation results
              */
-            inline void properties_simulation_and_domain(core::Properties &properties_buffer, bool &changed)
+            inline void properties_simulation_and_domain()
             {
                 ImGui::SeparatorText("Simulation and domain");
 
                 if
                 (
-                    ImGui::InputUnsignedInt("Time steps", &(properties_buffer.time_steps), 1, 10) |
-                    ImGui::InputUnsignedInt("Horizontal nodes", &(properties_buffer.horizontal_nodes), 10, 100) |
-                    ImGui::InputUnsignedInt("Vertical nodes", &(properties_buffer.vertical_nodes), 10, 100)
+                    ImGui::InputUnsignedInt("Time steps", &(properties_gui->time_steps), 1, 10) |
+                    ImGui::InputUnsignedInt("Horizontal nodes", &(properties_gui->horizontal_nodes), 10, 100) |
+                    ImGui::InputUnsignedInt("Vertical nodes", &(properties_gui->vertical_nodes), 10, 100)
                 )
-                {
-                    changed = true;
-                }
+                { properties_changed = true;}
             }
 
-            /**
-             * @brief Creates input fields for various values related to general fluid properties.
-             * 
-             * @param settings a reference to the settings object responsible for setting up all necessary simulation properties 
-             */
-            inline void properties_fluid(core::Properties &properties_buffer, bool &changed)
+            /** @brief Creates input fields for various values related to general fluid properties. */
+            inline void properties_fluid()
             {
                 ImGui::SeparatorText("Fluid properties");
 
                 if
                 (
-                    ImGui::InputDouble("Inlet density", &(properties_buffer.inlet_density), 0.01f, 0.1f) |
-                    ImGui::InputDouble("Outlet density", &(properties_buffer.outlet_density), 0.01f, 0.1f) |
-                    ImGui::InputDouble("Inlet velocity x", &(properties_buffer.inlet_velocity_x), 0.01f, 0.1f) |
-                    ImGui::InputDouble("Inlet velocity y", &(properties_buffer.inlet_velocity_y), 0.01f, 0.1f) |
-                    ImGui::InputDouble("Outlet velocity x", &(properties_buffer.outlet_velocity_x), 0.01f, 0.1f) |
-                    ImGui::InputDouble("Outlet velocity y", &(properties_buffer.outlet_velocity_y), 0.01f, 0.1f) |
-                    ImGui::InputDouble("Relaxation time", &(properties_buffer.relaxation_time), 0.01, 0.1)
+                    ImGui::InputDouble("Inlet density", &(properties_gui->inlet_density), 0.01f, 0.1f) |
+                    ImGui::InputDouble("Outlet density", &(properties_gui->outlet_density), 0.01f, 0.1f) |
+                    ImGui::InputDouble("Inlet velocity x", &(properties_gui->inlet_velocity_x), 0.01f, 0.1f) |
+                    ImGui::InputDouble("Inlet velocity y", &(properties_gui->inlet_velocity_y), 0.01f, 0.1f) |
+                    ImGui::InputDouble("Outlet velocity x", &(properties_gui->outlet_velocity_x), 0.01f, 0.1f) |
+                    ImGui::InputDouble("Outlet velocity y", &(properties_gui->outlet_velocity_y), 0.01f, 0.1f) |
+                    ImGui::InputDouble("Relaxation time", &(properties_gui->relaxation_time), 0.01, 0.1)
                 )
-                {
-                    changed = true;
-                }
+                { properties_changed = true; }
             }
+
+// Simulation status //////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
              * @brief Provides information on the simulation status and displays the current progress using a progress bar.
-             * 
-             * @param gui.simulation_control a reference to an object responsible for tracking control data for the simulation  
-             * @param gui_progress reference to an object containing all data on the current progress of a simulation
              */
-            inline void show_simulation_status(gui::Gui &gui)
+            inline void show_simulation_status()
             {
-                if(!gui.simulation_control->is_simulation_active)
+                if(!simulation_control->is_simulation_active)
                 {
                     ImGui::Text("Ready to start simulation.");
                     ImGui::ProgressBar(0.0, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
                 }
-                else if(gui.simulation_control->is_paused)
+                else if(simulation_control->is_paused)
                 {
                     ImGui::Text("Simulation is paused.");
-                    ImGui::ProgressBar(gui.progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
                 }
                 else
                 {
                     ImGui::Text("Simulation is running.");
-                    ImGui::ProgressBar(gui.progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
                 }
             }
+
+// Colormaps //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
              * @brief Creates an ImGui Combo for the selection of a colormap for the plot with the specified title.
@@ -634,27 +546,28 @@ namespace lbm
                             colormap = constants::color_maps.at(n);
                             ImPlot::BustColorCache(plot_title);
                         }
-                        if (is_selected)
-                        {
-                            ImGui::SetItemDefaultFocus(); 
-
-                        }
+                        if (is_selected) { ImGui::SetItemDefaultFocus(); }
                     }
                     ImGui::EndCombo();
                 }
             }
 
-        } // ! namespace items
-
-        /**
-         * @brief This namespace contains helper methods for interactions with contexts.
-         * 
-         */
-        namespace contexts
-        {
             /**
-             * @brief Creates the contexts for ImGui and ImPlot.
-             */
+            * @brief Adds the colormap used to distinguish solid and fluid nodes.
+            *        It is meant to be used in a heatmap on top of another displaying the densities and velocities.
+            *        Solid nodes are black regardless of the chosen color theme.
+            */
+            inline void add_solid_colormap()
+            {
+                ImVector<ImVec4> custom;
+                custom.push_back(ImVec4(0, 0, 0, 1));
+                custom.push_back(ImVec4(1, 1, 1, 0));
+                ImPlot::AddColormap("SOLID_MASK", custom.Data, custom.Size, true);
+            }
+
+// GLFW ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+            /** @brief Creates the contexts for ImGui and ImPlot. */
             inline void create_contexts()
             {
                 IMGUI_CHECKVERSION();
@@ -676,54 +589,73 @@ namespace lbm
                 glfwDestroyWindow(window);
                 glfwTerminate();
             }
-        } // ! namespace contexts
 
-        /**
-         * @brief This namespace contains the specification of all windows that can be shown.
-         */
-        namespace windows
-        {
+            /**
+            * @brief Helper function displaying an error callback message on the console.
+            * 
+            * @param error the integer error id
+            * @param description char array containing an error message
+            */
+            inline static void glfw_error_callback(int error, const char* description)
+            {
+                fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+            }
+
+            /**
+            * @brief Renders the contents of the specified window.
+            * 
+            * @param window the window whose contents are drawn
+            */
+            inline void render(GLFWwindow *window)
+            {
+                ImGui::Render();
+                glViewport(0, 0, monitor->display_width, monitor->display_height);
+                glClear(GL_COLOR_BUFFER_BIT);
+                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                glfwSwapBuffers(window);
+            }
+
+// Windows ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
             /**
              * @brief Creates a window showing status information and means to control simulations.
              *        The window contains the following buttons from the buttons namespace: run, pause, and abort.
              *        Furthermore, it informs the user about whether a simulation is currently active and what its status is.
              *        It also shows the framerate at which new density and velocity plots are created. 
              *        The window can intentionally not be relocated.
-             * 
-             * @param executor a reference to the executor used to execute the simulation
              */
-            inline void simulation_status_window
-            (
-                gui::Gui &gui,
-                std::unique_ptr<execution::SYCLExecutor> &executor
-            )
+            inline void simulation_status_window()
             {
-                if (gui.windows->show_simulation_status)
+                if (windows->show_simulation_status)
                 {
                     ImGui::SetNextWindowSize
                     (
                         { 
-                            1 * gui.monitor->viewport->WorkSize.x / 4, 
-                            gui.monitor->viewport->WorkSize.y / 5
+                            1 * monitor->viewport->WorkSize.x / 4, 
+                            monitor->viewport->WorkSize.y / 5
                         }
                     );
-                    ImGui::SetNextWindowPos({0, gui.windows->menu_bar_size});
+                    ImGui::SetNextWindowPos({0, windows->menu_bar_size});
 
-                    if(ImGui::Begin("Simulation", &gui.windows->show_simulation_status, ImGuiWindowFlags_NoResize))
+                    if(ImGui::Begin("Simulation", &windows->show_simulation_status, ImGuiWindowFlags_NoResize))
                     {
                         ImGui::SeparatorText("Control");
 
-                        items::buttons::run_button(gui, executor);
+                        run_button();
                         ImGui::SameLine();
-                        items::buttons::pause_button(gui);
+                        pause_button();
                         ImGui::SameLine();
-                        items::buttons::abort_button(gui);
+                        abort_button();
+                        ImGui::SameLine();
+                        ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
+                        ImGui::SameLine();
+                        ImGui::Checkbox("Live visualization", &windows->enable_live_visualization);
 
                         ImGui::SeparatorText("Status");
-                        items::show_simulation_status(gui);
+                        show_simulation_status();
 
                         ImGui::SeparatorText("Framerate");
-                        ImGui::Text("%.1f FPS, %.3f ms/frame ", gui.progress->framerate, gui.progress->frametime);
+                        ImGui::Text("%.1f FPS, %.3f ms/frame ", progress->framerate, progress->frametime);
                     }                        
                     ImGui::End();
                 }
@@ -732,22 +664,16 @@ namespace lbm
             /**
             * @brief Creates a window allowing to set various properties of the algorithm and the domain used in a simulation.
             *        The window can intentionally not be relocated.
-            * 
-            * @param gui.monitor a constant reference to an object storing data related to the primary monitor and the viewport
             */
-            inline void properties_window
-            (
-                std::unique_ptr<execution::SYCLExecutor> &executor,
-                gui::Gui &gui
-            )
+            inline void properties_window()
             {
-                if (gui.windows->show_properties)
+                if (windows->show_properties)
                 {    
                     ImGui::SetNextWindowSize
                     (
                         {
-                            1 * gui.monitor->viewport->WorkSize.x / 4, 
-                            4 * gui.monitor->viewport->WorkSize.y / 5
+                            1 * monitor->viewport->WorkSize.x / 4, 
+                            4 * monitor->viewport->WorkSize.y / 5
                         }
                     );
 
@@ -755,46 +681,37 @@ namespace lbm
                     (
                         {
                             0, 
-                            gui.windows->menu_bar_size + gui.monitor->viewport->WorkSize.y / 5
+                            windows->menu_bar_size + monitor->viewport->WorkSize.y / 5
                         }
                     );
 
-                    if(ImGui::Begin("Properties", &gui.windows->show_properties, ImGuiWindowFlags_NoResize))
+                    if(ImGui::Begin("Properties", &windows->show_properties, ImGuiWindowFlags_NoResize))
                     {
                         ImGui::PushItemWidth(ImGui::GetWindowWidth() / 2);
 
-                        ImGui::BeginDisabled(gui.simulation_control->is_simulation_active);
+                        ImGui::BeginDisabled(simulation_control->is_simulation_active);
                         
-                        items::algorithm_selection(*gui.properties_stored, gui.properties_changed);
-                        items::data_layout_selection(*gui.properties_stored, gui.properties_changed);
-                        items::save_results_selection(gui.properties_stored->results_to_csv, gui);
-                        ImGui::Checkbox("Live visualization", &gui.windows->enable_live_visualization);
-                        items::properties_simulation_and_domain(*gui.properties_stored, gui.properties_changed);
-                        items::properties_fluid(*gui.properties_stored, gui.properties_changed);
+                        algorithm_selection();
+                        data_layout_selection();
+                        scenario_selection();
+                        //save_results_selection();
+                        properties_simulation_and_domain();
+                        properties_fluid();
             
                         ImGui::SeparatorText("");
-                        if (ImGui::Button("Create configuration file", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
-                        {
-                            //properties_buffer->to_json();
-                            file_interaction::properties_to_json(*gui.properties_stored);
-                            gui.properties_buffered.reset();
-                            gui.properties_buffered = std::make_unique<core::Properties>(file_interaction::json_to_properties());
-                            gui.properties_changed = false;
-                            executor.reset();
-                            executor = std::make_unique<execution::SYCLExecutor>();
-                        }
 
-                        ImGui::BeginDisabled(!gui.properties_changed);
+                        ImGui::BeginDisabled(!properties_changed);
                         if (ImGui::Button("Undo changes", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
                         {
-                            gui.properties_buffered.reset();
-                            gui.properties_stored = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
+                            properties_gui.reset();
+                            properties_gui = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
+                            properties_changed = false;
                         }
                         ImGui::EndDisabled();  
 
                         ImGui::EndDisabled();   
 
-                        if(gui.simulation_control->is_simulation_active)
+                        if(simulation_control->is_simulation_active)
                         {
                             ImGui::Text("The properties of an active simulation cannot be changed.");
                         } 
@@ -805,10 +722,8 @@ namespace lbm
 
             /**
             * @brief Work in progress: Creates the window showing control options for simulation data read from a csv file.
-            * 
-            * @param window_settings 
             */
-            void read_from_file_window(gui::Gui &gui);
+            void read_from_file_window();
 
             /**
             * @brief Creates the window visualizing the density of the fluid.
@@ -821,11 +736,7 @@ namespace lbm
             *        Closing this window yields minor to medium performance improvements.
             * 
             */
-            void density_window
-            (
-                const execution::SYCLExecutor &sycl_executor,
-                gui::Gui &gui
-            );
+            void density_window();
 
             /**
             * @brief Creates the window visualizing the velocity of the fluid.
@@ -841,70 +752,31 @@ namespace lbm
             *        Closing this window yields medium to major performance improvements.
             * 
             */
-            void velocity_window
-            (
-                const execution::SYCLExecutor &sycl_executor,
-                gui::Gui &gui
-            );
+            void velocity_window();
 
-        } // ! namespace windows
+// Public API /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        /**
-        * @brief This namespace contains helper methods related to OpenGL and GLFW.
-        * 
-        */
-        namespace rendering
-        {
+            public:
 
-            /**
-            * @brief Helper function displaying an error callback message on the console.
-            * 
-            * @param error the integer error id
-            * @param description char array containing an error message
-            */
-            inline void glfw_error_callback(int error, const char* description)
-            {
-                fprintf(stderr, "GLFW Error %d: %s\n", error, description);
-            }
+            std::unique_ptr<Windows> windows;
+            std::unique_ptr<SimulationControl> simulation_control;
+            std::unique_ptr<Progress> progress;
+            std::unique_ptr<Monitor> monitor;
+            std::unique_ptr<Colormaps> colormaps;
+            std::unique_ptr<core::Properties> properties_gui;
+            std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
+            std::unique_ptr<std::string> window_title;
+            std::unique_ptr<execution::SYCLExecutor> executor;
 
-            /**
-            * @brief Renders the contents of the specified window.
-            * 
-            * @param window the window whose contents are drawn
-            * @param gui.monitor the primary monitor on which the window is shown
-            */
-            inline void render(GLFWwindow *window, gui::Gui &gui)
-            {
-                ImGui::Render();
-                glViewport(0, 0, gui.monitor->display_width, gui.monitor->display_height);
-                glClear(GL_COLOR_BUFFER_BIT);
-                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-                glfwSwapBuffers(window);
-            }
-        } // ! namespace rendering
+            bool properties_changed;
 
-        /**
-        * @brief Utility namespace of helper functions that were found to be unsuited elsewhere
-        * 
-        */
-        namespace misc
-        {
-            /**
-            * @brief Adds the colormap used to distinguish solid and fluid nodes.
-            *        It is meant to be used in a heatmap on top of another displaying the densities and velocities.
-            *        Solid nodes are black regardless of the chosen color theme.
-            */
-            inline void add_solid_colormap()
-            {
-                ImVector<ImVec4> custom;
-                custom.push_back(ImVec4(0, 0, 0, 1));
-                custom.push_back(ImVec4(1, 1, 1, 0));
-                ImPlot::AddColormap("SOLID_MASK", custom.Data, custom.Size, true);
-            }
-        } // ! namespace misc
+            explicit Gui(const std::string &&window_title);
+
+            void run();
+        };
 
     } // ! namespace gui
 
 } // ! namespace lbm
 
-#endif
+#endif // ! LBM_GUI_HPP

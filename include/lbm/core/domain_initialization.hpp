@@ -345,8 +345,8 @@ namespace lbm
                     
                     for(int y = 0; y < properties.vertical_nodes; ++y)
                     {
-                        int one = 1 + (std::rand() % 20);
-                        int two = 1 + (std::rand() % 20);
+                        int one = 1 + (std::rand() % 10);
+                        int two = 1 + (std::rand() % 10);
                         if(x % one == one - 1 && y % two == two - 1)
                             phase_information_cpu[access::get_node_index(x, y, properties.horizontal_nodes)] = 1;
                     }
@@ -371,7 +371,7 @@ namespace lbm
         (
             Simulation &simulation, 
             sycl::queue &queue, 
-            Obstacle obstacle = NONE
+            std::string obstacle = "none"
         )
         {
             domain_initialization::set_standstill_values<A>(
@@ -411,32 +411,13 @@ namespace lbm
                 phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 2, simulation.properties->horizontal_nodes)] = 1;
             }
 
-            switch(obstacle)
-            {
-                case WALLS:
-                    domain_initialization::add_walls(*simulation.properties, phase_information_cpu); 
-                    break;
-                case CIRCLE:
-                    domain_initialization::add_circle(*simulation.properties, phase_information_cpu); 
-                    break;
-                case SQUARE:
-                    domain_initialization::add_square(*simulation.properties, phase_information_cpu); 
-                    break;
-                case PLATE:
-                    domain_initialization::add_plate(*simulation.properties, phase_information_cpu); 
-                    break;
-                case SKYSCRAPER:
-                    domain_initialization::add_skyscraper(*simulation.properties, phase_information_cpu); 
-                    break;
-                case WING:
-                    domain_initialization::add_wing(*simulation.properties, phase_information_cpu); 
-                    break;
-                case POROUS:
-                    domain_initialization::add_porous_medium(*simulation.properties, phase_information_cpu); 
-                    break;
-                default:
-                    break;
-            }
+            if(obstacle == "walls")             { domain_initialization::add_walls(*simulation.properties, phase_information_cpu); }
+            else if(obstacle == "circle")       { domain_initialization::add_circle(*simulation.properties, phase_information_cpu); }
+            else if(obstacle == "square")       { domain_initialization::add_square(*simulation.properties, phase_information_cpu); }
+            else if(obstacle == "plate")        { domain_initialization::add_plate(*simulation.properties, phase_information_cpu); }
+            else if(obstacle == "skyscraper")   { domain_initialization::add_skyscraper(*simulation.properties, phase_information_cpu); }
+            else if(obstacle == "wing")         { domain_initialization::add_wing(*simulation.properties, phase_information_cpu); }
+            else if(obstacle == "porous")       { domain_initialization::add_porous_medium(*simulation.properties, phase_information_cpu); }
 
             for(int y = 1; y < simulation.properties->vertical_nodes - 1; ++y)
             {

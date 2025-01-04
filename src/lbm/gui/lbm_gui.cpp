@@ -67,8 +67,8 @@ simulation_control(std::make_unique<SimulationControl>()),
 progress(std::make_unique<Progress>()),
 monitor(std::make_unique<Monitor>()),
 colormaps(std::make_unique<Colormaps>()),
-properties_stored(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties())),
-properties_buffered(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties())),
+properties_stored(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties("../settings/settings.json", -2))),
+properties_buffered(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties("../settings/settings.json", -2))),
 velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_stored->domain_node_count)),
 window_title(std::make_unique<std::string>(window_title)),
 properties_changed(false)
@@ -125,8 +125,6 @@ void lbm::gui::Gui::run()
         std::min({executor->algorithm->simulation->properties->inlet_density, executor->algorithm->simulation->properties->outlet_density});
     colormaps->density_colormap_upper_scale = 
         std::max({executor->algorithm->simulation->properties->inlet_density, executor->algorithm->simulation->properties->outlet_density});
-    colormaps->velocity_colormap_upper_scale = 
-        sqrt(pow(executor->algorithm->simulation->properties->inlet_velocity_x, 2) + pow(executor->algorithm->simulation->properties->inlet_velocity_y, 2)); 
 
     // Eternal loop of imaging magic
     while (!glfwWindowShouldClose(window))
@@ -144,7 +142,7 @@ void lbm::gui::Gui::run()
 
         windows::read_from_file_window(*this);
 
-        windows::properties_window(executor, properties_buffered, properties_changed, *this);
+        windows::properties_window(executor, *this);
 
         windows::simulation_status_window(*this, executor);
 

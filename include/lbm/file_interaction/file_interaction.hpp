@@ -52,7 +52,7 @@ namespace lbm
          * 
          * @return a `Properties` object
          */
-        core::Properties json_to_properties(const std::string &path = "../settings/settings.json");
+        core::Properties json_to_properties(const std::string &path = "../settings/settings.json", const int offset = 0);
 
     } // !namespace file_interaction
 

@@ -42,37 +42,6 @@ namespace lbm
             namespace linear
             {
 
-                // /**
-                //  * @brief Returns whether the node with the specified index is a ghost node.
-                //  *        This is the case when at least one of the node coordinates is zero or the maximum extent 
-                //  *        in the according dimension, or if the node is solid.
-                //  * 
-                //  * @param[in] node_index        index of the node in question
-                //  * @param[in] vertical_nodes    the amount of vertical nodes including ghost nodes and buffers
-                //  * @param[in] horizontal_nodes  the amount of horizontal nodes including ghost nodes and buffers
-                //  * @param[in] phase_information whether the node is solid (`true`) or fluid (`false`)
-                //  * 
-                //  * @return whether or not the node is a ghost node
-                //  */
-                // bool is_valid_fluid_node
-                // (
-                //     const unsigned int node_index, 
-                //     const unsigned int vertical_nodes,
-                //     const unsigned int horizontal_nodes,
-                //     const int8_t phase_information
-                // )
-                // {
-                //     // if(phase_information) { return true; }
-                //     // else
-                //     // {
-                //     //     std::array<unsigned int, 2> coordinates = access::get_node_coordinates(node_index, horizontal_nodes);
-                        
-                //     //     return ((coordinates[0] == 0) || (coordinates[0] == (horizontal_nodes - 1))) || ((coordinates[1] == 0) || (coordinates[1] == (vertical_nodes - 1)));
-                //     // }
-                //     std::array<unsigned int, 2> coordinates = core::access::get_node_coordinates(node_index, horizontal_nodes);
-                //     return phase_information + (coordinates[0] % horizontal_nodes - 1) + (coordinates[1] % vertical_nodes - 1);
-                // }
-
                 /**
                  * @brief This namespace contains all kernels for the two-lattice algorithm.
                  */
@@ -125,7 +94,7 @@ namespace lbm
                                 for (const auto& direction : core::constants::all_directions)
                                 {
                                     destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] =
-                                        source[A::at(lbm::core::access::get_neighbor(id, core::invert_direction(direction), horizontal_nodes), direction, horizontal_nodes * vertical_nodes)];
+                                        source[A::at(lbm::core::access::get_neighbor(id, 8 - direction, horizontal_nodes), direction, horizontal_nodes * vertical_nodes)];
                                 }
                             }
                         }
@@ -367,7 +336,7 @@ namespace lbm
                                 for (const auto& direction : core::constants::all_directions)
                                 {
                                     // Loading distribution values
-                                    distribution_values[direction] = source[A::at(lbm::core::access::get_neighbor(id, core::invert_direction(direction), horizontal_nodes), 
+                                    distribution_values[direction] = source[A::at(lbm::core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
                                         direction, 
                                         horizontal_nodes * vertical_nodes
                                     )];
@@ -433,20 +402,19 @@ namespace lbm
 
                             EmplaceBounceBackKernel(const core::Simulation &simulation):
                             phase_information(simulation.data->phase_information),
-                            destination(simulation.data->distribution_values_1),
+                            destination(simulation.data->distribution_values_0),
                             horizontal_nodes(simulation.properties->horizontal_nodes),
                             total_nodes(simulation.properties->buffered_node_count)
                             {}
 
                             void operator()(const sycl::item<1> &id) const
                             {
-                                if(phase_information[id] > 0)
+                                if(phase_information[id] == 1)
                                 {
-                                    for(const auto& dir : core::constants::all_directions)
+                                    for(const auto& dir : {0, 1, 2, 3, 5, 6, 7, 8})//core::constants::all_directions)
                                     {
                                         destination[A::at(id, dir, total_nodes)] =
-                                        destination[A::at(core::access::get_neighbor(id, dir, horizontal_nodes), core::invert_direction(dir), total_nodes)];
-                                        // destination[A::at(core::access::get_neighbor(id, dir, horizontal_nodes), core::invert_direction(dir), total_nodes)];               
+                                        destination[A::at(core::access::get_neighbor(id, dir, horizontal_nodes), 8 - dir, total_nodes)];           
                                     }
                                 }
                             }

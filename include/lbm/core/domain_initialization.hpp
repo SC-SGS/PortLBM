@@ -17,7 +17,6 @@
 #define DOMAIN_INITIALIZATION_HPP
 
 // Dependencies on other LBM core features
-#include "boundaries.hpp"
 #include "simulation.hpp"
 #include "../console/console_output.hpp"
 
@@ -406,21 +405,11 @@ namespace lbm
             std::vector<int8_t> phase_information_cpu(simulation.properties->buffered_node_count, 0);
 
             /* Phase information vector */
-            for(auto x = 1; x < simulation.properties->horizontal_nodes - 1; ++x)
+            for(int x = 0; x < simulation.properties->horizontal_nodes - 1; ++x)
             {
                 phase_information_cpu[access::get_node_index(x, 1, simulation.properties->horizontal_nodes)] = 1;
                 phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 2, simulation.properties->horizontal_nodes)] = 1;
             }
-            for(int y = 0; y < simulation.properties->vertical_nodes - 1; ++y)
-            {
-                phase_information_cpu[access::get_node_index(0, y, simulation.properties->horizontal_nodes)] = -1;
-                phase_information_cpu[access::get_node_index(simulation.properties->horizontal_nodes - 1, y, simulation.properties->horizontal_nodes)] = -1;
-            }
-            for(int x = 0; x < simulation.properties->horizontal_nodes - 1; ++x)
-            {
-                phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 1, simulation.properties->horizontal_nodes)] = -1;
-                phase_information_cpu[access::get_node_index(x, 0, simulation.properties->horizontal_nodes)] = -1;
-            }   
 
             switch(obstacle)
             {
@@ -448,6 +437,17 @@ namespace lbm
                 default:
                     break;
             }
+
+            for(int y = 1; y < simulation.properties->vertical_nodes - 1; ++y)
+            {
+                phase_information_cpu[access::get_node_index(0, y, simulation.properties->horizontal_nodes)] = -1;
+                phase_information_cpu[access::get_node_index(simulation.properties->horizontal_nodes - 1, y, simulation.properties->horizontal_nodes)] = -1;
+            }
+            for(int x = 0; x < simulation.properties->horizontal_nodes; ++x)
+            {
+                phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 1, simulation.properties->horizontal_nodes)] = -1;
+                phase_information_cpu[access::get_node_index(x, 0, simulation.properties->horizontal_nodes)] = -1;
+            }   
             
             queue.copy(phase_information_cpu.data(), simulation.data->phase_information, simulation.properties->buffered_node_count).wait();
 

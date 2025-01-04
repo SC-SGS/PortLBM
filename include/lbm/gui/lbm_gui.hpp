@@ -738,8 +738,6 @@ namespace lbm
             inline void properties_window
             (
                 std::unique_ptr<execution::SYCLExecutor> &executor,
-                std::unique_ptr<core::Properties> &properties_buffer,
-                bool &changed,
                 gui::Gui &gui
             )
             {
@@ -767,27 +765,30 @@ namespace lbm
 
                         ImGui::BeginDisabled(gui.simulation_control->is_simulation_active);
                         
-                        items::algorithm_selection(*properties_buffer, changed);
-                        items::data_layout_selection(*properties_buffer, changed);
-                        items::save_results_selection(properties_buffer->results_to_csv, gui);
+                        items::algorithm_selection(*gui.properties_stored, gui.properties_changed);
+                        items::data_layout_selection(*gui.properties_stored, gui.properties_changed);
+                        items::save_results_selection(gui.properties_stored->results_to_csv, gui);
                         ImGui::Checkbox("Live visualization", &gui.windows->enable_live_visualization);
-                        items::properties_simulation_and_domain(*properties_buffer, changed);
-                        items::properties_fluid(*properties_buffer, changed);
+                        items::properties_simulation_and_domain(*gui.properties_stored, gui.properties_changed);
+                        items::properties_fluid(*gui.properties_stored, gui.properties_changed);
             
                         ImGui::SeparatorText("");
                         if (ImGui::Button("Create configuration file", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
                         {
                             //properties_buffer->to_json();
-                            file_interaction::properties_to_json(*properties_buffer);
-                            changed = false;
-                            //initialize_executor(properties_buffer->algorithm, properties_buffer->data_layout, executor);
+                            file_interaction::properties_to_json(*gui.properties_stored);
+                            gui.properties_buffered.reset();
+                            gui.properties_buffered = std::make_unique<core::Properties>(file_interaction::json_to_properties());
+                            gui.properties_changed = false;
+                            executor.reset();
                             executor = std::make_unique<execution::SYCLExecutor>();
                         }
 
-                        ImGui::BeginDisabled(!changed);
+                        ImGui::BeginDisabled(!gui.properties_changed);
                         if (ImGui::Button("Undo changes", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
                         {
-                            //properties_buffer = std::make_unique<core::Properties>(*executor->properties);
+                            gui.properties_buffered.reset();
+                            gui.properties_stored = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
                         }
                         ImGui::EndDisabled();  
 

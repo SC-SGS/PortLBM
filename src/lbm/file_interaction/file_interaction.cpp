@@ -76,13 +76,13 @@ void lbm::file_interaction::properties_to_json
 }
 
 
-lbm::core::Properties lbm::file_interaction::json_to_properties(const std::string &path)
+lbm::core::Properties lbm::file_interaction::json_to_properties(const std::string &path, const int offset)
 {
     std::ifstream file(path);
     nlohmann::json data = nlohmann::json::parse(file);
     file.close();
 
-    std::string obstacle_string = data.at("algorithmic").at("algorithm").get<std::string>();
+    std::string obstacle_string = data.at("algorithmic").at("obstacle").get<std::string>();
     core::Obstacle obstacle;
 
     if(obstacle_string == "none")           { obstacle = core::NONE; }
@@ -105,8 +105,8 @@ lbm::core::Properties lbm::file_interaction::json_to_properties(const std::strin
         data.at("algorithmic").at("timeSteps").get<unsigned int>(),
         obstacle,
         // Domain properties
-        data.at("domain").at("verticalNodes").get<unsigned int>(),
-        data.at("domain").at("horizontalNodes").get<unsigned int>(),
+        data.at("domain").at("verticalNodes").get<unsigned int>() + offset,
+        data.at("domain").at("horizontalNodes").get<unsigned int>() + offset,
         // Inlets
         data.at("inlets").at("velocity").at("x").get<double>(),
         data.at("inlets").at("velocity").at("y").get<double>(),

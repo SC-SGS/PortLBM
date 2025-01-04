@@ -1,5 +1,4 @@
 set(source_files "${CMAKE_CURRENT_SOURCE_DIR}/lbm/console/console_output.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/lbm/core/access.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/core/simulation.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/exceptions/exceptions.cpp"  
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/file_interaction/file_interaction.cpp"  

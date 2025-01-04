@@ -71,17 +71,17 @@ queue(std::make_unique<sycl::queue>(*device_selector))
                 std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
                 algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::StreamAccessor>>(*queue);
                 std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-                lbm::core::setup_pipe_flow_environment<core::access::StreamAccessor>(*algorithm->simulation, *queue, core::Obstacle::NONE);
+                lbm::core::setup_pipe_flow_environment<core::access::StreamAccessor>(*algorithm->simulation, *queue, properties->obstacle);
             }
             else if(properties->data_layout == "collision")
             {
                 algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::CollisionAccessor>>(*queue);
-                lbm::core::setup_pipe_flow_environment<core::access::CollisionAccessor>(*algorithm->simulation, *queue, core::Obstacle::NONE);
+                lbm::core::setup_pipe_flow_environment<core::access::CollisionAccessor>(*algorithm->simulation, *queue, properties->obstacle);
             }
             else if(properties->data_layout == "bundle")
             {
                 algorithm = std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::BundleAccessor>>(*queue);
-                lbm::core::setup_pipe_flow_environment<core::access::BundleAccessor>(*algorithm->simulation, *queue, core::Obstacle::NONE);
+                lbm::core::setup_pipe_flow_environment<core::access::BundleAccessor>(*algorithm->simulation, *queue, properties->obstacle);
             }
             else
             {

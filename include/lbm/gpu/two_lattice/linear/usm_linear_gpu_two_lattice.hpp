@@ -27,7 +27,6 @@
 
 // LBM core features
 #include "../../../core/access.hpp"
-#include "../../../core/boundaries.hpp"
 #include "../../../core/domain_initialization.hpp"
 #include "../../../core/simulation.hpp"
 
@@ -88,7 +87,7 @@ namespace lbm
                         event.wait();
                         queue->copy(simulation->results->densities_gpu, simulation->results->densities_cpu->data(), simulation->results->densities_cpu->size()).wait();
                         queue->copy(simulation->results->x_velocities_gpu, simulation->results->x_velocities_cpu->data(), simulation->results->x_velocities_cpu->size()).wait();
-                        queue->copy(simulation->results->y_velocities_gpu, simulation->results->x_velocities_cpu->data(), simulation->results->x_velocities_cpu->size()).wait();
+                        queue->copy(simulation->results->y_velocities_gpu, simulation->results->y_velocities_cpu->data(), simulation->results->y_velocities_cpu->size()).wait();
                         queue->copy(simulation->results->absolute_velocities_gpu, simulation->results->absolute_velocities_cpu->data(), simulation->results->absolute_velocities_cpu->size()).wait();
                     }
 
@@ -247,6 +246,7 @@ namespace lbm
                         update_macroscopic_observables();
                         queue->copy(simulation->results->x_velocities_gpu, simulation->results->x_velocities_cpu->data(), simulation->properties->domain_node_count).wait();
                         queue->copy(simulation->results->y_velocities_gpu, simulation->results->y_velocities_cpu->data(), simulation->properties->domain_node_count).wait();
+                        //queue->copy(simulation->results->absolute_velocities_gpu, simulation->results->absolute_velocities_cpu->data(), simulation->properties->domain_node_count).wait();
                         queue->copy(simulation->results->densities_gpu, simulation->results->densities_cpu->data(), simulation->properties->domain_node_count).wait();
 
                         std::cout << "Velocities: \n"
@@ -275,7 +275,7 @@ namespace lbm
                             [&](sycl::handler &cgh)
                             {
                                 auto kernel = kernels::boundaries::EmplaceBounceBackKernel<A>(*simulation);
-                                cgh.parallel_for(sycl::range<1>(simulation->properties->buffered_node_count), kernel);
+                                cgh.parallel_for(sycl::range<1>(6/*simulation->properties->buffered_node_count*/), kernel);
                             }
                         );
                         event.wait();

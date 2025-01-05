@@ -1,15 +1,15 @@
 {
     "algorithmic": {
         "algorithm": "gpu-two-lattice-linear",
-        "dataLayout": "stream",
+        "dataLayout": "collision",
         "debugMode": false,
-        "relaxationTime": 0.6,
+        "relaxationTime": 1.0,
         "resultsToCsv": false,
-        "timeSteps": 10000
+        "timeSteps": 100000
     },
     "domain": {
         "horizontalNodes": 1000,
-        "scenario": "plate",
+        "scenario": "square",
         "verticalNodes": 1000
     },
     "inlets": {

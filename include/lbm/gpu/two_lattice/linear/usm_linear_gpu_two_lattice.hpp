@@ -134,13 +134,20 @@ namespace lbm
                         (
                             [&]
                             {
-                                emplace_bounce_back();
-                                perform_inout_update();
-                                stream_and_collide();
+                                while(simulation->control->is_execution_allowed())
+                                {
+                                    simulation->control->reset_timer();
 
-                                double *tmp = simulation->data->distribution_values_1;
-                                simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
-                                simulation->data->distribution_values_0 = tmp;
+                                    emplace_bounce_back();
+                                    perform_inout_update();
+                                    stream_and_collide();
+
+                                    double *tmp = simulation->data->distribution_values_1;
+                                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
+                                    simulation->data->distribution_values_0 = tmp;
+
+                                    simulation->control->finalize_iteration();
+                                }
                             }
                         );
                     }
@@ -157,12 +164,14 @@ namespace lbm
                             {
                                 for(unsigned int time_step = 0; time_step < time_steps; ++time_step)
                                 {
+                                    simulation->control->reset_timer();
                                     emplace_bounce_back();
                                     perform_inout_update();
                                     stream_and_collide();
                                     double *tmp = simulation->data->distribution_values_1;
                                     simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
                                     simulation->data->distribution_values_0 = tmp;
+                                    simulation->control->finalize_iteration();
                                 }
                             }
                         );

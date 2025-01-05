@@ -252,15 +252,16 @@ namespace lbm
                 if (ImGui::Button("run", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)))
                 {
                     if(!simulation_control->is_simulation_active)
-                        {
-                            file_interaction::properties_to_json(*properties_gui);
-                            properties_gui.reset();
-                            properties_gui = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
-                            properties_changed = false;
-                            executor.reset();
-                            executor = std::make_unique<execution::SYCLExecutor>();
-                        }
-
+                    {
+                        file_interaction::properties_to_json(*properties_gui);
+                        properties_gui.reset();
+                        properties_gui = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
+                        properties_changed = false;
+                        executor.reset();
+                        executor = std::make_unique<execution::SYCLExecutor>();
+                    }
+                    executor->algorithm->simulation->control->allow_execution();
+                    executor->execute();
                     simulation_control->is_paused = false;
                     simulation_control->is_simulation_active = true;
                 }
@@ -289,6 +290,7 @@ namespace lbm
                 if(ImGui::Button("pause", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)))                           
                 {
                     simulation_control->is_paused = true;
+                    executor->algorithm->simulation->control->forbid_execution();
                 }
                 ImGui::PopStyleColor(3);
                 ImGui::PopID();
@@ -316,6 +318,7 @@ namespace lbm
                     simulation_control->is_simulation_active = false;
                     progress->current_iter = 0;
                     progress->progress = 0;
+                    executor->algorithm->simulation->control->forbid_execution();
                 }    
                 ImGui::PopStyleColor(3);
                 ImGui::PopID();

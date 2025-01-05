@@ -33,6 +33,9 @@
 // SYCL
 #include <sycl/sycl.hpp>
 
+// HPX
+#include <hpx/chrono.hpp>
+
 namespace lbm
 {
 
@@ -86,6 +89,7 @@ namespace lbm
         struct Properties
         {
             // Algorithmic options
+
             std::string data_layout;
             std::string algorithm;
             std::string scenario;
@@ -95,6 +99,7 @@ namespace lbm
             unsigned int time_steps;
 
             // Extents of the simulation domain
+
             unsigned int vertical_nodes;
             unsigned int horizontal_nodes;
             
@@ -108,11 +113,13 @@ namespace lbm
             unsigned int domain_node_count;
 
             // Inlets
+
             double inlet_velocity_x;
             double inlet_velocity_y;
             double inlet_density;
 
             // Outlets
+
             double outlet_velocity_x;
             double outlet_velocity_y;
             double outlet_density;
@@ -144,6 +151,47 @@ namespace lbm
             ); 
 
             std::string to_string() const;
+        };
+
+        class Control
+        {
+            private:
+
+            bool stopped;
+
+            unsigned int current_iteration;
+            unsigned int max_iterations;
+            double progress;
+
+            std::unique_ptr<hpx::chrono::high_resolution_timer> timer;
+            double last_frame_time;
+
+            public:
+
+            explicit Control(const unsigned int max_iterations);
+
+            inline void forbid_execution() { stopped = true; }
+
+            inline void allow_execution() { stopped = false; }
+
+            inline bool is_execution_allowed() const { return (!stopped) && (current_iteration < max_iterations); }
+
+            inline bool is_finished() const { return current_iteration == max_iterations; }
+
+            inline void finalize_iteration() 
+            { 
+                current_iteration++; 
+                progress = (double)current_iteration / (double)max_iterations;
+                last_frame_time = timer->elapsed_microseconds() * 0.001;
+            }
+
+            inline void reset_timer() { timer->restart(); }
+
+            inline double get_progress() const { return progress; }
+
+            inline double get_last_frame_time() const { return last_frame_time; }
+
+            inline bool is_paused() const { return stopped; }
         };
 
         /**
@@ -289,6 +337,7 @@ namespace lbm
             std::unique_ptr<Properties> properties;
             std::unique_ptr<Data> data;
             std::unique_ptr<Results> results;
+            std::unique_ptr<Control> control;
 
             /**
              * @brief Constructor for the Simulation struct.

@@ -66,6 +66,17 @@ outlet_density(outlet_density)
 {};
 
 
+lbm::core::Control::Control(const unsigned int max_iterations)
+:
+stopped(false),
+current_iteration(0),
+max_iterations(max_iterations),
+progress(0),
+timer(std::make_unique<hpx::chrono::high_resolution_timer>()),
+last_frame_time(0)
+{};
+
+
 std::string lbm::core::Properties::to_string() const
 {
     return fmt::format
@@ -159,7 +170,8 @@ distribution_values_0(sycl::malloc_device<double>(9 * total_node_count, queue))
 lbm::core::Simulation::Simulation(sycl::queue &queue)
 :
 properties(std::make_unique<Properties>(file_interaction::json_to_properties())),
-results(std::make_unique<Results>(properties->domain_node_count, queue))
+results(std::make_unique<Results>(properties->domain_node_count, queue)),
+control(std::make_unique<Control>(properties->time_steps))
 {
     if(properties->algorithm == "gpu-two-lattice-linear" || properties->algorithm == "gpu-two-lattice")
         data = std::make_unique<Data>(properties->buffered_node_count, queue, true);

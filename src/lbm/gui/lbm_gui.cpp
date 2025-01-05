@@ -152,18 +152,13 @@ void lbm::gui::Gui::run()
 
         if(simulation_control->is_simulation_active && !simulation_control->is_paused)
         {
-            if(executor->is_ready())
-            {
                 if(timer_framerate.elapsed() > 0.25)
                 {
-                    progress->framerate = 1 / timer.elapsed();
-                    progress->frametime = 1000.0f / progress->framerate;
+                    progress->progress = executor->algorithm->simulation->control->get_progress();
+                    progress->frametime = executor->algorithm->simulation->control->get_last_frame_time();
+                    progress->framerate = 1 / (progress->frametime * 0.001);
                     timer_framerate.restart();
                 }
-                
-                timer.restart();
-                progress->current_iter++;
-                progress->progress = (double)progress->current_iter / executor->algorithm->simulation->properties->time_steps;
 
                 if(windows->enable_velocity_quiver)
                 {
@@ -212,16 +207,14 @@ void lbm::gui::Gui::run()
                     }
                 }
 
-                executor->execute();
-
                 // Check if simulation is finished
-                if(progress->current_iter == executor->algorithm->simulation->properties->time_steps)
+                if(executor->algorithm->simulation->control->is_finished()/* && executor->is_ready()*/)
                 {
                     progress->current_iter = 0;
                     progress->progress = 0;
                     simulation_control->is_simulation_active = false;
                 }
-            }
+            // }
         }
 
         density_window();
@@ -229,6 +222,9 @@ void lbm::gui::Gui::run()
 
         render(window);
     }
+
+    executor->algorithm->simulation->control->forbid_execution();
+    if(!executor->is_ready()) executor->algorithm->block_until_finished();
     destroy(window);
 }
 

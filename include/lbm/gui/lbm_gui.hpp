@@ -99,7 +99,6 @@ namespace lbm
         {
             explicit Progress();
 
-            int current_iter;
             double progress;
             double framerate;
             double frametime;
@@ -316,7 +315,6 @@ namespace lbm
                 {
                     simulation_control->is_paused = false;
                     simulation_control->is_simulation_active = false;
-                    progress->current_iter = 0;
                     progress->progress = 0;
                     executor->algorithm->simulation->control->forbid_execution();
                 }    
@@ -635,7 +633,7 @@ namespace lbm
                     (
                         { 
                             1 * monitor->viewport->WorkSize.x / 4, 
-                            monitor->viewport->WorkSize.y / 5
+                            3 * monitor->viewport->WorkSize.y / 10
                         }
                     );
                     ImGui::SetNextWindowPos({0, windows->menu_bar_size});
@@ -676,7 +674,7 @@ namespace lbm
                     (
                         {
                             1 * monitor->viewport->WorkSize.x / 4, 
-                            4 * monitor->viewport->WorkSize.y / 5
+                            7 * monitor->viewport->WorkSize.y / 10
                         }
                     );
 
@@ -684,7 +682,7 @@ namespace lbm
                     (
                         {
                             0, 
-                            windows->menu_bar_size + monitor->viewport->WorkSize.y / 5
+                            windows->menu_bar_size + 3 * monitor->viewport->WorkSize.y / 10
                         }
                     );
 

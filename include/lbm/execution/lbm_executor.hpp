@@ -41,14 +41,10 @@ namespace lbm
             public:
 
             /**
-             * @brief   Executes one iteration of the lattice Boltzmann algorithm.
+             * @brief   Executes the algorithm belonging to this executor until it is paused or until it reaches 
+             *          the final iteration.
              */
             virtual void execute() = 0;
-
-            /**
-             * @brief   Executes the specified amount of iterations of the lattice Boltzmann algorithm.
-             */
-            virtual void execute(unsigned int time_steps) = 0;
 
             /**
              * @brief Returns whether or not the computational result of an iteration is available at the time of access.

@@ -85,16 +85,16 @@ namespace lbm
             }
 
             /**
-             * @brief   Performs one iteration of this algorithm.
+             * @brief   Performs the algorithm until it is either paused or it reaches the last iteration.
              *          The instructions are enqueued in the queue stored by this `Algorithm` object.
              */
             virtual void execute() = 0; 
 
-            /**
-             * @brief   Performs the specified amount of iterations of this algorithm.
-             *          The instructions are enqueued in the queue stored by this `Algorithm` object.
-             */
-            virtual void execute(unsigned int time_steps) = 0; 
+            // /**
+            //  * @brief   Performs the specified amount of iterations of this algorithm.
+            //  *          The instructions are enqueued in the queue stored by this `Algorithm` object.
+            //  */
+            // virtual void execute(unsigned int time_steps) = 0; 
 
             virtual ~Algorithm() = default;
         };

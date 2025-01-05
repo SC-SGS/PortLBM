@@ -5,9 +5,9 @@
  * 
  * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann simulations.
  * 
- * @version     4.0
+ * @version     4.1
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -153,6 +153,11 @@ absolute_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
 absolute_velocities_gpu(sycl::malloc_device<double>(size, queue))
 {
     queue.fill(densities_gpu, -1.0, size).wait();
+
+    densities_cpu->shrink_to_fit();
+    x_velocities_cpu->shrink_to_fit();
+    y_velocities_cpu->shrink_to_fit();
+    absolute_velocities_cpu->shrink_to_fit();
 };
 
 

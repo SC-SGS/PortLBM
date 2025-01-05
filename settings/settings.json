@@ -1,7 +1,7 @@
 {
     "algorithmic": {
         "algorithm": "gpu-two-lattice-linear",
-        "dataLayout": "collision",
+        "dataLayout": "stream",
         "debugMode": false,
         "relaxationTime": 1.0,
         "resultsToCsv": false,
@@ -9,7 +9,7 @@
     },
     "domain": {
         "horizontalNodes": 1000,
-        "scenario": "square",
+        "scenario": "Hagen-Poiseuille",
         "verticalNodes": 1000
     },
     "inlets": {

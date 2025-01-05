@@ -24,7 +24,7 @@
 #include "../core/domain_initialization.hpp"
 
 // Linear GPU two-lattice
-#include "../gpu/two_lattice/linear/usm_linear_gpu_two_lattice.hpp"
+#include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 
 // Standard library
 #include <iostream>
@@ -63,11 +63,11 @@ namespace lbm
              */
             inline void execute() override { algorithm->execute(); }
 
-            /**
-             * @brief   Starts a new simulation running for the specified amount of time steps. 
-             *          The computations are managed by the SYCL runtime.
-             */
-            inline void execute(unsigned int time_steps) override { algorithm->execute(time_steps); }
+            // /**
+            //  * @brief   Starts a new simulation running for the specified amount of time steps. 
+            //  *          The computations are managed by the SYCL runtime.
+            //  */
+            // inline void execute(unsigned int time_steps) override { algorithm->execute(time_steps); }
 
             /**
              * @brief   Returns whether or not the future of this executor is ready.

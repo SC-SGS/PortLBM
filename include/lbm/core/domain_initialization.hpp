@@ -371,7 +371,7 @@ namespace lbm
         (
             Simulation &simulation, 
             sycl::queue &queue, 
-            std::string obstacle = "none"
+            std::string obstacle = "Hagen-Poiseuille"
         )
         {
             domain_initialization::set_standstill_values<A>(
@@ -395,12 +395,12 @@ namespace lbm
                 );
             }
 
-            if(simulation.properties->debug_mode)
-            {
-                std::vector<double> dist_vals(9 * simulation.properties->buffered_node_count, 0);
-                queue.copy(simulation.data->distribution_values_0, dist_vals.data(), 9 * simulation.properties->buffered_node_count).wait();
-                console::print_distribution_values<A>(dist_vals, simulation.properties->horizontal_nodes, simulation.properties->vertical_nodes);
-            }
+            // if(simulation.properties->debug_mode)
+            // {
+            //     std::vector<double> dist_vals(9 * simulation.properties->buffered_node_count, 0);
+            //     queue.copy(simulation.data->distribution_values_0, dist_vals.data(), 9 * simulation.properties->buffered_node_count).wait();
+            //     console::print_distribution_values<A>(dist_vals, simulation.properties->horizontal_nodes, simulation.properties->vertical_nodes);
+            // }
 
             std::vector<int8_t> phase_information_cpu(simulation.properties->buffered_node_count, 0);
 
@@ -432,12 +432,12 @@ namespace lbm
             
             queue.copy(phase_information_cpu.data(), simulation.data->phase_information, simulation.properties->buffered_node_count).wait();
 
-            if(simulation.properties->debug_mode)
-            {
-                std::vector<int8_t> phase_information_check(simulation.properties->buffered_node_count, 0);
-                queue.copy(simulation.data->phase_information, phase_information_check.data(), simulation.properties->buffered_node_count).wait();
-                console::print_phase_vector(phase_information_check, simulation.properties->horizontal_nodes);
-            }
+            // if(simulation.properties->debug_mode)
+            // {
+            //     std::vector<int8_t> phase_information_check(simulation.properties->buffered_node_count, 0);
+            //     queue.copy(simulation.data->phase_information, phase_information_check.data(), simulation.properties->buffered_node_count).wait();
+            //     console::print_phase_vector(phase_information_check, simulation.properties->horizontal_nodes);
+            // }
         }
 
     } // ! namespace core

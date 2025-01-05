@@ -28,13 +28,16 @@ void lbm::console::print_phase_vector
     {
         for(auto x = 0; x < horizontal_nodes; ++x)
         {
-            if(vector[core::access::get_node_index(x, y, horizontal_nodes)] == 1) std::cout << "\033[33m " << (int)vector[core::access::get_node_index(x, y, horizontal_nodes)] << "\033[0m"; //std::cout << "\033[33m#\033[0m";
-            else if(vector[core::access::get_node_index(x, y, horizontal_nodes)] == -1) std::cout << "\033[33m" << (int)vector[core::access::get_node_index(x, y, horizontal_nodes)] << "\033[0m"; //std::cout << "\033[33m#\033[0m";
+            if(vector[core::access::get_node_index(x, y, horizontal_nodes)] == 1) 
+                std::cout << "\033[33m " << (int)vector[core::access::get_node_index(x, y, horizontal_nodes)] << "\033[0m";
+            else if(vector[core::access::get_node_index(x, y, horizontal_nodes)] == -1) 
+                std::cout << "\033[32m" << (int)vector[core::access::get_node_index(x, y, horizontal_nodes)] << "\033[0m";
             else std::cout << "\033[34m ~\033[0m"; 
             std::cout << " ";
         }
         std::cout << "\n";
     }
+    std::cout << "\n";
 } 
 
 

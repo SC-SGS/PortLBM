@@ -37,7 +37,7 @@ namespace lbm
             constexpr std::array<std::string_view, 3> algorithms = {"gpu-two-lattice", "gpu-two-lattice-linear", "gpu-swap"};
             constexpr std::array<std::string_view, 3> data_layouts = {"collision", "stream", "bundle"};
             constexpr std::array<std::string_view, 8> scenarios = 
-                {"none", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};
+                {"Hagen-Poiseuille", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};
             
             /**
              * @brief An array containing all default colormaps offered by ImPlot.

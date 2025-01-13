@@ -3,17 +3,17 @@
         "algorithm": "gpu-two-lattice-linear",
         "dataLayout": "stream",
         "debugMode": false,
-        "relaxationTime": 1.0,
+        "relaxationTime": 2.0,
         "resultsToCsv": false,
-        "timeSteps": 100000
+        "timeSteps": 1000000
     },
     "domain": {
-        "horizontalNodes": 1000,
-        "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 1000
+        "horizontalNodes": 2400,
+        "scenario": "skyscraper",
+        "verticalNodes": 600
     },
     "inlets": {
-        "density": 1.3,
+        "density": 2.0,
         "velocity": {
             "x": 0.0,
             "y": 0.0

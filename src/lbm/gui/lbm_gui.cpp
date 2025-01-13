@@ -41,7 +41,7 @@ result_file_name("results.csv")
 
 lbm::gui::Progress::Progress() 
 :
-current_iter(0),
+//current_iter(0),
 progress(0.0),
 framerate(0.0),
 frametime(0)
@@ -152,69 +152,67 @@ void lbm::gui::Gui::run()
 
         if(simulation_control->is_simulation_active && !simulation_control->is_paused)
         {
-                if(timer_framerate.elapsed() > 0.25)
+            if(timer_framerate.elapsed() > 0.25)
+            {
+                progress->progress = executor->algorithm->simulation->control->get_progress();
+                progress->frametime = executor->algorithm->simulation->control->get_last_frame_time();
+                progress->framerate = 1 / (progress->frametime * 0.001);
+                timer_framerate.restart();
+            }
+
+            if(windows->enable_velocity_quiver)
+            {
+                unsigned int dnode_index = 0;
+                unsigned int node_index = 0;
+                unsigned int velocity_value_index = 0;
+                double base_x = 0;
+                double base_y = 0;
+                double offset_x = 0;
+                double offset_y = 0;
+
+                velocity_quiver_data->x_values->assign(2 * executor->algorithm->simulation->properties->domain_node_count, 0);
+                velocity_quiver_data->y_values->assign(2 * executor->algorithm->simulation->properties->domain_node_count, 0);
+
+                for(int y = 1; y < executor->algorithm->simulation->properties->vertical_nodes - 1; ++y)
                 {
-                    progress->progress = executor->algorithm->simulation->control->get_progress();
-                    progress->frametime = executor->algorithm->simulation->control->get_last_frame_time();
-                    progress->framerate = 1 / (progress->frametime * 0.001);
-                    timer_framerate.restart();
-                }
-
-                if(windows->enable_velocity_quiver)
-                {
-                    unsigned int dnode_index = 0;
-                    unsigned int node_index = 0;
-                    unsigned int velocity_value_index = 0;
-                    double base_x = 0;
-                    double base_y = 0;
-                    double offset_x = 0;
-                    double offset_y = 0;
-
-                    velocity_quiver_data->x_values->assign(2 * executor->algorithm->simulation->properties->domain_node_count, 0);
-                    velocity_quiver_data->y_values->assign(2 * executor->algorithm->simulation->properties->domain_node_count, 0);
-
-                    for(int y = 1; y < executor->algorithm->simulation->properties->vertical_nodes - 1; ++y)
+                    for(int x = 1; x < executor->algorithm->simulation->properties->horizontal_nodes - 1; ++x)
                     {
-                        for(int x = 1; x < executor->algorithm->simulation->properties->horizontal_nodes - 1; ++x)
+                        dnode_index = core::access::get_node_index(x-1, y-1, executor->algorithm->simulation->properties->horizontal_nodes-2);
+                        node_index = core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes);
+
+                        velocity_value_index = 
+                            core::access::results::get_result_index(
+                                core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes), 
+                                executor->algorithm->simulation->properties->horizontal_nodes
+                            );
+
+                        if(executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index) > 1e-15)
                         {
-                            dnode_index = core::access::get_node_index(x-1, y-1, executor->algorithm->simulation->properties->horizontal_nodes-2);
-                            node_index = core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes);
+                            base_x = 0.5 + x - 1;
+                            base_y = 0.5 + y - 1;
+                            
+                            (*velocity_quiver_data->x_values)[2 * dnode_index] = base_x;
+                            (*velocity_quiver_data->y_values)[2 * dnode_index] = base_y;
 
-                            velocity_value_index = 
-                                core::access::results::get_result_index(
-                                    core::access::get_node_index(x, y, executor->algorithm->simulation->properties->horizontal_nodes), 
-                                    executor->algorithm->simulation->properties->horizontal_nodes
-                                );
+                            offset_x = base_x + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index)) 
+                                                    * executor->algorithm->simulation->results->x_velocities_cpu->at(velocity_value_index);
 
-                            if(executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index) > 1e-15)
-                            {
-                                base_x = 0.5 + x - 1;
-                                base_y = 0.5 + y - 1;
-                                
-                                (*velocity_quiver_data->x_values)[2 * dnode_index] = base_x;
-                                (*velocity_quiver_data->y_values)[2 * dnode_index] = base_y;
+                            offset_y = base_y + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index)) 
+                                                    * executor->algorithm->simulation->results->y_velocities_cpu->at(velocity_value_index);
 
-                                offset_x = base_x + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index)) 
-                                                        * executor->algorithm->simulation->results->x_velocities_cpu->at(velocity_value_index);
-
-                                offset_y = base_y + 0.5 * (1.0 / executor->algorithm->simulation->results->absolute_velocities_cpu->at(velocity_value_index)) 
-                                                        * executor->algorithm->simulation->results->y_velocities_cpu->at(velocity_value_index);
-
-                                (*velocity_quiver_data->x_values)[2 * dnode_index + 1] = offset_x;
-                                (*velocity_quiver_data->y_values)[2 * dnode_index + 1] = offset_y;
-                            }
-                        }  
-                    }
+                            (*velocity_quiver_data->x_values)[2 * dnode_index + 1] = offset_x;
+                            (*velocity_quiver_data->y_values)[2 * dnode_index + 1] = offset_y;
+                        }
+                    }  
                 }
+            }
 
-                // Check if simulation is finished
-                if(executor->algorithm->simulation->control->is_finished()/* && executor->is_ready()*/)
-                {
-                    progress->current_iter = 0;
-                    progress->progress = 0;
-                    simulation_control->is_simulation_active = false;
-                }
-            // }
+            // Check if simulation is finished
+            if(executor->algorithm->simulation->control->is_finished())
+            {
+                progress->progress = 0;
+                simulation_control->is_simulation_active = false;
+            }
         }
 
         density_window();

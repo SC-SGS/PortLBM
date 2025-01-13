@@ -157,20 +157,21 @@ namespace lbm
             {
                 for(auto y = 2; y < (properties.vertical_nodes - 1) / 2; ++y)
                 {
-                    phase_information_cpu[access::get_node_index(properties.horizontal_nodes / 4, y, properties.horizontal_nodes)] = 1;
-                    phase_information_cpu[access::get_node_index(properties.horizontal_nodes / 4, y, properties.horizontal_nodes)] = 1;
+                    for(int i = 0; i < 5; ++i)
+                    {
+                        phase_information_cpu[access::get_node_index(1 * properties.horizontal_nodes / 6 + i, y, properties.horizontal_nodes)] = 1;
+                        phase_information_cpu[access::get_node_index(3 * properties.horizontal_nodes / 6 + i, y, properties.horizontal_nodes)] = 1;
+                        phase_information_cpu[access::get_node_index(5 * properties.horizontal_nodes / 6 + i, y, properties.horizontal_nodes)] = 1;
+                    }
                 }
 
                 for(auto y = properties.vertical_nodes - 1; y >= (properties.vertical_nodes - 1) / 2; --y)
                 {
-                    phase_information_cpu[access::get_node_index(properties.horizontal_nodes / 2, y, properties.horizontal_nodes)] = 1;
-                    phase_information_cpu[access::get_node_index(properties.horizontal_nodes / 2, y, properties.horizontal_nodes)] = 1;
-                }
-
-                for(auto y = 2; y < (properties.vertical_nodes - 1) / 2; ++y)
-                {
-                    phase_information_cpu[access::get_node_index(3 * properties.horizontal_nodes / 4, y, properties.horizontal_nodes)] = 1;
-                    phase_information_cpu[access::get_node_index(3 * properties.horizontal_nodes / 4, y, properties.horizontal_nodes)] = 1;
+                    for(int i = 0; i < 5; ++i)
+                    {
+                        phase_information_cpu[access::get_node_index(2 * properties.horizontal_nodes / 6 + i, y, properties.horizontal_nodes)] = 1;
+                        phase_information_cpu[access::get_node_index(4 * properties.horizontal_nodes / 6 + i, y, properties.horizontal_nodes)] = 1;
+                    }
                 }
             }
 
@@ -231,7 +232,7 @@ namespace lbm
             inline
             void add_plate(const Properties &properties, std::vector<int8_t> &phase_information_cpu)
             {
-                int middle_x =  properties.horizontal_nodes / 5;
+                int middle_x =  properties.horizontal_nodes / 10;
                 int middle_y = properties.vertical_nodes / 2;
                 int length = properties.vertical_nodes / 5;
 

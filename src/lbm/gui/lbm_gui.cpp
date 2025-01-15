@@ -41,7 +41,6 @@ result_file_name("results.csv")
 
 lbm::gui::Progress::Progress() 
 :
-//current_iter(0),
 progress(0.0),
 framerate(0.0),
 frametime(0)
@@ -223,6 +222,7 @@ void lbm::gui::Gui::run()
 
     executor->algorithm->simulation->control->forbid_execution();
     if(!executor->is_ready()) executor->algorithm->block_until_finished();
+    executor->wait_for_queue();
     destroy(window);
 }
 

@@ -88,26 +88,29 @@ namespace lbm
                             }
                         );
                         event.wait();
-                        queue->copy(
-                            simulation->results->densities_gpu, 
-                            simulation->results->densities_cpu->data(), 
-                            simulation->results->densities_cpu->size()
-                        ).wait();
-                        queue->copy(
-                            simulation->results->x_velocities_gpu, 
-                            simulation->results->x_velocities_cpu->data(), 
-                            simulation->results->x_velocities_cpu->size()
-                        ).wait();
-                        queue->copy(
-                            simulation->results->y_velocities_gpu, 
-                            simulation->results->y_velocities_cpu->data(), 
-                            simulation->results->y_velocities_cpu->size()
-                        ).wait();
-                        queue->copy(
-                            simulation->results->absolute_velocities_gpu, 
-                            simulation->results->absolute_velocities_cpu->data(), 
-                            simulation->results->absolute_velocities_cpu->size()
-                        ).wait();
+                        if(!(simulation->control->get_current_iteration() % 4))
+                        {
+                            queue->copy(
+                                simulation->results->densities_gpu, 
+                                simulation->results->densities_cpu->data(), 
+                                simulation->results->densities_cpu->size()
+                            );//.wait();
+                            queue->copy(
+                                simulation->results->x_velocities_gpu, 
+                                simulation->results->x_velocities_cpu->data(), 
+                                simulation->results->x_velocities_cpu->size()
+                            );//.wait();
+                            queue->copy(
+                                simulation->results->y_velocities_gpu, 
+                                simulation->results->y_velocities_cpu->data(), 
+                                simulation->results->y_velocities_cpu->size()
+                            );//.wait();
+                            queue->copy(
+                                simulation->results->absolute_velocities_gpu, 
+                                simulation->results->absolute_velocities_cpu->data(), 
+                                simulation->results->absolute_velocities_cpu->size()
+                            );//.wait();
+                        }
                     }
 
                     /**

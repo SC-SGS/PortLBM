@@ -187,6 +187,8 @@ namespace lbm
 
             inline void reset_timer() { timer->restart(); }
 
+            inline unsigned int get_current_iteration() const { return current_iteration; }
+
             inline double get_progress() const { return progress; }
 
             inline double get_last_frame_time() const { return last_frame_time; }

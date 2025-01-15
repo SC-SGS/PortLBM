@@ -452,6 +452,7 @@ namespace lbm
                         private:
 
                         double *source;
+                        double *y_velocities;
                         double outlet_density;
                         double outlet_density_inverse;
                         unsigned int horizontal_nodes;
@@ -461,6 +462,7 @@ namespace lbm
 
                         InoutUpdateKernel(const core::Simulation &simulation):
                         source(simulation.data->distribution_values_0),
+                        y_velocities(simulation.results->y_velocities_gpu),
                         outlet_density(simulation.properties->outlet_density),
                         outlet_density_inverse(1 / simulation.properties->outlet_density),
                         horizontal_nodes(simulation.properties->horizontal_nodes),
@@ -513,25 +515,27 @@ namespace lbm
                             }
 
                             double x_velocity = 
-                                1 - outlet_density_inverse * (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
+                                - 1 + (1 / outlet_density) * (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
+                            
+                            double y_velocity = y_velocities[core::access::results::get_result_index(core::access::get_neighbor(current_border_node, 3, horizontal_nodes), horizontal_nodes)];
 
                             source[A::at(
                                 core::access::get_neighbor(current_border_node, 8 - missing[0], horizontal_nodes), 
                                 missing[0], 
                                 horizontal_nodes * vertical_nodes
-                            )] = f_inverse[0] - 0.5 * (f_1 - f_7) + 1.0/6 * outlet_density * x_velocity;
+                            )] = f_inverse[0] - 0.5 * (f_1 - f_7) - 1.0/6 * outlet_density * x_velocity - 0.5 * outlet_density * y_velocity;
 
                             source[A::at(
                                 core::access::get_neighbor(current_border_node, 8 - missing[1], horizontal_nodes), 
                                 missing[1], 
                                 horizontal_nodes * vertical_nodes
-                            )] = f_inverse[1] + (2.0/3) * outlet_density * x_velocity;
+                            )] = f_inverse[1] - (2.0/3) * outlet_density * x_velocity;
 
                             source[A::at(
                                 core::access::get_neighbor(current_border_node, 8 - missing[2], horizontal_nodes), 
                                 missing[2], 
                                 horizontal_nodes * vertical_nodes
-                            )] = f_inverse[2] + 0.5 * (f_1 - f_7) + 1.0/6 * outlet_density * x_velocity;
+                            )] = f_inverse[2] + 0.5 * (f_1 - f_7) - 1.0/6 * outlet_density * x_velocity + 0.5 * outlet_density * y_velocity;
                         }
                     };
 

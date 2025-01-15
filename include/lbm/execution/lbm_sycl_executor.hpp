@@ -6,7 +6,7 @@
  * @brief       This header file contains the declaration of a class for a SYCL executor. Through this executor, it is possible
  *              to launch simulations using a SYCL-based backend.
  * 
- * @version     2.1
+ * @version     2.2
  * 
  * @date        January 2025
  * 
@@ -63,11 +63,10 @@ namespace lbm
              */
             inline void execute() override { algorithm->execute(); }
 
-            // /**
-            //  * @brief   Starts a new simulation running for the specified amount of time steps. 
-            //  *          The computations are managed by the SYCL runtime.
-            //  */
-            // inline void execute(unsigned int time_steps) override { algorithm->execute(time_steps); }
+            /**
+             * @brief   Waits for the queue to finish its operations, e.g. for a graceful exit.
+             */
+            inline void wait_for_queue() { queue->wait(); }
 
             /**
              * @brief   Returns whether or not the future of this executor is ready.

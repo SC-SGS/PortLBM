@@ -234,11 +234,11 @@ namespace lbm
             {
                 int middle_x =  properties.horizontal_nodes / 10;
                 int middle_y = properties.vertical_nodes / 2;
-                int length = properties.vertical_nodes / 5;
+                int length = 7 * properties.vertical_nodes / 20;
 
                 for(auto y = middle_y - length / 2; y <= middle_y + length / 2; ++y)
                 {
-                    for(auto x = middle_x - length / 20; x <= middle_x + length / 20; ++x)
+                    for(auto x = middle_x - length / 30; x <= middle_x + length / 30; ++x)
                     {
                         phase_information_cpu[access::get_node_index(x, y, properties.horizontal_nodes)] = 1;
                     }

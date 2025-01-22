@@ -5,7 +5,7 @@
  * 
  * @brief       This file contains implementations for GUI-related structs declared in lbm_gui.hpp.
  *              
- * @version     2.3
+ * @version     2.4
  * 
  * @date        January 2025
  * 
@@ -19,6 +19,7 @@ lbm::gui::Windows::Windows()
 :
 show_properties(true),
 show_simulation_status(true),
+show_framerate(true),
 show_read_from_file_window(false),
 show_density(true),
 show_velocity(true),
@@ -40,8 +41,10 @@ result_file_name("results.csv")
 lbm::gui::Progress::Progress() 
 :
 progress(0.0),
-framerate(0.0),
-frametime(0)
+framerate_backend(0.0),
+frametime_backend(0.0),
+framerate_frontend(0.0),
+frametime_frontend(0.0)
 {};
 
 

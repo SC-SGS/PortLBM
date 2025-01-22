@@ -6,7 +6,7 @@
  * @brief       This header file contains all declarations and some implementations of the GUI
  *              for the lattice Boltzmann simulation developed in my Bachelor thesis.
  * 
- * @version     2.1
+ * @version     2.2
  * 
  * @date        January 2025
  * 
@@ -89,6 +89,7 @@ namespace lbm
 
             bool show_properties;
             bool show_simulation_status;
+            bool show_framerate;
             bool show_read_from_file_window;
             bool show_density;
             bool show_velocity;
@@ -118,8 +119,10 @@ namespace lbm
             explicit Progress();
 
             double progress;
-            double framerate;
-            double frametime;
+            double framerate_backend;
+            double frametime_backend;
+            double framerate_frontend;
+            double frametime_frontend;
         };
 
         /**
@@ -184,6 +187,41 @@ namespace lbm
             std::unique_ptr<std::vector<double>> y_values;
         };
 
+        struct FPSBuffer 
+        {
+            int max_size;
+            int offset;
+            ImVector<ImVec2> data;
+            float current_time;
+
+            explicit FPSBuffer(const int size)
+            :
+            max_size(size),
+            offset(0),
+            current_time(0)
+            {
+                data.reserve(max_size);
+            }
+
+            inline void add(const double x, const float y) 
+            {
+                if (data.size() < max_size) { data.push_back(ImVec2(x,y)); }
+                else 
+                {
+                    data[offset] = ImVec2(x,y);
+                    offset =  (offset + 1) % max_size;
+                }
+            }
+            inline void shrink_to_zero() 
+            {
+                if (data.size() > 0) 
+                {
+                    data.shrink(0);
+                    offset = 0;
+                }
+            }
+        };
+
 // GUI CLASS //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
@@ -207,6 +245,7 @@ namespace lbm
             std::unique_ptr<core::Properties> properties_gui;
             std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
             std::unique_ptr<std::string> window_title;
+            std::unique_ptr<FPSBuffer> fps_buffer;
             std::unique_ptr<A> algorithm_handler;
 
             GLFWwindow *glfw_window;
@@ -371,13 +410,17 @@ namespace lbm
                 {
                     if (ImGui::BeginMenu("Windows"))
                     {
-                        if (ImGui::MenuItem("Properties", NULL, windows->show_properties)) 
-                        {
-                            windows->show_properties = !windows->show_properties;
-                        }
                         if (ImGui::MenuItem("Simulation status", NULL, windows->show_simulation_status)) 
                         { 
                             windows->show_simulation_status = !windows->show_simulation_status;
+                        }
+                        if (ImGui::MenuItem("Framerate", NULL, windows->show_framerate)) 
+                        { 
+                            windows->show_framerate = !windows->show_framerate;
+                        }
+                        if (ImGui::MenuItem("Properties", NULL, windows->show_properties)) 
+                        {
+                            windows->show_properties = !windows->show_properties;
                         }
                         if (ImGui::MenuItem("Density", NULL, windows->show_density)) 
                         { 
@@ -550,17 +593,17 @@ namespace lbm
                 if(!simulation_control->is_simulation_active)
                 {
                     ImGui::Text("Ready to start simulation.");
-                    ImGui::ProgressBar(0.0, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(0.0, ImVec2(0.975 * ImGui::GetWindowWidth(), 0.0f));
                 }
                 else if(simulation_control->is_paused)
                 {
                     ImGui::Text("Simulation is paused.");
-                    ImGui::ProgressBar(progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(progress->progress, ImVec2(0.975 * ImGui::GetWindowWidth(), 0.0f));
                 }
                 else
                 {
                     ImGui::Text("Simulation is running.");
-                    ImGui::ProgressBar(progress->progress, ImVec2(0.9 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(progress->progress, ImVec2(0.975 * ImGui::GetWindowWidth(), 0.0f));
                 }
             }
 
@@ -665,7 +708,7 @@ namespace lbm
                     (
                         { 
                             1 * monitor->viewport->WorkSize.x / 4, 
-                            3 * monitor->viewport->WorkSize.y / 10
+                            3 * monitor->viewport->WorkSize.y / 20
                         }
                     );
                     ImGui::SetNextWindowPos({0, windows->menu_bar_size});
@@ -686,11 +729,51 @@ namespace lbm
 
                         ImGui::SeparatorText("Status");
                         show_simulation_status();
-
-                        ImGui::SeparatorText("Framerate");
-                        ImGui::Text("%.1f FPS, %.3f ms/frame ", progress->framerate, progress->frametime);
                     }                        
                     ImGui::End();
+                }
+            }
+
+            inline void framerate_window()
+            {
+                if(windows->show_framerate)
+                {
+                    ImGui::SetNextWindowSize
+                    (
+                        {
+                            1 * monitor->viewport->WorkSize.x / 4, 
+                            7 * monitor->viewport->WorkSize.y / 20
+                        }
+                    );
+
+                    ImGui::SetNextWindowPos
+                    (
+                        {
+                            0, 
+                            windows->menu_bar_size + 3 * monitor->viewport->WorkSize.y / 20
+                        }
+                    );
+
+                    if(ImGui::Begin("Framerate", &windows->show_simulation_status, ImGuiWindowFlags_NoResize))
+                    {
+                        ImGui::Text("Backend: %.1f FPS, %.3f ms/frame ", progress->framerate_backend, progress->frametime_backend);
+
+                        ImGui::Text("Frontend: %.1f FPS, %.3f ms/frame ", progress->framerate_frontend, progress->frametime_frontend);
+
+                        ImGui::SeparatorText("Backend framerate");
+                        fps_buffer->current_time += ImGui::GetIO().DeltaTime;
+                        fps_buffer->add(fps_buffer->current_time, progress->framerate_backend);
+
+                        if (ImPlot::BeginPlot("##Scrolling", ImVec2(-1, ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y), ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText)) 
+                        {
+                            ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoTickLabels, 0);
+                            ImPlot::SetupAxisLimits(ImAxis_X1, fps_buffer->current_time - 10, fps_buffer->current_time, ImGuiCond_Always);
+                            ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 1000);
+                            ImPlot::PlotLine("fps", &fps_buffer->data[0].x, &fps_buffer->data[0].y, fps_buffer->data.size(), 0, fps_buffer->offset, 2*sizeof(float));
+                            ImPlot::EndPlot();
+                        }
+                    }                        
+                    ImGui::End(); 
                 }
             }
 
@@ -706,7 +789,7 @@ namespace lbm
                     (
                         {
                             1 * monitor->viewport->WorkSize.x / 4, 
-                            7 * monitor->viewport->WorkSize.y / 10
+                            5 * monitor->viewport->WorkSize.y / 10
                         }
                     );
 
@@ -714,7 +797,7 @@ namespace lbm
                     (
                         {
                             0, 
-                            windows->menu_bar_size + 3 * monitor->viewport->WorkSize.y / 10
+                            windows->menu_bar_size + 5 * monitor->viewport->WorkSize.y / 10
                         }
                     );
 
@@ -1109,6 +1192,7 @@ namespace lbm
             velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_gui->domain_node_count)),
             window_title(std::make_unique<std::string>(window_title)),
             properties_changed(false),
+            fps_buffer(std::make_unique<FPSBuffer>(2000)),
             algorithm_handler(std::make_unique<A>())
             {
                 glfwSetErrorCallback(glfw_error_callback);
@@ -1170,22 +1254,25 @@ namespace lbm
 
                     menu_bar();
 
-                    //read_from_file_window();
+                    simulation_status_window();
+
+                    framerate_window();
 
                     properties_window();
 
-                    simulation_status_window();
+                    if(timer_framerate.elapsed() > 0.25)
+                    {
+                        progress->progress = algorithm_handler->get_progress();
+                        progress->frametime_backend = algorithm_handler->get_last_frametime();
+                        progress->framerate_backend = 1 / (progress->frametime_backend * 0.001);
+
+                        progress->frametime_frontend = ImGui::GetIO().DeltaTime * 1000.0;
+                        progress->framerate_frontend = 1.0 / ImGui::GetIO().DeltaTime;
+                        timer_framerate.restart();
+                    }
 
                     if(simulation_control->is_simulation_active && !simulation_control->is_paused)
                     {
-                        if(timer_framerate.elapsed() > 0.25)
-                        {
-                            progress->progress = algorithm_handler->get_progress();
-                            progress->frametime = algorithm_handler->get_last_frametime();
-                            progress->framerate = 1 / (progress->frametime * 0.001);
-                            timer_framerate.restart();
-                        }
-
                         if(windows->enable_velocity_quiver)
                         {
                             unsigned int dnode_index = 0;
@@ -1238,6 +1325,7 @@ namespace lbm
                         {
                             progress->progress = 0;
                             simulation_control->is_simulation_active = false;
+                            algorithm_handler->pause();
                         }
                     }
 

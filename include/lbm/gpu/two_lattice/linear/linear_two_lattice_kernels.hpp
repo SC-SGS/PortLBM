@@ -24,6 +24,7 @@
 
 // SYCL
 #include <sycl/sycl.hpp>
+#include <limits>
 
 namespace lbm
 {
@@ -108,6 +109,101 @@ namespace lbm
                         }
                     };
 
+#ifdef WITH_NAN_PROTECTION 
+
+                    /**
+                     * @brief   This kernel performs the update of the macroscopic observables.
+                     * 
+                     * @tparam  A any `core::access::AccessorConcept` from access.hpp 
+                     */
+                    template<core::access::AccessorConcept A>
+                    class MacroscopicObservablesKernel
+                    {
+                        private:
+
+                        int8_t *phase_information;
+                        double *destination;
+
+                        double *densities;
+                        double *x_velocities;
+                        double *y_velocities;
+                        double *absolute_velocity_values;
+
+                        unsigned int vertical_nodes;
+                        unsigned int horizontal_nodes;
+
+                        public:
+
+                        /**
+                         * @brief   Constructor for a new `MacroscopicObservablesKernel` object.
+                         *          Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+                         * 
+                         * @param[in]   simulation  the structure containing all simulation data
+                         */
+                        explicit MacroscopicObservablesKernel(const core::Simulation &simulation): 
+                        phase_information(simulation.data->phase_information),
+                        destination(simulation.data->distribution_values_1),
+                        densities(simulation.results->densities_gpu),
+                        x_velocities(simulation.results->x_velocities_gpu),
+                        y_velocities(simulation.results->y_velocities_gpu),
+                        absolute_velocity_values(simulation.results->absolute_velocities_gpu),
+                        vertical_nodes(simulation.properties->vertical_nodes),
+                        horizontal_nodes(simulation.properties->horizontal_nodes)
+                        {}
+
+                        /**
+                         * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+                         * 
+                         * @param[in] item the SYCL work item processing this kernel, which is set by the SYCL runtime
+                         */
+                        void operator()(const sycl::id<1> &id) const 
+                        {
+                            if(!phase_information[id])
+                            {
+                                unsigned int iteration_node_offset =
+                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+                                double dist_vals[9];
+                                double density = 0;
+                                double absolute_velocity = 0;
+
+                                for (const auto& direction : core::constants::all_directions)
+                                {
+                                    dist_vals[direction] = destination[A::at(id, direction, horizontal_nodes * vertical_nodes)];
+                                    density += dist_vals[direction];
+                                }
+
+                                if(sycl::isnan(density) || density > std::numeric_limits<float>::max()) density = 0;
+                                densities[iteration_node_offset] = density;
+                                
+                                sycl::vec<double,2> flow_velocity{0,0};
+
+                                int velocity_x_component = 0; 
+                                int velocity_y_component = 0; 
+                                
+                                for(const auto& i : core::constants::all_directions)
+                                {
+                                    velocity_x_component = i % 3 - 1; 
+                                    velocity_y_component = i / 3 - 1; 
+                                    flow_velocity[0] += dist_vals[i] * velocity_x_component;
+                                    flow_velocity[1] += dist_vals[i] * velocity_y_component;
+                                }
+
+                                if(sycl::isnan(flow_velocity[0]) || flow_velocity[0] > std::numeric_limits<float>::max()) flow_velocity[0] = 0;
+                                if(sycl::isnan(flow_velocity[1]) || flow_velocity[1] > std::numeric_limits<float>::max()) flow_velocity[1] = 0;
+
+                                absolute_velocity = sycl::sqrt(flow_velocity[0] * flow_velocity[0] + flow_velocity[1] * flow_velocity[1]);
+
+                                if(sycl::isnan(absolute_velocity) || absolute_velocity > std::numeric_limits<float>::max()) absolute_velocity = 0;
+
+                                x_velocities[iteration_node_offset] = flow_velocity[0];
+                                y_velocities[iteration_node_offset] = flow_velocity[1];
+                                absolute_velocity_values[iteration_node_offset] = absolute_velocity;     
+                            }
+                        }
+                    };
+
+#else // ! WITH_NAN_PROTECTION 
+
                     /**
                      * @brief   This kernel performs the update of the macroscopic observables.
                      * 
@@ -190,6 +286,8 @@ namespace lbm
                             }
                         }
                     };
+
+#endif
 
                     /**
                      * @brief   This kernel performs the collision step of a two-lattice iteration.
@@ -279,6 +377,134 @@ namespace lbm
                     };
 
 // Performance kernels ////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef WITH_NAN_PROTECTION 
+
+                    /**
+                     * @brief   This kernel performs the streaming step, the update of the macroscopic observables and 
+                     *          collision step of a two-lattice iteration.
+                     * 
+                     * @tparam  A any `core::access::AccessorConcept` from access.hpp 
+                     */          
+                    template<core::access::AccessorConcept A>
+                    class StreamCollideKernel
+                    {
+                        private:
+
+                        int8_t *phase_information;
+                        double *source;
+                        double *destination;
+
+                        double *densities;
+                        double *x_velocities;
+                        double *y_velocities;
+                        double *absolute_velocity_values;
+
+                        unsigned int vertical_nodes;
+                        unsigned int horizontal_nodes;
+                        double relaxation_time_inverse;
+
+                        public:
+
+                        /**
+                         * @brief Constructor for a new `StreamCollideKernel` object.
+                         *        Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+                         * 
+                         * @param[in]   simulation  the structure containing all simulation data
+                         */
+                        StreamCollideKernel(const core::Simulation &simulation):
+                        phase_information(simulation.data->phase_information),
+                        source(simulation.data->distribution_values_0),
+                        destination(simulation.data->distribution_values_1),
+                        densities(simulation.results->densities_gpu),
+                        x_velocities(simulation.results->x_velocities_gpu),
+                        y_velocities(simulation.results->y_velocities_gpu),
+                        absolute_velocity_values(simulation.results->absolute_velocities_gpu),
+                        vertical_nodes(simulation.properties->vertical_nodes),
+                        horizontal_nodes(simulation.properties->horizontal_nodes),
+                        relaxation_time_inverse(1 / simulation.properties->relaxation_time)
+                        {}
+
+                        /**
+                         * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+                         * 
+                         * @param[in] item the SYCL work item processing this kernel, which is set by the SYCL runtime
+                         */
+                        void operator()(const sycl::item<1> &id) const
+                        {
+                            if(!phase_information[id])
+                            {
+                                unsigned int iteration_node_offset =
+                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+
+                                double distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+                                double result = 0;
+                                double density = 0;
+                                int velocity_x_component = 0; 
+                                int velocity_y_component = 0; 
+                                double flow_velocity_x = 0;
+                                double flow_velocity_y = 0;
+                                double absolute_velocity = 0;
+
+                                // Loading distribution values and macroscopic observables
+                                for (const auto& direction : core::constants::all_directions)
+                                {
+                                    // Loading distribution values
+                                    distribution_values[direction] = 
+                                        source[
+                                            A::at(
+                                                lbm::core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
+                                                direction, 
+                                                horizontal_nodes * vertical_nodes
+                                            )
+                                        ];
+
+                                    // Macroscopic observables
+                                    density += distribution_values[direction];
+                                    velocity_x_component = direction % 3 - 1; 
+                                    velocity_y_component = direction / 3 - 1; 
+                                    flow_velocity_x += distribution_values[direction] * velocity_x_component;
+                                    flow_velocity_y += distribution_values[direction] * velocity_y_component;
+                                }
+                                
+                                if(sycl::isnan(density) || density > std::numeric_limits<float>::max()) density = 0;
+                                if(sycl::isnan(flow_velocity_x) || flow_velocity_x > std::numeric_limits<float>::max()) flow_velocity_x = 0;
+                                if(sycl::isnan(flow_velocity_y) || flow_velocity_y > std::numeric_limits<float>::max()) flow_velocity_y = 0;
+
+                                densities[iteration_node_offset] = density;
+                                x_velocities[iteration_node_offset] = flow_velocity_x;
+                                y_velocities[iteration_node_offset] = flow_velocity_y;
+
+                                absolute_velocity = sycl::sqrt(flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y);
+
+                                if(sycl::isnan(absolute_velocity) || absolute_velocity > std::numeric_limits<float>::max()) absolute_velocity = 0;
+                                absolute_velocity_values[iteration_node_offset] = absolute_velocity;
+
+                                // Streaming and collision
+                                for (const auto& direction : core::constants::all_directions)
+                                {
+                                    velocity_x_component = (direction % 3) - 1; 
+                                    velocity_y_component = (direction / 3) - 1; 
+
+                                    result = core::constants::weights[direction] *
+                                        (
+                                            density + 3 * (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
+                                            + 9.0/2 *
+                                            (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)*
+                                            (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
+                                            - 3.0/2 * (flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y)
+                                        );
+
+                                    result =    -relaxation_time_inverse * (distribution_values[direction] - result) 
+                                                + distribution_values[direction];
+
+                                    destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] = result;
+                                }
+                            }
+                        }
+                    };
+
+#else // ! WITH_NAN_PROTECTION 
 
                     /**
                      * @brief   This kernel performs the streaming step, the update of the macroscopic observables and 
@@ -396,6 +622,8 @@ namespace lbm
                             }
                         }
                     };
+
+#endif
 
                     /**
                      * @brief   Kernel for emplacing the bounce-back values.

@@ -24,6 +24,7 @@ endif(NOT CMAKE_BUILD_TYPE)
 
 # Options
 option(WITH_VISUALIZATION "Build with the visualization framework" OFF)
+option(WITH_NAN_PROTECTION "Build with security against NANs" ON)
 
 # Find crucial packages
 find_package(HPX REQUIRED)
@@ -49,6 +50,10 @@ if(WITH_VISUALIZATION)
   target_link_libraries(${PROJECT_NAME} PUBLIC glfw OpenGL::GL)
 
 endif(WITH_VISUALIZATION)
+
+if(WITH_NAN_PROTECTION)
+  add_definitions(-DWITH_NAN_PROTECTION)
+endif(WITH_NAN_PROTECTION)
 
 # SYCL
 target_compile_options(${PROJECT_NAME} PUBLIC ${SYCL_FLAGS})

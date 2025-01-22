@@ -3,9 +3,9 @@
         "algorithm": "gpu-two-lattice-linear",
         "dataLayout": "stream",
         "debugMode": false,
-        "relaxationTime": 1.0,
+        "relaxationTime": 0.5,
         "resultsToCsv": false,
-        "timeSteps": 10
+        "timeSteps": 30000
     },
     "domain": {
         "horizontalNodes": 1000,

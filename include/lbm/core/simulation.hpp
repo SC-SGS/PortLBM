@@ -3,11 +3,12 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann simulations.
+ * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann 
+ *              simulations.
  * 
- * @version     4.0
+ * @version     4.1
  * 
- * @date        December 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -153,6 +154,9 @@ namespace lbm
             std::string to_string() const;
         };
 
+        /**
+         * @brief   This class offers options to control an algorithm and to query its progress and performance data.
+         */
         class Control
         {
             private:
@@ -164,36 +168,78 @@ namespace lbm
             double progress;
 
             std::unique_ptr<hpx::chrono::high_resolution_timer> timer;
-            double last_frame_time;
+            double last_frametime;
 
             public:
 
+            /**
+             * @brief Constructs a Control object that covers the specified maximum number of iterations.
+             * 
+             * @param[in]   max_iterations  the maximum iteration executed by the algorithm 
+             */
             explicit Control(const unsigned int max_iterations);
 
+            /**
+             * @brief   Forbids the execution of further iteration even if the maximum iteration count is not reached.
+             *          The current iteration is always finished.
+             */
             inline void forbid_execution() { stopped = true; }
 
+            /**
+             * @brief   Allows the algorithm to be executed if the maximum iteration count is not reached.
+             */
             inline void allow_execution() { stopped = false; }
 
-            inline bool is_execution_allowed() const { return (!stopped) && (current_iteration < max_iterations); }
+            /**
+             * @brief   Checks whether the controlled algorithm is allowed to be executed.
+             * 
+             * @return  true    if the algorithm is neither stopped manually nor at its final iteration
+             * @return  false   if the algorithm is stopped manually or at its final iteration
+             */
+            inline bool is_execution_allowed() const 
+            { return (!stopped) && (current_iteration < max_iterations); }
 
+            /**
+             * @brief   Returns whether or not the controlled algorithm has reached is final iteration.
+             */
             inline bool is_finished() const { return current_iteration == max_iterations; }
 
+            /**
+             * @brief   Returns whether the execution of the controlled algorithm has been forbidden.
+             */
+            inline bool is_paused() const { return stopped; }
+
+            /**
+             * @brief   Calculates the progress and performance metrics as preparation for the next iteration.
+             */
             inline void finalize_iteration() 
             { 
                 current_iteration++; 
                 progress = (double)current_iteration / (double)max_iterations;
-                last_frame_time = timer->elapsed_microseconds() * 0.001;
+                last_frametime = timer->elapsed_microseconds() * 0.001;
             }
 
+            /**
+             * @brief   Resets the timer that tracks the frametimes.
+             */
             inline void reset_timer() { timer->restart(); }
 
+            /**
+             * @brief   Returns the number of the currently processed iteration.
+             */
             inline unsigned int get_current_iteration() const { return current_iteration; }
 
+            /**
+             * @brief   Returns the progress of the controlled algorithm, that is, which fraction of the total amount 
+             *          of iterations it has already completed.
+             */
             inline double get_progress() const { return progress; }
 
-            inline double get_last_frame_time() const { return last_frame_time; }
-
-            inline bool is_paused() const { return stopped; }
+            /**
+             * @brief   Returns the last frametime of the controlled algorithm, that is, how long the completion of
+             *          the last iteration took.
+             */
+            inline double get_last_frametime() const { return last_frametime; }
         };
 
         /**

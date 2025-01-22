@@ -4,7 +4,7 @@
  * @author      Marcel Graf
  * 
  * @brief       In this header, classes for the GPU-based linear two-lattice algorithm is declared.
- *              Both inherit from the `lbm::execution::Algorithm` class which defines the interface 
+ *              Both inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface 
  *              of all algorithms. The kernel functions are implemented in 
  *              `linear_two_lattice_kernels.hpp`.
  * 
@@ -28,7 +28,7 @@
 #include "../../../core/simulation.hpp"
 
 // Algorithm
-#include "../../../execution/algorithm.hpp"
+#include "../../../execution/sycl_algorithm.hpp"
 
 // SYCL constants
 #include "../../sycl_constants.hpp"
@@ -65,7 +65,7 @@ namespace lbm
                  * @tparam A any `core::access::AccessorConcept` from access.hpp
                  */
                 template <core::access::AccessorConcept A>
-                class LinearGpuTwoLattice : public execution::Algorithm
+                class LinearGpuTwoLattice : public execution::SYCLAlgorithm
                 {
                     private:
 
@@ -179,7 +179,7 @@ namespace lbm
                         );
                     }
 
-                    explicit LinearGpuTwoLattice(sycl::queue &queue) : Algorithm(queue) {}; 
+                    explicit LinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) {}; 
                 };
 
 // Debug linear two-lattice ///////////////////////////////////////////////////////////////////////////////////////////
@@ -190,7 +190,7 @@ namespace lbm
                  * @tparam A any `core::access::AccessorConcept` from access.hpp
                  */
                 template <core::access::AccessorConcept A>
-                class LinearGpuTwoLatticeDebug : public execution::Algorithm
+                class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
                 {
                     private:
 
@@ -439,7 +439,15 @@ namespace lbm
                         std::cout 
                         << "Running on " 
                         << queue->get_device().get_info<sycl::info::device::name>() 
-                        << "\n\n";   
+                        << "\n\n";
+
+                        fmt::print
+                        (
+                            "Simulation properties:\n"
+                            "-------------------------------------------------------------------------------\n"
+                        );
+
+                        fmt::print(fmt::runtime(simulation->properties->to_string()));   
 
                         future = hpx::async
                         (
@@ -462,8 +470,10 @@ namespace lbm
                                     << "\033[36mFinished iteration " 
                                     << current_iteration 
                                     << " after "
-                                    << simulation->control->get_last_frame_time() 
+                                    << simulation->control->get_last_frametime() 
                                     << " milliseconds.\033[0m\n\n";
+
+                                    current_iteration++;
 
                                     double *tmp = simulation->data->distribution_values_1;
                                     simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
@@ -522,7 +532,7 @@ namespace lbm
 
                     explicit LinearGpuTwoLatticeDebug(sycl::queue &queue) 
                     : 
-                    Algorithm(queue),
+                    SYCLAlgorithm(queue),
                     all_densities(std::make_unique<std::vector<double>>()), 
                     all_x_velocities(std::make_unique<std::vector<double>>()), 
                     all_y_velocities(std::make_unique<std::vector<double>>()), 
@@ -553,6 +563,122 @@ namespace lbm
                         phase_information->shrink_to_fit();
                     }; 
                 };
+
+                /**
+                 * @brief   Initializes a `lbm::gpu::two_lattice::linear::LinearGpuTwoLattice` algorithm object and 
+                 *          returns a unique pointer to this object.
+                 * 
+                 * @param[in]   properties  the data layout and scenario are determined from this object
+                 * @param[in]   queue       the SYCL queue on which the algorithm operates.
+                 * 
+                 * @return  a unique pointer to a `lbm::gpu::two_lattice::linear::LinearGpuTwoLattice` object
+                 */
+                std::unique_ptr<execution::SYCLAlgorithm> get_algorithm_pointer
+                (
+                    const core::Properties &properties, 
+                    sycl::queue &queue
+                )
+                {
+                    std::unique_ptr<execution::SYCLAlgorithm> algorithm;
+
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::StreamAccessor>
+                                >(queue);
+                        lbm::core::setup_pipe_flow_environment<core::access::StreamAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::CollisionAccessor>
+                                >(queue);
+                        lbm::core::setup_pipe_flow_environment<core::access::CollisionAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::BundleAccessor>
+                                >(queue);
+                        lbm::core::setup_pipe_flow_environment<core::access::BundleAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+
+                    *(algorithm->simulation->data->distribution_values_1) = 
+                        *(algorithm->simulation->data->distribution_values_0); 
+
+                    return algorithm;
+                }
+
+                /**
+                 * @brief   Initializes a `lbm::gpu::two_lattice::linear::LinearGpuTwoLatticeDebug` algorithm object and 
+                 *          returns a unique pointer to this object.
+                 * 
+                 * @param[in]   properties  the data layout and scenario are determined from this object
+                 * @param[in]   queue       the SYCL queue on which the algorithm operates.
+                 * 
+                 * @return  a unique pointer to a `lbm::gpu::two_lattice::linear::LinearGpuTwoLatticeDebug` object
+                 */
+                std::unique_ptr<execution::SYCLAlgorithm> get_debug_algorithm_pointer
+                (
+                    const core::Properties &properties, 
+                    sycl::queue &queue
+                )
+                {
+                    std::unique_ptr<execution::SYCLAlgorithm> algorithm;
+
+                    std::cout << "lbm_sycl_executor.cpp:\tAlgorithm detected: Linear GPU two-lattice\n";
+                    if(properties.data_layout == "stream")
+                    {
+                        std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::StreamAccessor>
+                                >(queue);
+                        std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
+                        lbm::core::setup_pipe_flow_environment<core::access::StreamAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::CollisionAccessor>
+                                >(queue);
+                        std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
+                        lbm::core::setup_pipe_flow_environment<core::access::CollisionAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::BundleAccessor>
+                                >(queue);
+                        std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
+                        lbm::core::setup_pipe_flow_environment<core::access::BundleAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                    *(algorithm->simulation->data->distribution_values_1) = 
+                        *(algorithm->simulation->data->distribution_values_0); 
+
+                    return algorithm;
+                }
 
             } // ! namespace linear
 

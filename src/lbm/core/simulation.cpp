@@ -73,7 +73,7 @@ current_iteration(0),
 max_iterations(max_iterations),
 progress(0),
 timer(std::make_unique<hpx::chrono::high_resolution_timer>()),
-last_frame_time(0)
+last_frametime(0)
 {};
 
 
@@ -153,6 +153,9 @@ absolute_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
 absolute_velocities_gpu(sycl::malloc_device<double>(size, queue))
 {
     queue.fill(densities_gpu, -1.0, size).wait();
+    queue.fill(x_velocities_gpu, 0.0, size).wait();
+    queue.fill(y_velocities_gpu, 0.0, size).wait();
+    queue.fill(absolute_velocities_gpu, 0.0, size).wait();
 
     densities_cpu->shrink_to_fit();
     x_velocities_cpu->shrink_to_fit();

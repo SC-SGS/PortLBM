@@ -5,18 +5,19 @@
  * 
  * @brief       Entry point of the program executing the GPU lattice Boltzmann application.
  * 
- * @version     1.2
+ * @version     1.3
  * 
  * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  */
 
-// INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
+// INCLUDES ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Fundamental LBM includes that are always necessary regardless of the CMake configuration
 #include "../include/lbm/file_interaction/file_interaction.hpp"
 #include "../include/lbm/core/simulation.hpp"
+#include "../execution/sycl_algorithm_handler.hpp"
 
 // HPX includes that are always necessary regardless of the CMake configuration
 #include <hpx/hpx_init.hpp>
@@ -24,12 +25,10 @@
 
 // Conditional includes
 #ifdef WITH_VISUALIZATION                       // If the flag for building with GUI features is set, ...
-#include "../include/lbm/gui/lbm_gui.hpp"       // include the LBM GUI features, ...
-#else                                           // else, ...
-#include "../execution/lbm_sycl_executor.hpp"   // include only the executor.
+#include "../include/lbm/gui/lbm_gui.hpp"       // include the LBM GUI features
 #endif
 
-// DEFINITIONS ////////////////////////////////////////////////////////////////////////////////////
+// DEFINITIONS ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef WITH_VISUALIZATION // Flag is set if -DWITH_VISUALIZATION=ON, must be specified by user
 
@@ -37,7 +36,7 @@ int hpx_main(hpx::program_options::variables_map& vm)
 {
     try
     {
-        lbm::gui::Gui gui("SYCL Lattice Boltzmann");
+        lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("SYCL Lattice Boltzmann");
         gui.run();
     }
     catch(const lbm::exceptions::Exception &exception)
@@ -54,18 +53,9 @@ int hpx_main(hpx::program_options::variables_map& vm)
 {
     try
     {
-        std::unique_ptr<lbm::execution::SYCLExecutor> executor = std::make_unique<lbm::execution::SYCLExecutor>();
-
-        fmt::print
-        (
-            "Simulation properties:\n"
-            "-------------------------------------------------------------------------------\n"
-        );
-
-        fmt::print(fmt::runtime(executor->algorithm->simulation->properties->to_string()));
-
-        executor->execute();
-        executor->algorithm->block_until_finished();
+        std::unique_ptr<lbm::execution::SYCLAlgorithmHandler> algorithm_handler = std::make_unique<lbm::execution::SYCLAlgorithmHandler>();
+        algorithm_handler->start();
+        algorithm_handler->block_until_finished();
     }
     catch(const lbm::exceptions::Exception &exception)
     {

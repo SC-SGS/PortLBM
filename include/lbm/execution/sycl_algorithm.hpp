@@ -1,12 +1,12 @@
 /**
- * @file        algorithm.hpp
+ * @file        sycl_algorithm.hpp
  * 
  * @author      Marcel Graf
  * 
  * @brief       In this header file, an abstract class for algorithms is defined.
  *              All algorithms inherit from this this base class and implement the execute methods.
  * 
- * @version     1.1
+ * @version     1.0
  * 
  * @date        January 2025
  * 
@@ -14,8 +14,8 @@
  * 
  */
 
-#ifndef LBM_ALGORITHM_HPP
-#define LBM_ALGORITHM_HPP
+#ifndef LBM_SYCL_ALGORITHM_HPP
+#define LBM_SYCL_ALGORITHM_HPP
 
 // Dependencies on other LBM core features
 #include "../core/simulation.hpp"
@@ -39,13 +39,13 @@ namespace lbm
          * @brief   Abstract base class of all Lattice Boltzmann algorithms.
          *          Its non-abstract child classes must implement the execute methods.
          */
-        class Algorithm
+        class SYCLAlgorithm
         {
 
             protected:
             
             /**
-             * @brief   This future is used to launch the algorithm and to check whether it is currently within an iteration or not.
+             * @brief   This future is used to launch the algorithm.
              */
             hpx::future<void> future;
 
@@ -54,7 +54,7 @@ namespace lbm
             /**
              * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
              */
-            explicit Algorithm(sycl::queue &queue)
+            explicit SYCLAlgorithm(sycl::queue &queue)
             : 
             future(hpx::async([]{})), 
             queue(std::make_shared<sycl::queue>(queue)), 
@@ -90,13 +90,7 @@ namespace lbm
              */
             virtual void execute() = 0; 
 
-            // /**
-            //  * @brief   Performs the specified amount of iterations of this algorithm.
-            //  *          The instructions are enqueued in the queue stored by this `Algorithm` object.
-            //  */
-            // virtual void execute(unsigned int time_steps) = 0; 
-
-            virtual ~Algorithm() = default;
+            virtual ~SYCLAlgorithm() = default;
         };
 
     } // ! namespace execution

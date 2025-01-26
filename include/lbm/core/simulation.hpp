@@ -243,32 +243,107 @@ namespace lbm
         };
 
         /**
-         * TODO: Work in progress.
-         * 
-         * @brief This structure contains the extents of the expanded simulation domain.
-         *        In every case, the ghost node borders are added.
-         *        For algorithms with domain decomposition, that is, for all algorithms except the
-         *        two-lattice algorithm, parameters regarding the subdomains are stored here.
-         * 
+         * @brief   This namespace contains convenience functions for determining which powers of certain bases
+         *          specified numbers are.
          */
-        struct ExpandedDomainData
+        namespace power_functions
         {
-            // Total amount of nodes including ghost nodes and buffer nodes
-            unsigned int buffered_node_count;
+            /**
+             * @brief   Returns whether the specified number is a power of four.
+             * 
+             * @param[in]   x   the number in question 
+             */
+            inline bool is_power_of_4(size_t x)
+            {
+                size_t checkbit = 3;
+                if (x & 0x1) return false;
+                while (!(checkbit & x)) x >>= 2;
+                return (!(x & 2));
+            }
 
-            /* Extents and amount of subdomains */
+            /**
+             * @brief   Checks whether the specified number is a power of four other than one, and returns the power.
+             * 
+             * @param[in]   x   the number in question 
+             * @return      the power if `x` is actually a power of 4 greater than `1`, or `0` otherwise
+             */
+            inline size_t which_power_of_4(size_t x)
+            {
+                size_t checkbit = 3;
+                size_t pow = 0;
+
+                if (x & 0x1) return 0;
+
+                while (!(checkbit & x)) 
+                {
+                    x >>= 2;
+                    pow++;
+                }
+            
+                return !(x & 2) ? pow : 0;
+            }
+
+            /**
+             * @brief   Checks whether the specified number is a power of two other than one, and returns the power.
+             * 
+             * @param[in]   x   the number in question 
+             * @return      the power if `x` is actually a power of 2 greater than `1`, or `0` otherwise
+             */
+            inline size_t which_power_of_2(size_t x)
+            {
+                size_t checkbit = 1;
+                size_t pow = 0;
+
+                if (x & 0x1) return 0;
+
+                while (!(checkbit & x)) 
+                {
+                    x >>= 1;
+                    pow++;
+                }
+            
+                return !(x >> 1 | 0) ? pow : 0;
+            }
+        }
+
+        /**
+         * @brief   This structure stores data describing a simulation domain that is decomposed into equally sized 
+         *          subdomains to match their processing by GPUs. Decomposition is performed into a grid of subdomains.
+         *          The quantity and size of the subdomains is specified both vertically and horizontally. Furthermore,
+         *          the expanded extents of the entire domain are stored. If subdomains are to be separated by a buffer
+         *          grid, additional nodes are planned in when calculating the new extents of the total domain.
+         *          The algorithm utilizing the buffers is responsible for addressing it properly. This structure is
+         *          not intended to be used to govern buffer interactions.
+         */
+        struct DecomposedDomain
+        {
+            unsigned int expanded_node_count;
+            unsigned int expanded_horizontal_nodes;
+            unsigned int expanded_vertical_nodes;
+
             unsigned int subdomain_height;
             unsigned int subdomain_width;
             unsigned int subdomain_count_vertical;
             unsigned int subdomain_count_horizontal;
 
-            explicit ExpandedDomainData
+            /**
+             * @brief   Constructs a decomposed domain structure where the new total dimensions, the dimensions of
+             *          subdomains and their quantity per dimension is calculated based on the input parameters 
+             *          describing what the original domain looks like.
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   max_work_group_size         the maximum work group size of the target device
+             * @param[in]   buffered                    whether or not buffer nodes are to be planned in or not
+             */
+            explicit DecomposedDomain
             (
-                const unsigned int buffered_node_count,
-                const unsigned int subdomain_height,
-                const unsigned int subdomain_width,
-                const unsigned int subdomain_count_vertical,
-                const unsigned int subdomain_count_horizontal
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                const size_t max_work_group_size,
+                const bool buffered = false 
             );
         };
 
@@ -293,7 +368,7 @@ namespace lbm
              */
             std::unique_ptr<std::vector<double>> densities_cpu;
 
-            /** @brief  GPU allocated densities */
+            /** @brief  GPU-allocated densities */
             double *densities_gpu;
 
             /**
@@ -304,7 +379,7 @@ namespace lbm
              */
             std::unique_ptr<std::vector<double>> x_velocities_cpu;
 
-            /** @brief  GPU allocated x components of the velocity vectors */
+            /** @brief  GPU-allocated x components of the velocity vectors */
             double *x_velocities_gpu;
 
             /**
@@ -315,7 +390,7 @@ namespace lbm
              */
             std::unique_ptr<std::vector<double>> y_velocities_cpu;
 
-            /** @brief  GPU allocated y components of the velocity vectors */
+            /** @brief  GPU-allocated y components of the velocity vectors */
             double *y_velocities_gpu;
 
             /**
@@ -324,7 +399,7 @@ namespace lbm
              */
             std::unique_ptr<std::vector<double>> absolute_velocities_cpu;
 
-            /** @brief  GPU allocated absolutes of the velocity vectors */
+            /** @brief  GPU-allocated absolutes of the velocity vectors */
             double *absolute_velocities_gpu;
 
             /**
@@ -386,6 +461,7 @@ namespace lbm
             std::unique_ptr<Data> data;
             std::unique_ptr<Results> results;
             std::unique_ptr<Control> control;
+            std::unique_ptr<DecomposedDomain> decomposed_domain;
 
             /**
              * @brief Constructor for the Simulation struct.

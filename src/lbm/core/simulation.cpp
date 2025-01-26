@@ -119,22 +119,64 @@ std::string lbm::core::Properties::to_string() const
 }
 
 
-lbm::core::ExpandedDomainData::ExpandedDomainData
+lbm::core::DecomposedDomain::DecomposedDomain
 (
-    const unsigned int buffered_node_count,
-    const unsigned int subdomain_height,
-    const unsigned int subdomain_width,
-    const unsigned int subdomain_count_vertical,
-    const unsigned int subdomain_count_horizontal  
+    const unsigned int unexpanded_horizontal_nodes,
+    const unsigned int unexpanded_vertical_nodes,
+    const size_t max_work_group_size,
+    const bool buffered 
 )
-:
-buffered_node_count(buffered_node_count),
-subdomain_height(subdomain_height),
-subdomain_width(subdomain_width),
-subdomain_count_vertical(subdomain_count_vertical),
-subdomain_count_horizontal(subdomain_count_horizontal)
-{};
+{
+    // Is max_work_group_size uneven (and larger than 1)?
+    if (max_work_group_size & 0x1)
+    {
+        // ==> stripe subdomains with extents 1 and max_work_group_size
+        subdomain_width = max_work_group_size;
+        subdomain_height = 1;
+    }
+    else // max_work_group_size is guaranteed to be even, that is, a multiple of 2
+    {
+        size_t power_4 = power_functions::which_power_of_4(max_work_group_size);
+        size_t power_2 = power_functions::which_power_of_2(max_work_group_size);
 
+        if (power_4) // Is max_work_group_size a power of four? 
+        {
+            // ==> square subdomains
+
+            size_t size = 1;
+            for(int i = 0; i < power_4; ++i) { size *= 2; }
+
+            subdomain_width = size;
+            subdomain_height = size; 
+        }
+        else if (power_2) // Is max_work_group_size a power of two?
+        {
+            // ==> as close to square as possible, with preference for horizontal length 
+            size_t power_height = power_2 / 2;
+            size_t height = 1;
+            for(int i = 0; i < power_height; ++i) { height *= 2; }
+
+            subdomain_height = height;
+            subdomain_width = 2 * height; 
+        }
+        else // max_work_group_size is a multiple of two
+        {
+            //  ==> stripe subdomains with extents 2 and max_work_group_size / 2
+            subdomain_height = 2;
+            subdomain_width = max_work_group_size / 2; 
+        }
+    }
+
+    subdomain_count_vertical = ((unexpanded_vertical_nodes / subdomain_height) + 1);
+    if(!(unexpanded_vertical_nodes % subdomain_height)) { subdomain_count_vertical--; }
+    expanded_vertical_nodes = (subdomain_height + buffered) * subdomain_count_vertical - buffered;
+    
+    subdomain_count_horizontal = ((unexpanded_horizontal_nodes / subdomain_width) + 1);
+    if(!(unexpanded_vertical_nodes % subdomain_width)) { subdomain_count_horizontal--; }
+    expanded_horizontal_nodes = (subdomain_width + buffered) * subdomain_count_horizontal - buffered;
+
+    expanded_node_count = expanded_vertical_nodes * expanded_horizontal_nodes;
+};
 
 lbm::core::Results::Results(const size_t &size, sycl::queue &queue)
 :
@@ -171,7 +213,7 @@ phase_information(sycl::malloc_device<int8_t>(total_node_count, queue)),
 distribution_values_0(sycl::malloc_device<double>(9 * total_node_count, queue))
 {
     if(two_lattice) distribution_values_1 = sycl::malloc_device<double>(9 * total_node_count, queue);
-    else distribution_values_1 = NULL;
+    else distribution_values_1 = nullptr;
 };
 
 
@@ -181,8 +223,29 @@ properties(std::make_unique<Properties>(file_interaction::json_to_properties()))
 results(std::make_unique<Results>(properties->domain_node_count, queue)),
 control(std::make_unique<Control>(properties->time_steps))
 {
-    if(properties->algorithm == "gpu-two-lattice-linear" || properties->algorithm == "gpu-two-lattice")
+    if(properties->algorithm == "gpu-two-lattice-linear")
+    {
         data = std::make_unique<Data>(properties->buffered_node_count, queue, true);
+    }
+    else if(properties->algorithm == "gpu-two-lattice")
+    {
+        decomposed_domain = std::make_unique<DecomposedDomain>(
+            properties->horizontal_nodes,
+            properties->vertical_nodes,
+            queue.get_device().get_info<sycl::info::device::max_work_group_size>(),
+            false
+        );
+        data = std::make_unique<Data>(decomposed_domain->expanded_node_count, queue, true);
+    }
     else
-        data = std::make_unique<Data>(properties->buffered_node_count, queue, false);
+    {
+        decomposed_domain = std::make_unique<DecomposedDomain>(
+            properties->horizontal_nodes,
+            properties->vertical_nodes,
+            queue.get_device().get_info<sycl::info::device::max_work_group_size>(),
+            true
+        );
+        data = std::make_unique<Data>(decomposed_domain->expanded_node_count, queue, false);
+    }
+        
 };

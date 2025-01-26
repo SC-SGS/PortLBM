@@ -25,6 +25,7 @@
 
 // SYCL-based LBM algorithms
 #include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
+#include "../gpu/two_lattice/non-linear/non_linear_gpu_two_lattice.hpp"
 
 // Standard library
 #include <iostream>
@@ -89,7 +90,7 @@ namespace lbm
                     }
                     else if(properties->algorithm == "gpu-two-lattice")
                     {
-                        throw exceptions::Exception("This algorithm is not implemented yet.");
+                        algorithm = gpu::two_lattice::non_linear::get_debug_algorithm_pointer(*properties, *queue);
                     }
                     else if(properties->algorithm == "gpu-swap")
                     {

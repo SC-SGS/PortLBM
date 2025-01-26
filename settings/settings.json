@@ -1,19 +1,19 @@
 {
     "algorithmic": {
-        "algorithm": "gpu-two-lattice-linear",
+        "algorithm": "gpu-two-lattice",
         "dataLayout": "stream",
-        "debugMode": false,
-        "relaxationTime": 0.5599999999999999,
+        "debugMode": true,
+        "relaxationTime": 1.0,
         "resultsToCsv": false,
-        "timeSteps": 30000
+        "timeSteps": 1000
     },
     "domain": {
-        "horizontalNodes": 2000,
+        "horizontalNodes": 200,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 2000
+        "verticalNodes": 50
     },
     "inlets": {
-        "density": 1.0,
+        "density": 1.0999999977648258,
         "velocity": {
             "x": 0.0,
             "y": 0.0

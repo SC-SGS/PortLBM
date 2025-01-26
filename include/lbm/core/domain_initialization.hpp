@@ -146,6 +146,79 @@ namespace lbm
             }
 
             /**
+             * @brief   Sets the inlet and outlet properties as specified within the simulation object.
+             * 
+             * @tparam  A any `core::access::AccessorConcept` from access.hpp
+             * 
+             * @param[in]   queue               the SYCL queue on which the distribution values that are to be set reside
+             * @param[in]   simulation          the simulation object contains a `core::Properties` object 
+             *                                  storing the inlet and outlet density and velocity    
+             * @param[in]   distribution_values a pointer to GPU-allocated memory at which the distribution values reside
+             */
+            template <access::AccessorConcept A>
+            void set_inout_distribution_values_non_buffered
+            (
+                sycl::queue &queue, 
+                const Simulation &simulation,
+                double *distribution_values
+            )
+            {
+                unsigned int vertical_nodes =  simulation.decomposed_domain->expanded_vertical_nodes;
+                unsigned int horizontal_nodes = simulation.decomposed_domain->expanded_horizontal_nodes;
+                unsigned int total_node_count = simulation.decomposed_domain->expanded_node_count;
+
+                std::vector<double> distribution_inlet = 
+                    maxwell_boltzmann_distribution(
+                        simulation.properties->inlet_velocity_x, simulation.properties->inlet_velocity_y, simulation.properties->inlet_density
+                    );
+                
+                std::vector<double> distribution_outlet = 
+                    maxwell_boltzmann_distribution(
+                        simulation.properties->outlet_velocity_x, simulation.properties->outlet_velocity_y, simulation.properties->outlet_density
+                    );
+
+                double *distribution_inlet_gpu = sycl::malloc_device<double>(distribution_inlet.size(), queue);
+                double *distribution_outlet_gpu = sycl::malloc_device<double>(distribution_outlet.size(), queue);
+
+                queue.copy(distribution_inlet.data(), distribution_inlet_gpu, distribution_inlet.size()).wait();
+                queue.copy(distribution_outlet.data(), distribution_outlet_gpu, distribution_outlet.size()).wait();
+
+                auto event_update_inlet = queue.submit(
+                    [=](sycl::handler &cgh)
+                    {
+                        cgh.parallel_for(
+                            sycl::range<2>(9, vertical_nodes), 
+                            [=](const sycl::id<2> &id)     
+                            {
+                                unsigned int node = access::get_node_index(0, id.get(1), horizontal_nodes);
+                                distribution_values[A::at(node, id.get(0), total_node_count)] = distribution_inlet_gpu[id.get(0)];
+                            }  
+                        );
+                    }
+                );
+
+                auto event_update_outlet = queue.submit(
+                    [=](sycl::handler &cgh)
+                    {
+                        cgh.parallel_for(
+                            sycl::range<2>(9, vertical_nodes), 
+                            [=](const sycl::id<2> &id)     
+                            {
+                                unsigned int node = access::get_node_index(horizontal_nodes - 1, id.get(1), horizontal_nodes);
+                                distribution_values[A::at(node, id.get(0), total_node_count)] = distribution_outlet_gpu[id.get(0)];
+                            }  
+                        );
+                    }
+                );
+
+                event_update_inlet.wait(); 
+                event_update_outlet.wait(); 
+
+                sycl::free(distribution_inlet_gpu, queue);
+                sycl::free(distribution_outlet_gpu, queue);
+            }
+
+            /**
              * @brief   Adds the phase information for the `core::WALLS` scenario to the specified vector.
              *          The content of the vector is to be copied to the GPU at a later stage.
              * 
@@ -396,13 +469,6 @@ namespace lbm
                 );
             }
 
-            // if(simulation.properties->debug_mode)
-            // {
-            //     std::vector<double> dist_vals(9 * simulation.properties->buffered_node_count, 0);
-            //     queue.copy(simulation.data->distribution_values_0, dist_vals.data(), 9 * simulation.properties->buffered_node_count).wait();
-            //     console::print_distribution_values<A>(dist_vals, simulation.properties->horizontal_nodes, simulation.properties->vertical_nodes);
-            // }
-
             std::vector<int8_t> phase_information_cpu(simulation.properties->buffered_node_count, 0);
 
             /* Phase information vector */
@@ -432,13 +498,77 @@ namespace lbm
             }   
             
             queue.copy(phase_information_cpu.data(), simulation.data->phase_information, simulation.properties->buffered_node_count).wait();
+        }
 
-            // if(simulation.properties->debug_mode)
+        /**
+         * @brief   Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state.
+         *          The domain consists of solid nodes on the upper and lower boundary, and further solid obstacles
+         *          depending on the scenario specified within the simulation object.
+         * 
+         * @tparam A any `core::access::AccessorConcept` from access.hpp
+         * 
+         * @param[in]       queue       the SYCL queue to which the values residing on the GPU belong
+         * @param[in, out]  simulation  reference to the structure containing all simulation data 
+         * @param[in]       obstacle    what kind of obstacle is added to the domain
+         */
+        template<access::AccessorConcept A> 
+        void setup_decomposed_non_buffered
+        (
+            Simulation &simulation, 
+            sycl::queue &queue, 
+            std::string obstacle = "Hagen-Poiseuille"
+        )
+        {
+            domain_initialization::set_standstill_values<A>(
+                queue, simulation.decomposed_domain->expanded_node_count, simulation.data->distribution_values_0
+            ); // yes
+            domain_initialization::set_inout_distribution_values_non_buffered<A>(
+                queue, simulation, simulation.data->distribution_values_0
+            ); // yes
+
+            queue.copy(
+                simulation.data->distribution_values_0, simulation.data->distribution_values_1, 9 * simulation.decomposed_domain->expanded_node_count
+            ).wait();
+
+            /* Initialize entire lattice as ghost nodes */
+            std::vector<int8_t> phase_information_cpu(simulation.decomposed_domain->expanded_node_count, -1);
+
+            /* Set inner area to fluid */
+            for(int y = 2; y < simulation.properties->vertical_nodes - 2; ++y)
+            {
+                for(int x = 1; x < simulation.properties->horizontal_nodes - 1; ++x)
+                {
+                    phase_information_cpu[access::get_node_index(x, y, simulation.decomposed_domain->expanded_horizontal_nodes)] = 0;
+                }  
+            }
+
+            /* Solid pipe boundaries */
+            for(int x = 1; x < simulation.properties->horizontal_nodes - 1; ++x)
+            {
+                phase_information_cpu[access::get_node_index(x, 1, simulation.decomposed_domain->expanded_horizontal_nodes)] = 1;
+                phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 2, simulation.decomposed_domain->expanded_horizontal_nodes)] = 1;
+            }
+
+            // if(obstacle == "walls")             { domain_initialization::add_walls(*simulation.properties, phase_information_cpu); }
+            // else if(obstacle == "circle")       { domain_initialization::add_circle(*simulation.properties, phase_information_cpu); }
+            // else if(obstacle == "square")       { domain_initialization::add_square(*simulation.properties, phase_information_cpu); }
+            // else if(obstacle == "plate")        { domain_initialization::add_plate(*simulation.properties, phase_information_cpu); }
+            // else if(obstacle == "skyscraper")   { domain_initialization::add_skyscraper(*simulation.properties, phase_information_cpu); }
+            // else if(obstacle == "wing")         { domain_initialization::add_wing(*simulation.properties, phase_information_cpu); }
+            // else if(obstacle == "porous")       { domain_initialization::add_porous_medium(*simulation.properties, phase_information_cpu); }
+
+            // for(int y = 1; y < simulation.properties->vertical_nodes - 1; ++y)
             // {
-            //     std::vector<int8_t> phase_information_check(simulation.properties->buffered_node_count, 0);
-            //     queue.copy(simulation.data->phase_information, phase_information_check.data(), simulation.properties->buffered_node_count).wait();
-            //     console::print_phase_vector(phase_information_check, simulation.properties->horizontal_nodes);
+            //     phase_information_cpu[access::get_node_index(0, y, simulation.properties->horizontal_nodes)] = -1;
+            //     phase_information_cpu[access::get_node_index(simulation.properties->horizontal_nodes - 1, y, simulation.properties->horizontal_nodes)] = -1;
             // }
+            // for(int x = 0; x < simulation.properties->horizontal_nodes; ++x)
+            // {
+            //     phase_information_cpu[access::get_node_index(x, simulation.properties->vertical_nodes - 1, simulation.properties->horizontal_nodes)] = -1;
+            //     phase_information_cpu[access::get_node_index(x, 0, simulation.properties->horizontal_nodes)] = -1;
+            // }   
+            
+            queue.copy(phase_information_cpu.data(), simulation.data->phase_information, simulation.decomposed_domain->expanded_node_count).wait();
         }
 
     } // ! namespace core

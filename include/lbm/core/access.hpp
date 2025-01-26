@@ -223,7 +223,6 @@ namespace lbm
                  * 
                  * @param[in] node_index        index of the node in question
                  * @param[in] horizontal_nodes  the total amount of horizontal nodes within the domain including ghost nodes
-                 * @param[in] domain_node_count the total amount of nodes belonging to the actual simulation domain, i.e. excluding the halo
                  * 
                  * @return the index of the respective value in any vector within the SimulationResults structure     
                  */
@@ -238,6 +237,56 @@ namespace lbm
                 }
                 
             } // ! namespace results
+
+            namespace decomposed
+            {
+
+                /**
+                 * @brief   Determines the global linearized index of the node in question based on a work item of a
+                 *          nd-range. 
+                 * 
+                 * @param[in]   subdomain_x                 x-coordinate of the subdomain in the subdomain grid
+                 * @param[in]   subdomain_y                 y-coordinate of the subdomain in the subdomain grid
+                 * @param[in]   subdomain_offset_vertical   subdomain height for non-buffered domains,
+                 *                                          subdomain height + 1 otherwise            
+                 * @param[in]   subdomain_offset_horizontal subdomain width for non-buffered domains,
+                 *                                          subdomain width + 1 otherwise   
+                 * @param[in]   work_item_offset_x          local x-offset to the origin of the work group
+                 * @param[in]   work_item_offset_y          local y-offset to the origin of the work group
+                 * @param[in]   total_horizontal_nodes      total amount of horizontal nodes in the expanded domain
+                 *  
+                 * @return      the global linear index of the node belonging to this work item 
+                 */
+                inline unsigned int get_global_linear_node_index
+                (
+                    const unsigned int subdomain_x,
+                    const unsigned int subdomain_y,
+                    const unsigned int subdomain_offset_vertical,
+                    const unsigned int subdomain_offset_horizontal,
+                    const unsigned int work_item_offset_x, 
+                    const unsigned int work_item_offset_y,
+                    const unsigned int total_horizontal_nodes
+                )
+                {
+                    unsigned int x = subdomain_x * subdomain_offset_horizontal;
+                    unsigned int y = subdomain_y * subdomain_offset_vertical;
+                    x += work_item_offset_x;
+                    y += work_item_offset_y;
+
+                    return x + y * total_horizontal_nodes;
+                }
+
+                inline unsigned int get_results_index
+                (
+                    const unsigned int global_x,
+                    const unsigned int global_y,
+                    const unsigned int horizontal_nodes_domain
+                )
+                {
+                    return (global_x - 1) + (global_y - 1) * (horizontal_nodes_domain - 2);
+                }
+
+            } // ! namespace decomposed
 
         } // ! namespace access
 

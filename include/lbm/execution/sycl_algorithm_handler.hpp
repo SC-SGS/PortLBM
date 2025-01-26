@@ -71,7 +71,7 @@ namespace lbm
                     }
                     else if(properties->algorithm == "gpu-two-lattice")
                     {
-                        throw exceptions::Exception("This algorithm is not implemented yet.");
+                        algorithm = gpu::two_lattice::non_linear::get_algorithm_pointer(*properties, *queue);
                     }
                     else if(properties->algorithm == "gpu-swap")
                     {

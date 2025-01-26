@@ -59,128 +59,149 @@ namespace lbm
 
 // Performance non-linear two-lattice /////////////////////////////////////////////////////////////////////////////////
 
-                // /**
-                //  * @brief Class representation of the linear SYCL implementation of the two-lattice algorithm.
-                //  * 
-                //  * @tparam A any `core::access::AccessorConcept` from access.hpp
-                //  */
-                // template <core::access::AccessorConcept A>
-                // class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
-                // {
-                //     private:
+                /**
+                 * @brief Class representation of the linear SYCL implementation of the two-lattice algorithm.
+                 * 
+                 * @tparam A any `core::access::AccessorConcept` from access.hpp
+                 */
+                template <core::access::AccessorConcept A>
+                class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
+                {
+                    private:
 
-                //     /**
-                //      * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
-                //      *          the macroscopic observables in the process.
-                //      */
-                //     inline void stream_and_collide()
-                //     {
-                //         auto event = queue->submit
-                //         (
-                //             [&](sycl::handler &cgh)
-                //             {
-                //                 auto kernel = non_linear::kernels::StreamCollideKernel<A>(*simulation);
-                //                 // cgh.parallel_for(
-                //                 //     sycl::range<1>(
-                //                 //         simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes
-                //                 //     ), kernel
-                //                 // );
-                //             }
-                //         );
-                //         event.wait();
-                //         if(!(simulation->control->get_current_iteration() % 4))
-                //         {
-                //             queue->copy(
-                //                 simulation->results->densities_gpu, 
-                //                 simulation->results->densities_cpu->data(), 
-                //                 simulation->results->densities_cpu->size()
-                //             );//.wait();
-                //             queue->copy(
-                //                 simulation->results->x_velocities_gpu, 
-                //                 simulation->results->x_velocities_cpu->data(), 
-                //                 simulation->results->x_velocities_cpu->size()
-                //             );//.wait();
-                //             queue->copy(
-                //                 simulation->results->y_velocities_gpu, 
-                //                 simulation->results->y_velocities_cpu->data(), 
-                //                 simulation->results->y_velocities_cpu->size()
-                //             );//.wait();
-                //             queue->copy(
-                //                 simulation->results->absolute_velocities_gpu, 
-                //                 simulation->results->absolute_velocities_cpu->data(), 
-                //                 simulation->results->absolute_velocities_cpu->size()
-                //             );//.wait();
-                //         }
-                //     }
+                    /**
+                     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
+                     *          the macroscopic observables in the process.
+                     */
+                    inline void stream_and_collide()
+                    {
+                        auto event = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = non_linear::kernels::StreamCollideKernel<A>(*simulation);
+                                // std::cout << "Global range: " << simulation->decomposed_domain->expanded_vertical_nodes << " x " << simulation->decomposed_domain->expanded_horizontal_nodes << "\n";
+                                // std::cout << "Local range: " << simulation->decomposed_domain->subdomain_height << " x " << simulation->decomposed_domain->subdomain_width << "\n";
+                                cgh.parallel_for(
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->decomposed_domain->expanded_vertical_nodes,
+                                            simulation->decomposed_domain->expanded_horizontal_nodes
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->decomposed_domain->subdomain_width,
+                                            simulation->decomposed_domain->subdomain_height
+                                        )
+                                    ), kernel);
+                            }
+                        );
+                        event.wait();
+                        // if(!(simulation->control->get_current_iteration() % 4))
+                        // {
+                        //     queue->copy(
+                        //         simulation->results->densities_gpu, 
+                        //         simulation->results->densities_cpu->data(), 
+                        //         simulation->results->densities_cpu->size()
+                        //     );//.wait();
+                        //     queue->copy(
+                        //         simulation->results->x_velocities_gpu, 
+                        //         simulation->results->x_velocities_cpu->data(), 
+                        //         simulation->results->x_velocities_cpu->size()
+                        //     );//.wait();
+                        //     queue->copy(
+                        //         simulation->results->y_velocities_gpu, 
+                        //         simulation->results->y_velocities_cpu->data(), 
+                        //         simulation->results->y_velocities_cpu->size()
+                        //     );//.wait();
+                        //     queue->copy(
+                        //         simulation->results->absolute_velocities_gpu, 
+                        //         simulation->results->absolute_velocities_cpu->data(), 
+                        //         simulation->results->absolute_velocities_cpu->size()
+                        //     );//.wait();
+                        // }
+                    }
 
-                //     /**
-                //      * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
-                //      */
-                //     void emplace_bounce_back()
-                //     {
-                //         auto event = queue->submit
-                //         (
-                //             [&](sycl::handler &cgh)
-                //             {
-                //                 auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                //                 cgh.parallel_for(
-                //                     sycl::range<1>(
-                //                         simulation->decomposed_domain->extended_node_count
-                //                     ), kernel
-                //                 );
-                //             }
-                //         );
-                //         event.wait();
-                //     }
+                    /**
+                     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
+                     */
+                    void emplace_bounce_back()
+                    {
+                        auto event = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->decomposed_domain->expanded_vertical_nodes, 
+                                            simulation->decomposed_domain->expanded_horizontal_nodes
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->decomposed_domain->subdomain_height, 
+                                            simulation->decomposed_domain->subdomain_width
+                                        )
+                                    ), kernel);
+                            }
+                        );
+                        event.wait();
+                    }
 
-                //     /**
-                //      * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
-                //      */
-                //     void perform_inout_update()
-                //     {
-                //         auto event = queue->submit
-                //         (
-                //             [&](sycl::handler &cgh)
-                //             {
-                //                 auto kernel = kernels::InoutUpdateKernel<A>(*simulation);
-                //                 cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                //                 // set to simulation->properties->vertical_nodes - 2 to also treat corners
-                //             }
-                //         );
-                //         event.wait();
-                //     }
+                    /**
+                     * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
+                     */
+                    void perform_inout_update()
+                    {
+                        auto event = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = kernels::InoutUpdateKernel<A>(*simulation);
+                                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
+                                // set to simulation->properties->vertical_nodes - 2 to also treat corners
+                            }
+                        );
+                        event.wait();
+                    }
 
-                //     public:
+                    public:
 
-                //     /**
-                //      * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last iteration. 
-                //      */
-                //     inline void execute() override
-                //     {
-                //         future = hpx::async
-                //         (
-                //             [&]
-                //             {
-                //                 while(simulation->control->is_execution_allowed())
-                //                 {
-                //                     simulation->control->reset_timer();
+                    /**
+                     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last iteration. 
+                     */
+                    inline void execute() override
+                    {
+                        future = hpx::async
+                        (
+                            [&]
+                            {
+                                // std::vector<int8_t> pi(simulation->decomposed_domain->expanded_node_count, 0);
+                                // queue->copy(
+                                //     simulation->data->phase_information, 
+                                //     pi.data(), 
+                                //     simulation->decomposed_domain->expanded_node_count
+                                // ).wait();
+                                // console::print_phase_vector(pi, simulation->decomposed_domain->expanded_horizontal_nodes);
+                                while(simulation->control->is_execution_allowed())
+                                {
+                                    simulation->control->reset_timer();
 
-                //                     emplace_bounce_back();
-                //                     perform_inout_update();
-                //                     stream_and_collide();
+                                    emplace_bounce_back();
+                                    perform_inout_update();
+                                    stream_and_collide();
 
-                //                     double *tmp = simulation->data->distribution_values_1;
-                //                     simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
-                //                     simulation->data->distribution_values_0 = tmp;
+                                    double *tmp = simulation->data->distribution_values_1;
+                                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
+                                    simulation->data->distribution_values_0 = tmp;
 
-                //                     simulation->control->finalize_iteration();
-                //                 }
-                //             }
-                //         );
-                //     }
+                                    simulation->control->finalize_iteration();
+                                }
+                            }
+                        );
+                    }
 
-                //     explicit NonLinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) {}; 
-                // };
+                    explicit NonLinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) {}; 
+                };
 
 // Debug non-linear two-lattice ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -641,60 +662,60 @@ namespace lbm
                     }; 
                 };
 
-                // /**
-                //  * @brief   Initializes a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLattice` algorithm object and 
-                //  *          returns a unique pointer to this object.
-                //  * 
-                //  * @param[in]   properties  the data layout and scenario are determined from this object
-                //  * @param[in]   queue       the SYCL queue on which the algorithm operates.
-                //  * 
-                //  * @return  a unique pointer to a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLattice` object
-                //  */
-                // std::unique_ptr<execution::SYCLAlgorithm> get_algorithm_pointer
-                // (
-                //     const core::Properties &properties, 
-                //     sycl::queue &queue
-                // )
-                // {
-                //     std::unique_ptr<execution::SYCLAlgorithm> algorithm;
+                /**
+                 * @brief   Initializes a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLattice` algorithm object and 
+                 *          returns a unique pointer to this object.
+                 * 
+                 * @param[in]   properties  the data layout and scenario are determined from this object
+                 * @param[in]   queue       the SYCL queue on which the algorithm operates.
+                 * 
+                 * @return  a unique pointer to a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLattice` object
+                 */
+                std::unique_ptr<execution::SYCLAlgorithm> get_algorithm_pointer
+                (
+                    const core::Properties &properties, 
+                    sycl::queue &queue
+                )
+                {
+                    std::unique_ptr<execution::SYCLAlgorithm> algorithm;
 
-                //     if(properties.data_layout == "stream")
-                //     {
-                //         algorithm = std::make_unique<
-                //             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>
-                //                 >(queue);
-                //         lbm::core::setup_pipe_flow_environment<core::access::StreamAccessor>(
-                //             *algorithm->simulation, queue, properties.scenario
-                //         );
-                //     }
-                //     else if(properties.data_layout == "collision")
-                //     {
-                //         algorithm = std::make_unique<
-                //             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>
-                //                 >(queue);
-                //         lbm::core::setup_pipe_flow_environment<core::access::CollisionAccessor>(
-                //             *algorithm->simulation, queue, properties.scenario
-                //         );
-                //     }
-                //     else if(properties.data_layout == "bundle")
-                //     {
-                //         algorithm = std::make_unique<
-                //             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>
-                //                 >(queue);
-                //         lbm::core::setup_pipe_flow_environment<core::access::BundleAccessor>(
-                //             *algorithm->simulation, queue, properties.scenario
-                //         );
-                //     }
-                //     else
-                //     {
-                //         throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
-                //     }
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>
+                                >(queue);
+                        lbm::core::setup_decomposed_non_buffered<core::access::StreamAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>
+                                >(queue);
+                        lbm::core::setup_decomposed_non_buffered<core::access::CollisionAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>
+                                >(queue);
+                        lbm::core::setup_decomposed_non_buffered<core::access::BundleAccessor>(
+                            *algorithm->simulation, queue, properties.scenario
+                        );
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
 
-                //     *(algorithm->simulation->data->distribution_values_1) = 
-                //         *(algorithm->simulation->data->distribution_values_0); 
+                    *(algorithm->simulation->data->distribution_values_1) = 
+                        *(algorithm->simulation->data->distribution_values_0); 
 
-                //     return algorithm;
-                // }
+                    return algorithm;
+                }
 
                 /**
                  * @brief   Initializes a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug` algorithm object and 

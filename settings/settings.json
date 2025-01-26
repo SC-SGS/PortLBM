@@ -2,15 +2,15 @@
     "algorithmic": {
         "algorithm": "gpu-two-lattice",
         "dataLayout": "stream",
-        "debugMode": true,
+        "debugMode": false,
         "relaxationTime": 1.0,
         "resultsToCsv": false,
-        "timeSteps": 1000
+        "timeSteps": 100000
     },
     "domain": {
-        "horizontalNodes": 200,
+        "horizontalNodes": 10000,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 50
+        "verticalNodes": 9000
     },
     "inlets": {
         "density": 1.0999999977648258,

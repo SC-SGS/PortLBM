@@ -613,9 +613,6 @@ namespace lbm
                         throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
                     }
 
-                    *(algorithm->simulation->data->distribution_values_1) = 
-                        *(algorithm->simulation->data->distribution_values_0); 
-
                     return algorithm;
                 }
 
@@ -674,8 +671,6 @@ namespace lbm
                     {
                         throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
                     }
-                    *(algorithm->simulation->data->distribution_values_1) = 
-                        *(algorithm->simulation->data->distribution_values_0); 
 
                     return algorithm;
                 }

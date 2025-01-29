@@ -8,9 +8,9 @@
         "timeSteps": 100000
     },
     "domain": {
-        "horizontalNodes": 10000,
+        "horizontalNodes": 1000,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 9000
+        "verticalNodes": 1000
     },
     "inlets": {
         "density": 1.0999999977648258,

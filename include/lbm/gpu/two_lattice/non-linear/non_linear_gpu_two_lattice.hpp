@@ -80,8 +80,6 @@ namespace lbm
                             [&](sycl::handler &cgh)
                             {
                                 auto kernel = non_linear::kernels::StreamCollideKernel<A>(*simulation);
-                                // std::cout << "Global range: " << simulation->decomposed_domain->expanded_vertical_nodes << " x " << simulation->decomposed_domain->expanded_horizontal_nodes << "\n";
-                                // std::cout << "Local range: " << simulation->decomposed_domain->subdomain_height << " x " << simulation->decomposed_domain->subdomain_width << "\n";
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
@@ -92,33 +90,35 @@ namespace lbm
                                             simulation->decomposed_domain->subdomain_width,
                                             simulation->decomposed_domain->subdomain_height
                                         )
-                                    ), kernel);
+                                    ), 
+                                    kernel
+                                );
                             }
                         );
                         event.wait();
-                        // if(!(simulation->control->get_current_iteration() % 4))
-                        // {
-                        //     queue->copy(
-                        //         simulation->results->densities_gpu, 
-                        //         simulation->results->densities_cpu->data(), 
-                        //         simulation->results->densities_cpu->size()
-                        //     );//.wait();
-                        //     queue->copy(
-                        //         simulation->results->x_velocities_gpu, 
-                        //         simulation->results->x_velocities_cpu->data(), 
-                        //         simulation->results->x_velocities_cpu->size()
-                        //     );//.wait();
-                        //     queue->copy(
-                        //         simulation->results->y_velocities_gpu, 
-                        //         simulation->results->y_velocities_cpu->data(), 
-                        //         simulation->results->y_velocities_cpu->size()
-                        //     );//.wait();
-                        //     queue->copy(
-                        //         simulation->results->absolute_velocities_gpu, 
-                        //         simulation->results->absolute_velocities_cpu->data(), 
-                        //         simulation->results->absolute_velocities_cpu->size()
-                        //     );//.wait();
-                        // }
+                        if(!(simulation->control->get_current_iteration() % 4))
+                        {
+                            queue->copy(
+                                simulation->results->densities_gpu, 
+                                simulation->results->densities_cpu->data(), 
+                                simulation->results->densities_cpu->size()
+                            );
+                            queue->copy(
+                                simulation->results->x_velocities_gpu, 
+                                simulation->results->x_velocities_cpu->data(), 
+                                simulation->results->x_velocities_cpu->size()
+                            );
+                            queue->copy(
+                                simulation->results->y_velocities_gpu, 
+                                simulation->results->y_velocities_cpu->data(), 
+                                simulation->results->y_velocities_cpu->size()
+                            );
+                            queue->copy(
+                                simulation->results->absolute_velocities_gpu, 
+                                simulation->results->absolute_velocities_cpu->data(), 
+                                simulation->results->absolute_velocities_cpu->size()
+                            );
+                        }
                     }
 
                     /**
@@ -141,7 +141,9 @@ namespace lbm
                                             simulation->decomposed_domain->subdomain_height, 
                                             simulation->decomposed_domain->subdomain_width
                                         )
-                                    ), kernel);
+                                    ), 
+                                    kernel
+                                );
                             }
                         );
                         event.wait();
@@ -175,13 +177,6 @@ namespace lbm
                         (
                             [&]
                             {
-                                // std::vector<int8_t> pi(simulation->decomposed_domain->expanded_node_count, 0);
-                                // queue->copy(
-                                //     simulation->data->phase_information, 
-                                //     pi.data(), 
-                                //     simulation->decomposed_domain->expanded_node_count
-                                // ).wait();
-                                // console::print_phase_vector(pi, simulation->decomposed_domain->expanded_horizontal_nodes);
                                 while(simulation->control->is_execution_allowed())
                                 {
                                     simulation->control->reset_timer();
@@ -244,7 +239,9 @@ namespace lbm
                                             simulation->decomposed_domain->subdomain_height,
                                             simulation->decomposed_domain->subdomain_width
                                         )
-                                    ), kernel);
+                                    ), 
+                                    kernel
+                                );
                             }
                         ).wait();
                     }
@@ -259,8 +256,6 @@ namespace lbm
                         (
                             [&](sycl::handler &cgh)
                             {
-                                //std::cout << "Global range: " << simulation->decomposed_domain->expanded_vertical_nodes << " x " << simulation->decomposed_domain->expanded_horizontal_nodes << "\n";
-                                //std::cout << "Local range: " << simulation->decomposed_domain->subdomain_height << " x " << simulation->decomposed_domain->subdomain_width << "\n";
                                 auto kernel = non_linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
@@ -272,7 +267,9 @@ namespace lbm
                                             simulation->decomposed_domain->subdomain_width,
                                             simulation->decomposed_domain->subdomain_height
                                         )
-                                    ), kernel);
+                                    ), 
+                                    kernel
+                                );
                             }
                         ).wait();
 
@@ -319,7 +316,9 @@ namespace lbm
                                             simulation->decomposed_domain->subdomain_height,
                                             simulation->decomposed_domain->subdomain_width
                                         )
-                                    ), kernel);
+                                    ), 
+                                    kernel
+                                );
                             }
                         ).wait();
                     }
@@ -348,29 +347,6 @@ namespace lbm
                         );
                     
                         update_macroscopic_observables();
-                        // queue->copy(
-                        //     simulation->results->x_velocities_gpu, 
-                        //     simulation->results->x_velocities_cpu->data(), 
-                        //     simulation->properties->domain_node_count
-                        // ).wait();
-
-                        // queue->copy(
-                        //     simulation->results->y_velocities_gpu, 
-                        //     simulation->results->y_velocities_cpu->data(), 
-                        //     simulation->properties->domain_node_count
-                        // ).wait();
-
-                        // queue->copy(
-                        //     simulation->results->absolute_velocities_gpu, 
-                        //     simulation->results->absolute_velocities_cpu->data(), 
-                        //     simulation->properties->domain_node_count
-                        // ).wait();
-
-                        // queue->copy(
-                        //     simulation->results->densities_gpu, 
-                        //     simulation->results->densities_cpu->data(), 
-                        //     simulation->properties->domain_node_count
-                        // ).wait();
 
                         std::cout 
                         << "Velocities: \n"
@@ -430,7 +406,9 @@ namespace lbm
                                             simulation->decomposed_domain->subdomain_height, 
                                             simulation->decomposed_domain->subdomain_width
                                         )
-                                    ), kernel);
+                                    ), 
+                                    kernel
+                                );
                             }
                         );
                         event.wait();
@@ -711,9 +689,6 @@ namespace lbm
                         throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
                     }
 
-                    *(algorithm->simulation->data->distribution_values_1) = 
-                        *(algorithm->simulation->data->distribution_values_0); 
-
                     return algorithm;
                 }
 
@@ -772,8 +747,6 @@ namespace lbm
                     {
                         throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
                     }
-                    *(algorithm->simulation->data->distribution_values_1) = 
-                        *(algorithm->simulation->data->distribution_values_0); 
 
                     return algorithm;
                 }

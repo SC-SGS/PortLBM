@@ -145,7 +145,11 @@ namespace lbm
 
             inline bool is_finished() const override { return algorithm->simulation->control->is_finished(); }
 
-            inline void block_until_finished() override { algorithm->block_until_finished(); }
+            inline void block_until_finished() override 
+            { 
+                algorithm->block_until_finished();
+                queue->wait(); 
+            }
 
             inline std::vector<double> &get_densities() const override 
             { return *algorithm->simulation->results->densities_cpu; }

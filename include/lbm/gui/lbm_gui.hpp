@@ -85,7 +85,7 @@ namespace lbm
          */
         struct Windows
         {
-            explicit Windows();
+            explicit Windows(bool debug);
 
             bool show_properties;
             bool show_simulation_status;
@@ -95,7 +95,9 @@ namespace lbm
             bool show_velocity;
             bool enable_live_visualization;
             bool enable_velocity_quiver;
+            bool show_debug_window;
             float menu_bar_size;
+            const char *node_content;
         };
 
         /**
@@ -237,12 +239,12 @@ namespace lbm
 
 // MEMBERS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+            std::unique_ptr<core::Properties> properties_gui;
             std::unique_ptr<Windows> windows;
             std::unique_ptr<SimulationControl> simulation_control;
             std::unique_ptr<Progress> progress;
             std::unique_ptr<Monitor> monitor;
             std::unique_ptr<Colormaps> colormaps;
-            std::unique_ptr<core::Properties> properties_gui;
             std::unique_ptr<VelocityQuiverData> velocity_quiver_data;
             std::unique_ptr<std::string> window_title;
             std::unique_ptr<FPSBuffer> fps_buffer;
@@ -327,6 +329,7 @@ namespace lbm
                 if (ImGui::Button("run", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)))
                 {
                     simulation_control->is_paused = false;
+                    progress->progress = 0;
 
                     if(!simulation_control->is_simulation_active)
                     {
@@ -335,6 +338,7 @@ namespace lbm
                         properties_gui.reset();
                         properties_gui = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
                         properties_changed = false;
+                        algorithm_handler->pause();
                         algorithm_handler->initialize();
 
                         colormaps->density_colormap_lower_scale = 
@@ -396,8 +400,12 @@ namespace lbm
                 {
                     simulation_control->is_paused = false;
                     simulation_control->is_simulation_active = false;
-                    progress->progress = 0;
                     algorithm_handler->pause();
+                    if(properties_gui->debug_mode)
+                    {
+                        algorithm_handler->block_until_finished();
+                    }
+                    progress->progress = 0;
                 }    
                 ImGui::PopStyleColor(3);
                 ImGui::PopID();
@@ -593,7 +601,7 @@ namespace lbm
                 if(!simulation_control->is_simulation_active)
                 {
                     ImGui::Text("Ready to start simulation.");
-                    ImGui::ProgressBar(0.0, ImVec2(0.975 * ImGui::GetWindowWidth(), 0.0f));
+                    ImGui::ProgressBar(0, ImVec2(0.975 * ImGui::GetWindowWidth(), 0.0f));
                 }
                 else if(simulation_control->is_paused)
                 {
@@ -810,7 +818,12 @@ namespace lbm
                         algorithm_selection();
                         data_layout_selection();
                         scenario_selection();
-                        //save_results_selection();
+                        if
+                        (
+                            ImGui::InputUnsignedInt("Frame update interval", &(properties_gui->frame_update_interval), 1, 10)
+                        )
+                        { properties_changed = true;}
+
                         properties_simulation_and_domain();
                         properties_fluid();
             
@@ -854,6 +867,64 @@ namespace lbm
                     }     
                     ImGui::End();
                 }    
+            }
+
+            void debug_message()
+            {
+                if(properties_gui->debug_mode && windows->show_debug_window)
+                {
+                    ImGui::SetNextWindowSize
+                    (
+                        {
+                            monitor->viewport->WorkSize.x / 3, 
+                            0
+                        }
+                    );
+
+                    ImGui::SetNextWindowPos
+                    (
+                        {
+                            monitor->viewport->WorkSize.x / 3, 
+                            windows->menu_bar_size + monitor->viewport->WorkSize.y / 3
+                        }
+                    );
+                    
+                    if(ImGui::Begin("Debug message", &windows->show_debug_window, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+                    {
+                        ImGui::TextColored({255, 0, 0, 1}, "Debug mode detected.");
+                        ImGui::TextWrapped(
+                            "In debug mode, the absolutes of all velocity values and the density values are printed on the node. "
+                            "The velocities can be retrieved through hovering over the according node as usual. "
+                            "Thorough debug information is printed to the console, which has massive performance impact. "
+                            "It is recommended to keep the lattice extents small for performance and readability reasons. "
+                            "Please consider that the console output might be poorly aligned if the output is too large. "
+                            "You can address this by copying the contents to an external reader and resizing accordingly. "
+                            "When aborting a simulation, the GUI has to wait for the console to finish printing. "
+                            "When running debug mode with a huge number of time steps, this can cause long waiting times. "
+                            "Debug mode is not intended for performance measures. "
+                        );
+                        ImGui::NewLine();
+                        ImGui::Dummy(ImVec2(ImGui::GetWindowSize().x * 0.099f, 0.0f));
+                        ImGui::SameLine();
+                        if (ImGui::Button("okay", ImVec2(ImGui::GetWindowSize().x * 0.35f, 0)))
+                        {
+                            windows->show_debug_window = false;
+                        }
+                        ImGui::SameLine();
+                        ImGui::Dummy(ImVec2(ImGui::GetWindowSize().x * 0.099f, 0.0f));
+                        ImGui::SameLine();
+                        if (ImGui::Button("disable", ImVec2(ImGui::GetWindowSize().x * 0.35f, 0)))
+                        {
+                            windows->show_debug_window = false;
+                            properties_gui->debug_mode = false;
+                            lbm::file_interaction::properties_to_json(*properties_gui);
+                            windows->node_content = nullptr;
+                        }
+                        ImGui::SameLine();
+                        ImGui::Dummy(ImVec2(ImGui::GetWindowSize().x * 0.099f, 0.0f));
+                    }     
+                    ImGui::End();
+                }  
             }
 
             /**
@@ -915,7 +986,7 @@ namespace lbm
                                     ImGui::GetContentRegionAvail().x - monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
                                     ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                                 ),
-                                ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs
+                                ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs|ImPlotFlags_NoTitle
                             )
                         ) 
                         {
@@ -934,7 +1005,7 @@ namespace lbm
                                 algorithm_handler->get_horizontal_nodes() - 2,
                                 colormaps->density_colormap_lower_scale,
                                 colormaps->density_colormap_upper_scale,
-                                nullptr, 
+                                windows->node_content,
                                 ImPlotPoint(0,0),
                                 ImPlotPoint(algorithm_handler->get_horizontal_nodes() - 2, algorithm_handler->get_vertical_nodes() - 2)
                             );
@@ -1063,7 +1134,7 @@ namespace lbm
                                     ImGui::GetContentRegionAvail().x - monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
                                     ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                                 ),
-                                ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs
+                                ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs|ImPlotFlags_NoTitle
                             )
                         ) 
                         {
@@ -1083,7 +1154,7 @@ namespace lbm
                                 algorithm_handler->get_horizontal_nodes() - 2,
                                 colormaps->velocity_colormap_lower_scale, 
                                 colormaps->velocity_colormap_upper_scale, 
-                                nullptr, 
+                                windows->node_content,
                                 ImPlotPoint(0,0),
                                 ImPlotPoint(algorithm_handler->get_horizontal_nodes() - 2, algorithm_handler->get_vertical_nodes() - 2)
                             );
@@ -1099,7 +1170,7 @@ namespace lbm
                                 algorithm_handler->get_horizontal_nodes() - 2,
                                 -1,
                                 1, 
-                                nullptr, 
+                                nullptr,
                                 ImPlotPoint(0,0),
                                 ImPlotPoint(algorithm_handler->get_horizontal_nodes() - 2, algorithm_handler->get_vertical_nodes() - 2)
                             );
@@ -1184,11 +1255,11 @@ namespace lbm
 
             explicit Gui(const std::string &&window_title)
             :
-            windows(std::make_unique<Windows>()),
             simulation_control(std::make_unique<SimulationControl>()),
             progress(std::make_unique<Progress>()),
             colormaps(std::make_unique<Colormaps>()),
             properties_gui(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties("../settings/settings.json", -2))),
+            windows(std::make_unique<Windows>(properties_gui->debug_mode)),
             velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_gui->domain_node_count)),
             window_title(std::make_unique<std::string>(window_title)),
             properties_changed(false),
@@ -1260,9 +1331,10 @@ namespace lbm
 
                     properties_window();
 
+                    progress->progress = algorithm_handler->get_progress();
                     if(timer_framerate.elapsed() > 0.25)
                     {
-                        progress->progress = algorithm_handler->get_progress();
+                        
                         progress->frametime_backend = algorithm_handler->get_last_frametime();
                         progress->framerate_backend = 1 / (progress->frametime_backend * 0.001);
 
@@ -1331,9 +1403,13 @@ namespace lbm
 
                     density_window();
                     velocity_window();
+                    debug_message();
                     render();
                 }
+
                 algorithm_handler->pause();
+                if(simulation_control->is_simulation_active) algorithm_handler->block_until_finished();
+            
                 destroy();
             }
         };

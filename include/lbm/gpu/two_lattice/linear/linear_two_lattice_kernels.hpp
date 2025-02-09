@@ -647,7 +647,7 @@ namespace lbm
                         phase_information(simulation.data->phase_information),
                         destination(simulation.data->distribution_values_0),
                         horizontal_nodes(simulation.properties->horizontal_nodes),
-                        total_nodes(simulation.properties->buffered_node_count)
+                        total_nodes(simulation.properties->total_unexpanded_node_count)
                         {}
 
                         void operator()(const sycl::item<1> &id) const
@@ -745,7 +745,8 @@ namespace lbm
                             double x_velocity = 
                                 - 1 + (1 / outlet_density) * (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
                             
-                            double y_velocity = y_velocities[core::access::results::get_result_index(core::access::get_neighbor(current_border_node, 3, horizontal_nodes), horizontal_nodes)];
+                            double y_velocity = 
+                                y_velocities[core::access::results::get_result_index(core::access::get_neighbor(current_border_node, 3, horizontal_nodes), horizontal_nodes)];
 
                             source[A::at(
                                 core::access::get_neighbor(current_border_node, 8 - missing[0], horizontal_nodes), 

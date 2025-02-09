@@ -15,7 +15,7 @@
 
 #include "../../../include/lbm/gui/lbm_gui.hpp"
 
-lbm::gui::Windows::Windows() 
+lbm::gui::Windows::Windows(bool debug) 
 :
 show_properties(true),
 show_simulation_status(true),
@@ -25,8 +25,9 @@ show_density(true),
 show_velocity(true),
 enable_live_visualization(true),
 enable_velocity_quiver(false),
+show_debug_window(true),
 menu_bar_size(0.0f)
-{};
+{ node_content = debug ? "%g" : nullptr; };
 
 
 lbm::gui::SimulationControl::SimulationControl() 

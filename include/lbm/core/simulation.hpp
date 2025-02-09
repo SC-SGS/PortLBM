@@ -6,16 +6,18 @@
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.1
+ * @version     4.2
  * 
- * @date        January 2025
+ * @date        February 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
  */
 
-#ifndef SIMULATION_HPP
-#define SIMULATION_HPP
+#ifndef LBM_SIMULATION_HPP
+#define LBM_SIMULATION_HPP
+
+// Includes ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // LBM exceptions
 #include "../exceptions/exceptions.hpp"
@@ -37,6 +39,8 @@
 // HPX
 #include <hpx/chrono.hpp>
 
+// Core functionality /////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace lbm
 {
 
@@ -44,13 +48,13 @@ namespace lbm
     {
 
         /**
-         * @brief Returns the Maxwell-Boltzmann-Distribution for all directions in the order proposed by Mattila et al.
+         * @brief   Returns the Maxwell-Boltzmann-Distribution for all directions in the order proposed by Mattila et al.
          * 
-         * @param[in] x_velocity    x component of the velocity of the node in question
-         * @param[in] y_velocity    y component of the velocity of the node in question
-         * @param[in] density       density of the node in question
+         * @param[in]   x_velocity    x component of the velocity of the node in question
+         * @param[in]   y_velocity    y component of the velocity of the node in question
+         * @param[in]   density       density of the node in question
          * 
-         * @return a vector containing the distribution values
+         * @return  a vector containing the distribution values
          */
         inline 
         std::vector<double> maxwell_boltzmann_distribution
@@ -79,8 +83,8 @@ namespace lbm
             return result;
         }
 
-        /**
-         * @brief Returns the inverse direction of that specified.
+        /** 
+         * @brief  Returns the inverse direction of that specified. 
          */
         inline constexpr unsigned int invert_direction(const unsigned int dir) { return 8 - dir; }
 
@@ -89,41 +93,87 @@ namespace lbm
          */
         struct Properties
         {
-            // Algorithmic options
+            /* Algorithmic options */
 
-            std::string data_layout;
+            /**
+             * @brief   Possible values for the algorithm string are:
+             *        
+             *          - `"gpu-two-lattice"`
+             * 
+             *          - `"gpu-two-lattice-linear"`
+             * 
+             *          - `"gpu-swap"`
+             */
             std::string algorithm;
-            std::string scenario;
+
+            /**
+             * @brief   Possible values for the data layout string are:
+             *        
+             *          - `"stream"`
+             * 
+             *          - `"collide"`
+             * 
+             *          - `"bundle"`
+             */
+            std::string data_layout;
+
+            // If set, a mode with thorough console debug prints is entered.
             bool debug_mode;
-            double relaxation_time;
-            bool results_to_csv;
+
+            // This many time steps will be executed in total by the algorithm.
             unsigned int time_steps;
 
-            // Extents of the simulation domain
+            // Every `frame_update_interval` iterations, macroscopic observables are copied to the host
+            unsigned int frame_update_interval;
 
+            /* Simulation domain */
+
+            /**
+             * @brief   Possible values for the scenario string are:
+             * 
+             *          - `"Hagen-Poiseuille"`
+             * 
+             *          - `"walls"`
+             * 
+             *          - `"circle"`
+             *  
+             *          - `"square"`
+             * 
+             *          - `"plate"`
+             * 
+             *          - `"skyscraper"`
+             * 
+             *          - `"wing"`
+             * 
+             *          - `"porous"`
+             * 
+             * @see     core/domain_initialization.hpp
+             */
+            std::string scenario;
+
+            // Unbuffered amount of vertical nodes including an outer layer of ghost nodes
             unsigned int vertical_nodes;
+
+            // Unbuffered amount of vertical nodes including an outer layer of ghost nodes
             unsigned int horizontal_nodes;
-            
-            /** @brief Total amount of nodes including ghost nodes but excluding buffer nodes */
-            unsigned int non_buffered_node_count;
 
-            /** @brief Total amount of nodes including ghost nodes and buffer nodes */
-            unsigned int buffered_node_count;
+            // Total amount of nodes including ghost nodes and buffer nodes
+            unsigned int total_unexpanded_node_count;
 
-            /** @brief Total amount of node within the actual simulation domain, excluding ghost nodes */
+            // Total amount of node within the actual simulation domain, excluding ghost nodes
             unsigned int domain_node_count;
 
-            // Inlets
+            /* Physical */
 
             double inlet_velocity_x;
             double inlet_velocity_y;
             double inlet_density;
 
-            // Outlets
-
             double outlet_velocity_x;
             double outlet_velocity_y;
             double outlet_density;
+
+            double relaxation_time;
 
             /**
              * @brief Constructs a new properties object with the specified parameters.
@@ -134,23 +184,25 @@ namespace lbm
                 const std::string &&algorithm,
                 const std::string &&data_layout,
                 const bool debug_mode,
-                const bool results_to_csv,
-                const double relaxation_time,
                 const unsigned int time_steps,
+                const unsigned int frame_update_interval,
                 // Domain properties
-                const std::string &&obstacle,
+                const std::string &&scenario,
                 const unsigned int vertical_nodes,
                 const unsigned int horizontal_nodes,
-                // Inlets
+                // Physical
                 const double inlet_velocity_x,
                 const double inlet_velocity_y,
                 const double inlet_density,
-                // Outlets
                 const double outlet_velocity_x,
                 const double outlet_velocity_y,
-                const double outlet_density
+                const double outlet_density,
+                const double relaxation_time
             ); 
 
+            /**
+             * @brief   Returns a string where the data stored by this object is prepared for console output.
+             */
             std::string to_string() const;
         };
 
@@ -161,13 +213,22 @@ namespace lbm
         {
             private:
 
+            // Whether execution has been manually disallowed for this control object or not
             bool stopped;
 
+            // The current iteration of the targeted algorithm
             unsigned int current_iteration;
+
+            // The maximum amount of iterations allowed for the targeted algorithm
             unsigned int max_iterations;
+
+            // The current progress of the targeted algorithm in range [0,1]
             double progress;
 
+            // Pointer to a high resolution HPX timer that measures the time spent for performing one iteration
             std::unique_ptr<hpx::chrono::high_resolution_timer> timer;
+
+            // The last measured calculation time for one full lattice Boltzmann iteration
             double last_frametime;
 
             public:
@@ -265,7 +326,8 @@ namespace lbm
              * @brief   Checks whether the specified number is a power of four other than one, and returns the power.
              * 
              * @param[in]   x   the number in question 
-             * @return      the power if `x` is actually a power of 4 greater than `1`, or `0` otherwise
+             * 
+             * @return  the power if `x` is actually a power of 4 greater than `1`, or `0` otherwise
              */
             inline size_t which_power_of_4(size_t x)
             {
@@ -287,7 +349,8 @@ namespace lbm
              * @brief   Checks whether the specified number is a power of two other than one, and returns the power.
              * 
              * @param[in]   x   the number in question 
-             * @return      the power if `x` is actually a power of 2 greater than `1`, or `0` otherwise
+             * 
+             * @return  the power if `x` is actually a power of 2 greater than `1`, or `0` otherwise
              */
             inline size_t which_power_of_2(size_t x)
             {
@@ -307,23 +370,50 @@ namespace lbm
         }
 
         /**
-         * @brief   This structure stores data describing a simulation domain that is decomposed into equally sized 
-         *          subdomains to match their processing by GPUs. Decomposition is performed into a grid of subdomains.
-         *          The quantity and size of the subdomains is specified both vertically and horizontally. Furthermore,
-         *          the expanded extents of the entire domain are stored. If subdomains are to be separated by a buffer
-         *          grid, additional nodes are planned in when calculating the new extents of the total domain.
-         *          The algorithm utilizing the buffers is responsible for addressing it properly. This structure is
-         *          not intended to be used to govern buffer interactions.
+         * @brief   This structure stores data describing the simulation domain on which an algorithm operates. It
+         *          prepares a suitable description of a domain for particular algorithms based on constructors 
+         *          accepting inputs from the `core::Properties` structure. The `Domain` object specifies the domain
+         *          on which the algorithm actually operates, which is only equivalent to what the `core::Properties`
+         *          object contains when no buffering and no decomposition are involved, that is, for the linear two-
+         *          lattice algorithm.
+         * 
+         *          In the case of a non-buffered and non-decomposed domain, the grid extents are just taken over from
+         *          the according `core::Properties` object. There is one subdomain, and its extents match that of the
+         *          entire domain. In this case, this object is used for convenience to facilitate defining methods
+         *          that work for multiple algorithms.
+         *  
+         *          In the case of a non-buffered and decomposed domain, as it is used for the non-linear two-lattice
+         *          algorithm, the domain is expanded to match the extents of the work groups. The decomposition is
+         *          performed depending on the maximum work group size of the device.
+         * 
+         *          In the case of a buffered and decomposed domain, as it is used for the swap algorithm, the behavior
+         *          is generally the same as for the non-buffered decomposed domain with the difference that nodes for
+         *          a buffer grid are added that are not considered part of any particular subdomain. The domain object
+         *          offers no functionality to deal with these buffers; this is considered the responsibility of the
+         *          algorithm.
+         * 
          */
-        struct DecomposedDomain
+        struct Domain
         {
-            unsigned int expanded_node_count;
-            unsigned int expanded_horizontal_nodes;
-            unsigned int expanded_vertical_nodes;
+            // The total amount of nodes in this domain. Buffer nodes are included for buffered domains.
+            unsigned int total_node_count;
 
-            unsigned int subdomain_height;
-            unsigned int subdomain_width;
+            // The total amount of horizontal nodes in this domain. Buffer nodes are included for buffered domains.
+            unsigned int horizontal_nodes;
+
+            // The total amount of vertical nodes in this domain. Buffer nodes are included for buffered domains.
+            unsigned int vertical_nodes;
+
+            // The amount of vertical nodes per subdomain
+            unsigned int subdomain_vertical_nodes;
+
+            // The amount of horizontal nodes per subdomain
+            unsigned int subdomain_horizontal_nodes;
+
+            // The amount of subdomains in vertical direction
             unsigned int subdomain_count_vertical;
+
+            // The amount of subdomains in horizontal direction
             unsigned int subdomain_count_horizontal;
 
             /**
@@ -338,12 +428,28 @@ namespace lbm
              * @param[in]   max_work_group_size         the maximum work group size of the target device
              * @param[in]   buffered                    whether or not buffer nodes are to be planned in or not
              */
-            explicit DecomposedDomain
+            explicit Domain
             (
                 const unsigned int unexpanded_horizontal_nodes,
                 const unsigned int unexpanded_vertical_nodes,
                 const size_t max_work_group_size,
                 const bool buffered = false 
+            );
+
+            /**
+             * @brief   Constructs a non-decomposed domain structure where the new total dimensions correspond to those
+             *          specified in the `core::Properties` object. There is only one subdomain that has the extents of
+             *          the entire grid.
+             * 
+             * @param[in]   horizontal_nodes    the amount of horizontal nodes in the original domain including ghost 
+             *                                  nodes
+             * @param[in]   vertical_nodes      the amount of vertical nodes in the original domain including ghost
+             *                                  nodes
+             */
+            explicit Domain
+            (
+                const unsigned int horizontal_nodes,
+                const unsigned int vertical_nodes
             );
         };
 
@@ -354,6 +460,7 @@ namespace lbm
         {
             private:
 
+            // This SYCL queue is used to allocate the device memory and to transfer results to the host.
             std::shared_ptr<sycl::queue> queue;
 
             public:
@@ -368,46 +475,48 @@ namespace lbm
              */
             std::unique_ptr<std::vector<double>> densities_cpu;
 
-            /** @brief  GPU-allocated densities */
+            // GPU-allocated densities
             double *densities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the x components of the velocity vectors of all nodes 
-             *          in the simulation domain. Solid nodes should always have a zero component and are not differenciated
-             *          further regarding their velocities. All differenciation between solid and fluid nodes is realized
-             *          through the density values.
+             *          in the simulation domain. Solid nodes should always have a zero component and are not 
+             *          differenciated further regarding their velocities. All differenciation between solid and fluid
+             *          nodes is realized through the density values.
              */
             std::unique_ptr<std::vector<double>> x_velocities_cpu;
 
-            /** @brief  GPU-allocated x components of the velocity vectors */
+            // GPU-allocated x components of the velocity vectors
             double *x_velocities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the y components of the velocity vectors of all nodes 
-             *          in the simulation domain. Solid nodes should always have a zero component and are not differenciated
-             *          further regarding their velocities. All differenciation between solid and fluid nodes is realized
-             *          through the density values.
+             *          in the simulation domain. Solid nodes should always have a zero component and are not 
+             *          differenciated further regarding their velocities. All differenciation between solid and fluid 
+             *          nodes is realized through the density values.
              */
             std::unique_ptr<std::vector<double>> y_velocities_cpu;
 
-            /** @brief  GPU-allocated y components of the velocity vectors */
+            // GPU-allocated y components of the velocity vectors
             double *y_velocities_gpu;
 
             /**
-             * @brief   A unique pointer to a vector containing the absolutes of the velocity vectors of each node.
-             *          It is required for visualization purposes only and remains unused otherwise.
+             * @brief   A unique pointer to a vector containing the absolutes of the velocity vectors of each node. It
+             *          is required for visualization purposes only and remains unused otherwise.
              */
             std::unique_ptr<std::vector<double>> absolute_velocities_cpu;
 
-            /** @brief  GPU-allocated absolutes of the velocity vectors */
+            // GPU-allocated absolutes of the velocity vectors
             double *absolute_velocities_gpu;
 
             /**
-             * @brief   Constructs a new simulation results object based on the provided properties structure.
-             *          The internal vectors are initialized with the correct size and filled up with values such as all nodes
-             *          were solid.
+             * @brief   Constructs a new simulation results object based on the provided properties structure. The 
+             *          internal vectors are initialized with the correct size and filled up with values such as all
+             *          nodes were solid.
              * 
-             * @param[in] size the size of each vector should be set to the amount of actual nodes (neither ghost nor buffer)
+             * @param[in]   size    the size of each vector should be set to the amount of actual nodes (neither ghost
+             *                      nor buffer)
+             * @param[in]   queue   the SYCL queue used to allocate the result arrays on the device
              */
             explicit Results(const size_t &size, sycl::queue &queue);
 
@@ -427,22 +536,55 @@ namespace lbm
         {
             private:
 
+            // This SYCL queue is used to allocate the device memory.
             std::shared_ptr<sycl::queue> queue;
 
             public:
 
+            /**
+             * @brief   This GPU-allocated array stores the phase information of every node in the simulation domain.
+             *          The following values are used:
+             *          
+             *          - `1` for solid nodes; these are only considered when preparing bounce-back
+             *          
+             *          - `0` for fluid nodes; these are considered for streaming and inout handling
+             * 
+             *          - `-1` for ghost and buffer nodes; ghost nodes are never explicitly considered
+             */
             int8_t *phase_information;
 
+            /**
+             * @brief   This GPU-allocated array stores the distribution values of all nodes in the simulation domain.
+             *          The storage pattern is defined by the data layout on which the algorithm operates. All 
+             *          algorithms use this array.
+             */
             double *distribution_values_0;
 
+            /**
+             * @brief   This GPU-allocated array is only used for the linear and non-linear two-lattice algorithm,
+             *          in which case it also contains the distribution values. For the swap algorithm, it remains
+             *          uninitialized, that is, a `nullptr`.
+             */
             double *distribution_values_1;
 
             /**
              * @brief Constructs a new Data object with an accessor object of the specified type.
              * 
-             * @param[in] buffered_node_count the amount of nodes in the lattice including ghosts and buffers.
+             * @param[in] total_unexpanded_node_count the amount of nodes in the lattice including ghosts and buffers.
              */
-            explicit Data(const size_t &total_node_count, const sycl::queue &queue, bool two_lattice);
+
+            /**
+             * @brief   Constructs a new `Data` object that contains the phase information and the distribution values.
+             *          The array `distribution_values_1` is only initialized for the linear and non-linear two-lattice
+             *          algorithm.
+             * 
+             * @param[in]   total_node_count    the total amount of nodes in the domain including buffer and ghost 
+             *                                  nodes
+             * @param[in]   queue               the SYCL queue used to allocate the data on the device
+             * @param[in]   two_lattice         whether or not the data object is intended for use with a two-lattice
+             *                                  algorithm
+             */
+            explicit Data(const size_t total_node_count, sycl::queue &queue, const bool two_lattice);
 
             ~Data()
             {
@@ -453,7 +595,7 @@ namespace lbm
         };
 
         /**
-         * @brief This structure contains all data that is related to the simulation.
+         * @brief   This structure contains all data that is related to the simulation.
          */
         struct Simulation
         {
@@ -461,11 +603,15 @@ namespace lbm
             std::unique_ptr<Data> data;
             std::unique_ptr<Results> results;
             std::unique_ptr<Control> control;
-            std::unique_ptr<DecomposedDomain> decomposed_domain;
+            std::unique_ptr<Domain> domain;
 
             /**
-             * @brief Constructor for the Simulation struct.
-             * @throws `lbm::exceptions::json::PropertyArgumentException` if an unknown data layout is read from the JSON file
+             * @brief   This struct contains all data required for a GPU lattice Boltzmann implementation.
+             * 
+             * @param[in]   queue   the SYCL queue used for interactions with the device
+             * 
+             * @throws  `lbm::exceptions::json::PropertyArgumentException` if an unknown data layout is read from the 
+             *          JSON file
              */
             explicit Simulation(sycl::queue &queue);
         };

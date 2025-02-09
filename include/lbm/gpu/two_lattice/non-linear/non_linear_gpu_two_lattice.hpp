@@ -83,12 +83,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->expanded_vertical_nodes,
-                                            simulation->decomposed_domain->expanded_horizontal_nodes
+                                            simulation->domain->vertical_nodes,
+                                            simulation->domain->horizontal_nodes
                                         ),
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->subdomain_width,
-                                            simulation->decomposed_domain->subdomain_height
+                                            simulation->domain->subdomain_horizontal_nodes,
+                                            simulation->domain->subdomain_vertical_nodes
                                         )
                                     ), 
                                     kernel
@@ -96,7 +96,7 @@ namespace lbm
                             }
                         );
                         event.wait();
-                        if(!(simulation->control->get_current_iteration() % 4))
+                        if(!(simulation->control->get_current_iteration() % simulation->properties->frame_update_interval))
                         {
                             queue->copy(
                                 simulation->results->densities_gpu, 
@@ -134,12 +134,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->expanded_vertical_nodes, 
-                                            simulation->decomposed_domain->expanded_horizontal_nodes
+                                            simulation->domain->vertical_nodes, 
+                                            simulation->domain->horizontal_nodes
                                         ),
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->subdomain_height, 
-                                            simulation->decomposed_domain->subdomain_width
+                                            simulation->domain->subdomain_vertical_nodes, 
+                                            simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
                                     kernel
@@ -232,12 +232,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->expanded_vertical_nodes,
-                                            simulation->decomposed_domain->expanded_horizontal_nodes 
+                                            simulation->domain->vertical_nodes,
+                                            simulation->domain->horizontal_nodes 
                                         ),
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->subdomain_height,
-                                            simulation->decomposed_domain->subdomain_width
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
                                     kernel
@@ -260,12 +260,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->expanded_vertical_nodes,
-                                            simulation->decomposed_domain->expanded_horizontal_nodes
+                                            simulation->domain->vertical_nodes,
+                                            simulation->domain->horizontal_nodes
                                         ),
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->subdomain_width,
-                                            simulation->decomposed_domain->subdomain_height
+                                            simulation->domain->subdomain_horizontal_nodes,
+                                            simulation->domain->subdomain_vertical_nodes
                                         )
                                     ), 
                                     kernel
@@ -309,12 +309,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->expanded_vertical_nodes,
-                                            simulation->decomposed_domain->expanded_horizontal_nodes 
+                                            simulation->domain->vertical_nodes,
+                                            simulation->domain->horizontal_nodes 
                                         ),
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->subdomain_height,
-                                            simulation->decomposed_domain->subdomain_width
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
                                     kernel
@@ -333,7 +333,7 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_1, 
                             distribution_values->data(), 
-                            9 * simulation->decomposed_domain->expanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout 
@@ -342,8 +342,8 @@ namespace lbm
                         
                         lbm::console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->decomposed_domain->expanded_horizontal_nodes, 
-                            simulation->decomposed_domain->expanded_vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );
                     
                         update_macroscopic_observables();
@@ -372,7 +372,7 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_1, 
                             distribution_values->data(), 
-                            9 * simulation->decomposed_domain->expanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout 
@@ -381,8 +381,8 @@ namespace lbm
 
                         lbm::console::print_distribution_values<A>(
                             *distribution_values,
-                            simulation->decomposed_domain->expanded_horizontal_nodes, 
-                            simulation->decomposed_domain->expanded_vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );    
                     }
 
@@ -399,12 +399,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->expanded_vertical_nodes, 
-                                            simulation->decomposed_domain->expanded_horizontal_nodes
+                                            simulation->domain->vertical_nodes, 
+                                            simulation->domain->horizontal_nodes
                                         ),
                                         sycl::range<2>(
-                                            simulation->decomposed_domain->subdomain_height, 
-                                            simulation->decomposed_domain->subdomain_width
+                                            simulation->domain->subdomain_vertical_nodes, 
+                                            simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
                                     kernel
@@ -416,7 +416,7 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_0, 
                             distribution_values->data(), 
-                            9 * simulation->decomposed_domain->expanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
@@ -424,8 +424,8 @@ namespace lbm
 
                         lbm::console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->decomposed_domain->expanded_horizontal_nodes, 
-                            simulation->decomposed_domain->expanded_vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );
                     }
 
@@ -448,7 +448,7 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_0, 
                             distribution_values->data(), 
-                            9 * simulation->decomposed_domain->expanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout 
@@ -457,8 +457,8 @@ namespace lbm
 
                         lbm::console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->decomposed_domain->expanded_horizontal_nodes, 
-                            simulation->decomposed_domain->expanded_vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );
                     }
 
@@ -476,22 +476,22 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_0, 
                             distribution_values->data(), 
-                            9 * simulation->decomposed_domain->expanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->decomposed_domain->expanded_horizontal_nodes, 
-                            simulation->decomposed_domain->expanded_vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );
 
                         queue->copy(
                             simulation->data->phase_information, 
                             phase_information->data(), 
-                            simulation->decomposed_domain->expanded_node_count
+                            simulation->domain->total_node_count
                         ).wait();
 
-                        console::print_phase_vector(*phase_information, simulation->decomposed_domain->expanded_horizontal_nodes);
+                        console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
 
                         std::cout 
                         << "\033[36mNow running GPU two-lattice for " 
@@ -514,15 +514,15 @@ namespace lbm
                         std::cout << "\n";
                         std::cout << "Buffered domain:\n";
                         std::cout << "------------------------------------------------------------------------------------\n";
-                        std::cout << "\texpanded_node_count = " << simulation->decomposed_domain->expanded_node_count << "\n";
-                        std::cout << "\texpanded_horizontal_nodes = " << simulation->decomposed_domain->expanded_horizontal_nodes << "\n";
-                        std::cout << "\texpanded_vertical_nodes = " << simulation->decomposed_domain->expanded_vertical_nodes << "\n";
+                        std::cout << "\texpanded_node_count = " << simulation->domain->total_node_count << "\n";
+                        std::cout << "\texpanded_horizontal_nodes = " << simulation->domain->horizontal_nodes << "\n";
+                        std::cout << "\texpanded_vertical_nodes = " << simulation->domain->vertical_nodes << "\n";
 
-                        std::cout << "\tsubdomain_width = " << simulation->decomposed_domain->subdomain_width << "\n";
-                        std::cout << "\tsubdomain_height = " << simulation->decomposed_domain->subdomain_height << "\n";
+                        std::cout << "\tsubdomain_width = " << simulation->domain->subdomain_horizontal_nodes << "\n";
+                        std::cout << "\tsubdomain_height = " << simulation->domain->subdomain_vertical_nodes << "\n";
 
-                        std::cout << "\tsubdomain_count_vertical = " << simulation->decomposed_domain->subdomain_count_vertical << "\n";
-                        std::cout << "\tsubdomain_count_horizontal = " << simulation->decomposed_domain->subdomain_count_horizontal << "\n";
+                        std::cout << "\tsubdomain_count_vertical = " << simulation->domain->subdomain_count_vertical << "\n";
+                        std::cout << "\tsubdomain_count_horizontal = " << simulation->domain->subdomain_count_horizontal << "\n";
                         std::cout << "\n";
 
                         future = hpx::async
@@ -613,10 +613,10 @@ namespace lbm
                     all_x_velocities(std::make_unique<std::vector<double>>()), 
                     all_y_velocities(std::make_unique<std::vector<double>>()), 
                     distribution_values(
-                        std::make_unique<std::vector<double>>(9 * simulation->decomposed_domain->expanded_node_count, 0)
+                        std::make_unique<std::vector<double>>(9 * simulation->domain->total_node_count, 0)
                     ),
                     temp_macroscopic_observables(std::make_unique<std::vector<double>>(simulation->properties->domain_node_count, 0)),
-                    phase_information(std::make_unique<std::vector<int8_t>>(simulation->decomposed_domain->expanded_node_count, 0)),
+                    phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
                     current_iteration(0)
                     {
                         all_densities->reserve(
@@ -662,7 +662,7 @@ namespace lbm
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>
                                 >(queue);
-                        lbm::core::setup_decomposed_non_buffered<core::access::StreamAccessor>(
+                        core::domain_initialization::setup_domain<core::access::StreamAccessor, core::access::decomposed::NonBufferedNodeAccess>(
                             *algorithm->simulation, queue, properties.scenario
                         );
                     }
@@ -671,7 +671,7 @@ namespace lbm
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>
                                 >(queue);
-                        lbm::core::setup_decomposed_non_buffered<core::access::CollisionAccessor>(
+                        core::domain_initialization::setup_domain<core::access::CollisionAccessor, core::access::decomposed::NonBufferedNodeAccess>(
                             *algorithm->simulation, queue, properties.scenario
                         );
                     }
@@ -680,7 +680,7 @@ namespace lbm
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>
                                 >(queue);
-                        lbm::core::setup_decomposed_non_buffered<core::access::BundleAccessor>(
+                        core::domain_initialization::setup_domain<core::access::BundleAccessor, core::access::decomposed::NonBufferedNodeAccess>(
                             *algorithm->simulation, queue, properties.scenario
                         );
                     }
@@ -717,7 +717,7 @@ namespace lbm
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::StreamAccessor>
                                 >(queue);
                         std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-                        lbm::core::setup_decomposed_non_buffered<core::access::StreamAccessor>(
+                        core::domain_initialization::setup_domain<core::access::StreamAccessor, core::access::decomposed::NonBufferedNodeAccess>(
                             *algorithm->simulation, queue, properties.scenario
                         );
                     }
@@ -728,7 +728,7 @@ namespace lbm
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::CollisionAccessor>
                                 >(queue);
                         std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-                        lbm::core::setup_decomposed_non_buffered<core::access::CollisionAccessor>(
+                        core::domain_initialization::setup_domain<core::access::CollisionAccessor, core::access::decomposed::NonBufferedNodeAccess>(
                             *algorithm->simulation, queue, properties.scenario
                         );
                     }
@@ -739,7 +739,7 @@ namespace lbm
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::BundleAccessor>
                                 >(queue);
                         std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-                        lbm::core::setup_decomposed_non_buffered<core::access::BundleAccessor>(
+                        core::domain_initialization::setup_domain<core::access::BundleAccessor, core::access::decomposed::NonBufferedNodeAccess>(
                             *algorithm->simulation, queue, properties.scenario
                         );
                     }

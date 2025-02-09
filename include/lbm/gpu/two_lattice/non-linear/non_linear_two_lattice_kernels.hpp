@@ -81,8 +81,8 @@ namespace lbm
                         phase_information(simulation.data->phase_information),
                         source(simulation.data->distribution_values_0),
                         destination(simulation.data->distribution_values_1),
-                        vertical_nodes(simulation.decomposed_domain->expanded_vertical_nodes),
-                        horizontal_nodes(simulation.decomposed_domain->expanded_horizontal_nodes)
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes(simulation.domain->horizontal_nodes)
                         {}
 
                         /**
@@ -152,8 +152,8 @@ namespace lbm
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
                         absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                        vertical_nodes(simulation.decomposed_domain->expanded_vertical_nodes),
-                        horizontal_nodes_expanded(simulation.decomposed_domain->expanded_horizontal_nodes),
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
                         horizontal_nodes_domain(simulation.properties->horizontal_nodes)
                         {}
 
@@ -251,8 +251,8 @@ namespace lbm
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
                         absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                        vertical_nodes(simulation.decomposed_domain->expanded_vertical_nodes),
-                        horizontal_nodes_expanded(simulation.decomposed_domain->expanded_horizontal_nodes),
+                        vertical_nodes(simulation.decomposed_domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.decomposed_domain->horizontal_nodes),
                         horizontal_nodes_domain(simulation.properties->horizontal_nodes)
                         {}
 
@@ -344,8 +344,8 @@ namespace lbm
                         densities(simulation.results->densities_gpu),
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
-                        vertical_nodes(simulation.decomposed_domain->expanded_vertical_nodes),
-                        horizontal_nodes_expanded(simulation.decomposed_domain->expanded_horizontal_nodes),
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
                         horizontal_nodes_domain(simulation.properties->horizontal_nodes),
                         relaxation_time_inverse(1 / simulation.properties->relaxation_time)
                         {}
@@ -445,8 +445,8 @@ namespace lbm
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
                         absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                        vertical_nodes_expanded(simulation.decomposed_domain->expanded_vertical_nodes),
-                        horizontal_nodes_expanded(simulation.decomposed_domain->expanded_horizontal_nodes),
+                        vertical_nodes_expanded(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
                         horizontal_nodes_domain(simulation.properties->horizontal_nodes),
                         relaxation_time_inverse(1 / simulation.properties->relaxation_time)
                         {}
@@ -501,15 +501,11 @@ namespace lbm
                                 if(sycl::isnan(flow_velocity_x) || flow_velocity_x > std::numeric_limits<float>::max()) flow_velocity_x = 0;
                                 if(sycl::isnan(flow_velocity_y) || flow_velocity_y > std::numeric_limits<float>::max()) flow_velocity_y = 0;
 
-                                densities[iteration_node_offset] = density;
-                                x_velocities[iteration_node_offset] = flow_velocity_x;
-                                y_velocities[iteration_node_offset] = flow_velocity_y;
+
 
                                 absolute_velocity = sycl::sqrt(flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y);
 
                                 if(sycl::isnan(absolute_velocity) || absolute_velocity > std::numeric_limits<float>::max()) absolute_velocity = 0;
-                                absolute_velocity_values[iteration_node_offset] = absolute_velocity;
-
 
                                 // Streaming and collision
                                 for (const auto& direction : core::constants::all_directions)
@@ -531,6 +527,10 @@ namespace lbm
 
                                     destination[A::at(linear_index, direction, horizontal_nodes_expanded * vertical_nodes_expanded)] = result;
                                 }
+                                densities[iteration_node_offset] = density;
+                                x_velocities[iteration_node_offset] = flow_velocity_x;
+                                y_velocities[iteration_node_offset] = flow_velocity_y;
+                                absolute_velocity_values[iteration_node_offset] = absolute_velocity;
                             }
                         }
                     };
@@ -578,8 +578,8 @@ namespace lbm
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
                         absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                        vertical_nodes_expanded(simulation.decomposed_domain->expanded_vertical_nodes),
-                        horizontal_nodes_expanded(simulation.decomposed_domain->expanded_horizontal_nodes),
+                        vertical_nodes_expanded(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
                         horizontal_nodes_domain(simulation.properties->horizontal_nodes),
                         relaxation_time_inverse(1 / simulation.properties->relaxation_time)
                         {}
@@ -683,8 +683,8 @@ namespace lbm
                         EmplaceBounceBackKernel(const core::Simulation &simulation):
                         phase_information(simulation.data->phase_information),
                         destination(simulation.data->distribution_values_0),
-                        horizontal_nodes(simulation.decomposed_domain->expanded_horizontal_nodes),
-                        total_nodes(simulation.decomposed_domain->expanded_node_count)
+                        horizontal_nodes(simulation.domain->horizontal_nodes),
+                        total_nodes(simulation.domain->total_node_count)
                         {}
 
                         void operator()(const sycl::nd_item<2> &nd_item) const
@@ -735,8 +735,8 @@ namespace lbm
                         y_velocities(simulation.results->y_velocities_gpu),
                         outlet_density(simulation.properties->outlet_density),
                         outlet_density_inverse(1 / simulation.properties->outlet_density),
-                        vertical_nodes(simulation.decomposed_domain->expanded_vertical_nodes),
-                        horizontal_nodes(simulation.decomposed_domain->expanded_horizontal_nodes),
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes(simulation.domain->horizontal_nodes),
                         horizontal_nodes_original(simulation.properties->horizontal_nodes)
                         {}
 
@@ -789,7 +789,7 @@ namespace lbm
                                 - 1 + (1 / outlet_density) * (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
                             
                             double y_velocity =
-                                y_velocities[core::access::decomposed::get_results_index(horizontal_nodes_original - 2, y, horizontal_nodes_original)];
+                                y_velocities[core::access::decomposed::get_results_index(horizontal_nodes_original - 3, y, horizontal_nodes_original)];
 
                             source[A::at(
                                 core::access::get_neighbor(current_border_node, 8 - missing[0], horizontal_nodes), 

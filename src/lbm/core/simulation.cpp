@@ -3,11 +3,12 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann simulations.
+ * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann 
+ *              simulations.
  * 
- * @version     4.1
+ * @version     4.2
  * 
- * @date        January 2025
+ * @date        February 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -24,45 +25,42 @@ lbm::core::Properties::Properties
     const std::string &&algorithm,
     const std::string &&data_layout,
     const bool debug_mode,
-    const bool results_to_csv,
-    const double relaxation_time,
     const unsigned int time_steps,
+    const unsigned int frame_update_interval,
     // Domain properties
     const std::string &&scenario,
     const unsigned int vertical_nodes,
     const unsigned int horizontal_nodes,
-    // Inlets
+    // Physical
     const double inlet_velocity_x,
     const double inlet_velocity_y,
     const double inlet_density,
-    // Outlets
     const double outlet_velocity_x,
     const double outlet_velocity_y,
-    const double outlet_density
+    const double outlet_density,
+    const double relaxation_time
 ) 
 :
 // Algorithmic properties
 algorithm(algorithm),
 data_layout(data_layout),
 debug_mode(debug_mode),
-results_to_csv(results_to_csv),
-relaxation_time(relaxation_time),
 time_steps(time_steps),
+frame_update_interval(frame_update_interval),
 // Domain properties
 scenario(scenario),
-vertical_nodes(vertical_nodes+2),
-horizontal_nodes(horizontal_nodes+2),
-non_buffered_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
-buffered_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
-domain_node_count(vertical_nodes * (horizontal_nodes + 2)),
-// Inlets
+vertical_nodes(vertical_nodes + 2),
+horizontal_nodes(horizontal_nodes + 2),
+total_unexpanded_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
+domain_node_count(vertical_nodes * horizontal_nodes),
+// Physical
 inlet_velocity_x(inlet_velocity_x),
 inlet_velocity_y(inlet_velocity_y),
 inlet_density(inlet_density),
-// Outlets
 outlet_velocity_x(outlet_velocity_x),
 outlet_velocity_y(outlet_velocity_y),
-outlet_density(outlet_density)
+outlet_density(outlet_density),
+relaxation_time(relaxation_time)
 {};
 
 
@@ -85,41 +83,40 @@ std::string lbm::core::Properties::to_string() const
         "\tAlgorithm: {} \n"
         "\tData layout: {} \n"
         "\tDebug mode: {} \n"
-        "\tResults to CSV: {} \n"
-        "\tRelaxation time: {:.6f} \n"
         "\tTime steps: {} \n"
+        "\tFrame update interval: {} \n"
         "Domain properties: \n"
         "\tScenario: {}\n"
         "\tVertical nodes: {} \n"
         "\tHorizontal nodes: {} \n"
         "\tNode count: {} \n"
-        "Inlets: \n"
-        "\tVelocity: ({:.6f}, {:.6f})\n"
-        "\tDensity: {:.6f}\n"
-        "Outlets: \n"
-        "\tVelocity: ({:.6f}, {:.6f})\n"
-        "\tDensity: {:.6f}\n\n",
+        "Physical: \n"
+        "\tInlet velocity: ({:.6f}, {:.6f})\n"
+        "\tInlet density: {:.6f}\n"
+        "\tOutlet velocity: ({:.6f}, {:.6f})\n"
+        "\tOutlet density: {:.6f}\n"
+        "\tRelaxation time: {:.6f}\n\n",
         algorithm,
         data_layout,
         debug_mode,
-        results_to_csv,
-        relaxation_time,
         time_steps,
+        frame_update_interval,
         scenario,
         vertical_nodes,
         horizontal_nodes,
-        non_buffered_node_count,
+        total_unexpanded_node_count,
         inlet_velocity_x,
         inlet_velocity_y,
         inlet_density,
         outlet_velocity_x,
         outlet_velocity_y,
-        outlet_density
+        outlet_density,
+        relaxation_time
     );
 }
 
 
-lbm::core::DecomposedDomain::DecomposedDomain
+lbm::core::Domain::Domain
 (
     const unsigned int unexpanded_horizontal_nodes,
     const unsigned int unexpanded_vertical_nodes,
@@ -131,8 +128,8 @@ lbm::core::DecomposedDomain::DecomposedDomain
     if (max_work_group_size & 0x1)
     {
         // ==> stripe subdomains with extents 1 and max_work_group_size
-        subdomain_width = max_work_group_size;
-        subdomain_height = 1;
+        subdomain_horizontal_nodes = max_work_group_size;
+        subdomain_vertical_nodes = 1;
     }
     else // max_work_group_size is guaranteed to be even, that is, a multiple of 2
     {
@@ -146,8 +143,8 @@ lbm::core::DecomposedDomain::DecomposedDomain
             size_t size = 1;
             for(int i = 0; i < power_4; ++i) { size *= 2; }
 
-            subdomain_width = size;
-            subdomain_height = size; 
+            subdomain_horizontal_nodes = size;
+            subdomain_vertical_nodes = size; 
         }
         else if (power_2) // Is max_work_group_size a power of two?
         {
@@ -156,27 +153,44 @@ lbm::core::DecomposedDomain::DecomposedDomain
             size_t height = 1;
             for(int i = 0; i < power_height; ++i) { height *= 2; }
 
-            subdomain_height = height;
-            subdomain_width = 2 * height; 
+            subdomain_vertical_nodes = height;
+            subdomain_horizontal_nodes = 2 * height; 
         }
         else // max_work_group_size is a multiple of two
         {
             //  ==> stripe subdomains with extents 2 and max_work_group_size / 2
-            subdomain_height = 2;
-            subdomain_width = max_work_group_size / 2; 
+            subdomain_vertical_nodes = 2;
+            subdomain_horizontal_nodes = max_work_group_size / 2; 
         }
     }
 
-    subdomain_count_vertical = ((unexpanded_vertical_nodes / subdomain_height) + 1);
-    if(!(unexpanded_vertical_nodes % subdomain_height)) { subdomain_count_vertical--; }
-    expanded_vertical_nodes = (subdomain_height + buffered) * subdomain_count_vertical - buffered;
+    subdomain_count_vertical = ((unexpanded_vertical_nodes / subdomain_vertical_nodes) + 1);
+    if(!(unexpanded_vertical_nodes % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
+    vertical_nodes = (subdomain_vertical_nodes + buffered) * subdomain_count_vertical - buffered;
     
-    subdomain_count_horizontal = ((unexpanded_horizontal_nodes / subdomain_width) + 1);
-    if(!(unexpanded_vertical_nodes % subdomain_width)) { subdomain_count_horizontal--; }
-    expanded_horizontal_nodes = (subdomain_width + buffered) * subdomain_count_horizontal - buffered;
+    subdomain_count_horizontal = ((unexpanded_horizontal_nodes / subdomain_horizontal_nodes) + 1);
+    if(!(unexpanded_vertical_nodes % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
+    horizontal_nodes = (subdomain_horizontal_nodes + buffered) * subdomain_count_horizontal - buffered;
 
-    expanded_node_count = expanded_vertical_nodes * expanded_horizontal_nodes;
+    total_node_count = vertical_nodes * horizontal_nodes;
 };
+
+
+lbm::core::Domain::Domain
+(
+    const unsigned int horizontal_nodes,
+    const unsigned int vertical_nodes
+)
+:
+total_node_count(horizontal_nodes * vertical_nodes),
+horizontal_nodes(horizontal_nodes),
+vertical_nodes(vertical_nodes),
+subdomain_vertical_nodes(vertical_nodes),
+subdomain_horizontal_nodes(horizontal_nodes),
+subdomain_count_vertical(1),
+subdomain_count_horizontal(1)
+{};
+
 
 lbm::core::Results::Results(const size_t &size, sycl::queue &queue)
 :
@@ -206,12 +220,13 @@ absolute_velocities_gpu(sycl::malloc_device<double>(size, queue))
 };
 
 
-lbm::core::Data::Data(const size_t &total_node_count, const sycl::queue &queue, bool two_lattice)
+lbm::core::Data::Data(const size_t total_node_count, sycl::queue &queue, const bool two_lattice)
 :
 queue(std::make_shared<sycl::queue>(queue)),
 phase_information(sycl::malloc_device<int8_t>(total_node_count, queue)),
 distribution_values_0(sycl::malloc_device<double>(9 * total_node_count, queue))
 {
+    queue.fill(phase_information, (int8_t)-1, total_node_count).wait();
     if(two_lattice) distribution_values_1 = sycl::malloc_device<double>(9 * total_node_count, queue);
     else distribution_values_1 = nullptr;
 };
@@ -225,27 +240,31 @@ control(std::make_unique<Control>(properties->time_steps))
 {
     if(properties->algorithm == "gpu-two-lattice-linear")
     {
-        data = std::make_unique<Data>(properties->buffered_node_count, queue, true);
+        domain = std::make_unique<Domain>(
+            properties->horizontal_nodes,
+            properties->vertical_nodes
+        );
+        data = std::make_unique<Data>(properties->total_unexpanded_node_count, queue, true);
     }
     else if(properties->algorithm == "gpu-two-lattice")
     {
-        decomposed_domain = std::make_unique<DecomposedDomain>(
+        domain = std::make_unique<Domain>(
             properties->horizontal_nodes,
             properties->vertical_nodes,
             queue.get_device().get_info<sycl::info::device::max_work_group_size>(),
             false
         );
-        data = std::make_unique<Data>(decomposed_domain->expanded_node_count, queue, true);
+        data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
     else
     {
-        decomposed_domain = std::make_unique<DecomposedDomain>(
+        domain = std::make_unique<Domain>(
             properties->horizontal_nodes,
             properties->vertical_nodes,
             queue.get_device().get_info<sycl::info::device::max_work_group_size>(),
             true
         );
-        data = std::make_unique<Data>(decomposed_domain->expanded_node_count, queue, false);
+        data = std::make_unique<Data>(domain->total_node_count, queue, false);
     }
         
 };

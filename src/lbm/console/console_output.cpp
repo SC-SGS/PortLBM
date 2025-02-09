@@ -50,6 +50,7 @@ void lbm::console::print_velocities
 )
 {
     unsigned int index = 0;
+    std::cout << "LENGTH OF X VELOCITIES VECTOR IS " << x_velocities.size() << "\n";
 
     for(auto y = properties.vertical_nodes - 1; y-- > 1; )
     {

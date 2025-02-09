@@ -3,27 +3,25 @@
         "algorithm": "gpu-two-lattice",
         "dataLayout": "stream",
         "debugMode": false,
-        "relaxationTime": 1.0,
-        "resultsToCsv": false,
-        "timeSteps": 100000
+        "frameUpdateInterval": 50,
+        "timeSteps": 10000
     },
     "domain": {
-        "horizontalNodes": 1000,
+        "horizontalNodes": 9000,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 1000
+        "verticalNodes": 9000
     },
-    "inlets": {
-        "density": 1.0999999977648258,
-        "velocity": {
+    "physical": {
+        "inletDensity": 1.2,
+        "inletVelocity": {
             "x": 0.0,
             "y": 0.0
-        }
-    },
-    "outlets": {
-        "density": 1.0,
-        "velocity": {
+        },
+        "outletDensity": 1.0,
+        "outletVelocity": {
             "x": 0.0,
             "y": 0.0
-        }
+        },
+        "relaxationTime": 1.0
     }
 }

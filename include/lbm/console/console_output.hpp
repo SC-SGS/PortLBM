@@ -71,7 +71,7 @@ namespace lbm
                 "Legend:\n"
                 "-------------------------------------------------------------------------------\n"
                 "\033[31mRED\033[0m:\tValues of the node in the origin\n"
-                "\033[33mYELLOW\033[0m:\tPhase illustration: \033[33mx != 0\033[0m marks a solid node\n"
+                "\033[33mYELLOW\033[0m:\tPhase illustration: \033[33mx = 1\033[0m marks a solid node\n"
                 "\033[32mGREEN\033[0m:\teverything related to buffer nodes or ghost nodes\n"
                 "\033[36mCYAN\033[0m:\tMilestones and important events\n"
                 "\033[34mBLUE\033[0m:\t1.) Distribution values of the \"outmost\" node\n"
@@ -295,9 +295,9 @@ namespace lbm
             const std::vector<int8_t> &phase_information
         )
         {
-            std::vector<unsigned int> nodes(properties.buffered_node_count, 0);
+            std::vector<unsigned int> nodes(properties.total_unexpanded_node_count, 0);
 
-            for(auto i = 0; i < properties.buffered_node_count; ++i) { nodes[i] = i; }
+            for(auto i = 0; i < properties.total_unexpanded_node_count; ++i) { nodes[i] = i; }
 
             std::cout << "Enumeration of all nodes within the lattice: \n"
                     << "-------------------------------------------------------------------------------\n";

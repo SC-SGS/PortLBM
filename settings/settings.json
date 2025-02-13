@@ -1,15 +1,15 @@
 {
     "algorithmic": {
-        "algorithm": "gpu-two-lattice",
+        "algorithm": "gpu-swap",
         "dataLayout": "stream",
-        "debugMode": false,
-        "frameUpdateInterval": 50,
-        "timeSteps": 10000
+        "debugMode": true,
+        "frameUpdateInterval": 2,
+        "timeSteps": 3
     },
     "domain": {
-        "horizontalNodes": 9000,
-        "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 9000
+        "horizontalNodes": 7,
+        "scenario": "plate",
+        "verticalNodes": 13
     },
     "physical": {
         "inletDensity": 1.2,
@@ -17,7 +17,7 @@
             "x": 0.0,
             "y": 0.0
         },
-        "outletDensity": 1.0,
+        "outletDensity": 0.9,
         "outletVelocity": {
             "x": 0.0,
             "y": 0.0

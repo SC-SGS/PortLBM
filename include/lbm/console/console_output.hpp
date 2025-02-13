@@ -317,6 +317,64 @@ namespace lbm
             std::cout << "\n";
         }
 
+        namespace buffered
+        {
+            /**
+             * @brief   Prints all distribution values in to the console.
+             *          They are displayed in the original order, i.e. the origin is located at the lower left corner of 
+             *          the printed distribution chart.
+             * 
+             * @tparam A any `core::access::AccessorConcept` from access.hpp
+             * 
+             * @param[in] distribution_values   a vector containing the distribution values of all nodes 
+             * @param[in] horizontal_nodes      total horizontal nodes in the subdomain
+             * @param[in] vertical_nodes        total vertical nodes in the subdomain
+             */
+            template <core::access::AccessorConcept A> inline 
+            void print_distribution_values
+            (
+                const std::vector<double> &distribution_values,
+                const std::vector<int8_t> &phase_information,
+                const core::Simulation &simulation
+            )
+            {
+                constexpr std::array<size_t, 9> print_dirs = {6, 7, 8, 3, 4, 5, 0, 1, 2};
+                std::vector<double> current_values(9,0);
+
+                unsigned int current_node_index = 0;
+                std::cout << std::setprecision(3) << std::fixed;
+
+                for(unsigned int y = simulation.domain->vertical_nodes; y-- > 0; )
+                {
+                    for(unsigned int j = 0; j < 3; ++j)
+                    {
+                        for(unsigned int x = 0; x < simulation.domain->horizontal_nodes; ++x)
+                        {
+                            current_node_index = core::access::get_node_index(x, y, simulation.domain->horizontal_nodes);
+                            if(x == 0 && y == 0) std::cout << "\033[31m";
+                            else if(x == (simulation.domain->horizontal_nodes - 1) && y == (simulation.domain->vertical_nodes - 1)) std::cout << "\033[34m";
+                            else if(phase_information[current_node_index] == -1) std::cout << "\033[32m";
+                            else if(phase_information[current_node_index] == 1) std::cout << "\033[33m";
+                            for(auto direction = 0; direction < 9; ++direction)
+                            {
+                                current_values[direction] = 
+                                    distribution_values[A::at(current_node_index, direction, simulation.domain->total_node_count)];
+                            }
+                            for(unsigned int i = 0; i < 3; ++i)
+                            {
+                                size_t direction = print_dirs.at(core::access::get_node_index(i, j, 3));
+                                if(current_values[direction] >= 0) std::cout << " ";
+                                std::cout << current_values[direction] << " ";
+                            }
+                            std::cout << "\033[0m   ";
+                        }
+                        std::cout <<"\n";
+                    }
+                    std::cout << "\n";
+                }
+            } 
+        }
+
     } // ! namespace console
 
 } // ! namespace lbm

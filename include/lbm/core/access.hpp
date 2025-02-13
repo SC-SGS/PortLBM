@@ -358,8 +358,13 @@ namespace lbm
                         const unsigned int extended_horizontal_nodes
                     )
                     {
-                        return (x + (x / subdomain_horizontal_nodes)) + 
-                            (y + (y / subdomain_vertical_nodes)) * extended_horizontal_nodes;
+                        // return (x + ((x - 1) / subdomain_horizontal_nodes)) + 
+                        //     (y + ((y - 1) / subdomain_vertical_nodes)) * extended_horizontal_nodes;
+
+                        int b_1 = x - 1;
+                        int b_2 = y - 1;
+                        return (x + (b_1 / (int)subdomain_horizontal_nodes)) + 
+                            (y + (b_2 / (int)subdomain_vertical_nodes)) * extended_horizontal_nodes;
                     }
                 };
 

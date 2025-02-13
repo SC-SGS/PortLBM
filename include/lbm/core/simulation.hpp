@@ -453,6 +453,37 @@ namespace lbm
             );
         };
 
+        struct SwapDomain
+        {
+            // The total amount of nodes in this domain. Buffer nodes are included for buffered domains.
+            unsigned int total_node_count;
+
+            // The total amount of horizontal nodes in this domain. Buffer nodes are included for buffered domains.
+            unsigned int horizontal_nodes;
+
+            // The total amount of vertical nodes in this domain. Buffer nodes are included for buffered domains.
+            unsigned int vertical_nodes;
+
+            // The amount of vertical nodes per subdomain
+            unsigned int subdomain_vertical_nodes;
+
+            // The amount of horizontal nodes per subdomain
+            unsigned int subdomain_horizontal_nodes;
+
+            // The amount of subdomains in vertical direction
+            unsigned int subdomain_count_vertical;
+
+            // The amount of subdomains in horizontal direction
+            unsigned int subdomain_count_horizontal;
+
+            explicit SwapDomain
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                const size_t max_work_group_size
+            );
+        };
+
         /**
          * @brief This structure contains the results of the simulation in a structure-of-arrays representation.
          */
@@ -590,7 +621,8 @@ namespace lbm
             {
                 sycl::free(phase_information, *queue);
                 sycl::free(distribution_values_0, *queue);
-                sycl::free(distribution_values_1, *queue);
+                if(!(distribution_values_1 == nullptr))
+                    sycl::free(distribution_values_1, *queue);
             }
         };
 
@@ -603,7 +635,7 @@ namespace lbm
             std::unique_ptr<Data> data;
             std::unique_ptr<Results> results;
             std::unique_ptr<Control> control;
-            std::unique_ptr<Domain> domain;
+            std::unique_ptr<SwapDomain> domain;
 
             /**
              * @brief   This struct contains all data required for a GPU lattice Boltzmann implementation.

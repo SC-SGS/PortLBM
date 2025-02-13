@@ -251,8 +251,8 @@ namespace lbm
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
                         absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                        vertical_nodes(simulation.decomposed_domain->vertical_nodes),
-                        horizontal_nodes_expanded(simulation.decomposed_domain->horizontal_nodes),
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
                         horizontal_nodes_domain(simulation.properties->horizontal_nodes)
                         {}
 

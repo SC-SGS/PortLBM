@@ -24,6 +24,7 @@ void lbm::file_interaction::properties_to_json
 {
     nlohmann::json file_data;
 
+    file_data["algorithmic"]["workGroupSize"] = properties.work_group_size;
     file_data["algorithmic"]["debugMode"] = properties.debug_mode;
     file_data["algorithmic"]["timeSteps"] = properties.time_steps;
     file_data["algorithmic"]["dataLayout"] = properties.data_layout;
@@ -60,6 +61,7 @@ lbm::core::Properties lbm::file_interaction::json_to_properties(const std::strin
         data.at("algorithmic").at("algorithm").get<std::string>(),
         data.at("algorithmic").at("dataLayout").get<std::string>(),
         data.at("algorithmic").at("debugMode").get<bool>(),
+        data.at("algorithmic").at("workGroupSize").get<unsigned int>(),
         data.at("algorithmic").at("timeSteps").get<unsigned int>(),
         data.at("algorithmic").at("frameUpdateInterval").get<unsigned int>(),
         // Domain properties

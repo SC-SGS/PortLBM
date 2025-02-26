@@ -76,7 +76,7 @@ namespace lbm
                     }
                     else if(properties->algorithm == "gpu-swap")
                     {
-                        throw exceptions::Exception("This algorithm is not implemented yet.");
+                        algorithm = gpu::swap::get_algorithm_pointer(*properties, *queue);
                     }
                     else
                     {

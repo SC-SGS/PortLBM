@@ -120,6 +120,8 @@ namespace lbm
             // If set, a mode with thorough console debug prints is entered.
             bool debug_mode;
 
+            unsigned int work_group_size;
+
             // This many time steps will be executed in total by the algorithm.
             unsigned int time_steps;
 
@@ -184,6 +186,7 @@ namespace lbm
                 const std::string &&algorithm,
                 const std::string &&data_layout,
                 const bool debug_mode,
+                const unsigned int work_group_size,
                 const unsigned int time_steps,
                 const unsigned int frame_update_interval,
                 // Domain properties

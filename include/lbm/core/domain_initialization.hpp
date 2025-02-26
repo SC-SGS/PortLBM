@@ -411,8 +411,8 @@ namespace lbm
             )
             {
                 std::vector<double> distribution_values_standstill = maxwell_boltzmann_distribution(0, 0, 1);
-                double test [9] = {0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08};
-                //for(int i = 0; i < 9; ++i) test[i] = distribution_values_standstill[i];
+                double test [9] = {0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00};
+                for(int i = 0; i < 9; ++i) test[i] = distribution_values_standstill[i];
 
                 auto event = queue.submit(
                     [&](sycl::handler &cgh)

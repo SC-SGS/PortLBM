@@ -823,6 +823,11 @@ namespace lbm
                             ImGui::InputUnsignedInt("Frame update interval", &(properties_gui->frame_update_interval), 1, 10)
                         )
                         { properties_changed = true;}
+                        if
+                        (
+                            ImGui::InputUnsignedInt("Work group size", &(properties_gui->work_group_size), 1, 10)
+                        )
+                        { properties_changed = true;}
 
                         properties_simulation_and_domain();
                         properties_fluid();

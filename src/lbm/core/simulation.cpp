@@ -25,6 +25,7 @@ lbm::core::Properties::Properties
     const std::string &&algorithm,
     const std::string &&data_layout,
     const bool debug_mode,
+    const unsigned int work_group_size,
     const unsigned int time_steps,
     const unsigned int frame_update_interval,
     // Domain properties
@@ -45,6 +46,7 @@ lbm::core::Properties::Properties
 algorithm(algorithm),
 data_layout(data_layout),
 debug_mode(debug_mode),
+work_group_size(work_group_size < 1024 ? work_group_size : 1024),
 time_steps(time_steps),
 frame_update_interval(frame_update_interval),
 // Domain properties
@@ -82,6 +84,7 @@ std::string lbm::core::Properties::to_string() const
         "Algorithmic properties: \n"
         "\tAlgorithm: {} \n"
         "\tData layout: {} \n"
+        "\tWork group size: {} \n"
         "\tDebug mode: {} \n"
         "\tTime steps: {} \n"
         "\tFrame update interval: {} \n"
@@ -98,6 +101,7 @@ std::string lbm::core::Properties::to_string() const
         "\tRelaxation time: {:.6f}\n\n",
         algorithm,
         data_layout,
+        work_group_size,
         debug_mode,
         time_steps,
         frame_update_interval,
@@ -322,7 +326,7 @@ control(std::make_unique<Control>(properties->time_steps))
         domain = std::make_unique<SwapDomain>(
             properties->horizontal_nodes,
             properties->vertical_nodes,
-            16//queue.get_device().get_info<sycl::info::device::max_work_group_size>(),
+            properties->work_group_size
         );
         data = std::make_unique<Data>(domain->total_node_count, queue, false);
     }

@@ -400,8 +400,6 @@ namespace lbm
                         {
                             distribution_values[A::at(current_node, i, total_nodes)] = distribution[i];
                         }
-
-                        distribution_values[A::at(current_node, 5, total_nodes)] = id.get_id(0) + 1;
                     }
                 };  
 
@@ -703,8 +701,8 @@ namespace lbm
                         unsigned int neighbor_index = 0;
 
                         unsigned int buffer_id_x = nd_item.get_local_id(1) + 1;
-                        unsigned int buffer_id_y = nd_item.get_local_id(0) + 1;
-                        unsigned int own_buffer_index = core::access::get_node_index(buffer_id_x, buffer_id_y,  subdomain_horizontal_nodes + 4);
+                        unsigned int buffer_id_y = nd_item.get_local_id(0);
+                        unsigned int own_buffer_index = core::access::get_node_index(buffer_id_x, buffer_id_y, subdomain_horizontal_nodes + 4);
                         unsigned int buffer_target_index = 0;
 
                         double density = 0;
@@ -717,16 +715,6 @@ namespace lbm
                         double private_distribution_values [9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
                         double result = 0;
 
-                        // // Load all values into shared ("local") memory
-                        // for(auto& dir : core::constants::all_directions)
-                        // {
-                        //     local[A::at(own_buffer_index, dir, local_buffer_length)] = 
-                        //         distribution_values[A::at(linear_index, direction, total_nodes)];
-                        // }
-                        // nd_item.barrier();
-
-                        // // All values are present in shared memory
-
                         // Send out active values
                         for(auto& dir : {5, 6, 7, 8})
                         {
@@ -735,7 +723,13 @@ namespace lbm
                             // Write values that are sent to neighbor into their shared buffer
                             local[4 * buffer_target_index + (8 - dir)] =
                                 distribution_values[A::at(linear_index, dir, total_nodes)];
+                            // local[4 * own_buffer_index + 0] = -1.0;
+                            // local[4 * own_buffer_index + 1] = -2.0;
+                            // local[4 * own_buffer_index + 2] = -3.0;
+                            // local[4 * own_buffer_index + 3] = -4.0;
                         }  
+
+                        nd_item.barrier();
 
                         // Accept passive values of neighbor
                         for(auto& dir : {0, 1, 2, 3})
@@ -747,19 +741,21 @@ namespace lbm
                             private_distribution_values[dir] = distribution_values[A::at(neighbor_index, dir, total_nodes)];
                         }  
 
+                        nd_item.barrier();
+
                         //Collect passive values from shared buffer
                         for(auto& dir : {0, 1, 2, 3})
                         {
                             private_distribution_values[8 - dir] = //local[A::at(own_buffer_index, dir, local_buffer_length)];
                             local[4 * own_buffer_index + dir];
                         }
-                        // private_distribution_values[6] = buffer_id_x;
-                        // private_distribution_values[7] = buffer_id_y;
-                        // private_distribution_values[8] = own_buffer_index;
-                        // private_distribution_values[5] = core::access::get_neighbor(own_buffer_index, 5, subdomain_horizontal_nodes + 4);
+                        // private_distribution_values[8] = local[4 * own_buffer_index + 0];
+                        // private_distribution_values[7] = local[4 * own_buffer_index + 1];
+                        // private_distribution_values[6] = local[4 * own_buffer_index + 2];
+                        // private_distribution_values[5] = local[4 * own_buffer_index + 3];
                         
                         //Load stationary value into private buffer
-                        private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
+                        private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];//own_buffer_index; //
 
                         nd_item.barrier();
 
@@ -785,30 +781,30 @@ namespace lbm
                         if(!phase_information[linear_index])
                         {
                             // Update macroscopic observables
-                            densities[iteration_node_offset] = iteration_node_offset;  // density;
-                            x_velocities[iteration_node_offset] = (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)); // nd_item.get_local_range(1)); //  flow_velocity_x; 
-                            y_velocities[iteration_node_offset] = (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)); //nd_item.get_local_range(0)); //flow_velocity_y; 
+                            densities[iteration_node_offset] = density; //iteration_node_offset;  // 
+                            x_velocities[iteration_node_offset] = flow_velocity_x; //(global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)); // nd_item.get_local_range(1)); //  
+                            y_velocities[iteration_node_offset] = flow_velocity_y; //(global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)); //nd_item.get_local_range(0)); //
                             absolute_velocity_values[iteration_node_offset] = absolute_velocity;
                                 
                             // Perform collision and write back values to main memory
                             for (const auto& direction : core::constants::all_directions)
                             {
-                                // velocity_x_component = (direction % 3) - 1; 
-                                // velocity_y_component = (direction / 3) - 1; 
+                                velocity_x_component = (direction % 3) - 1; 
+                                velocity_y_component = (direction / 3) - 1; 
 
-                                // result = core::constants::weights[direction] *
-                                //     (
-                                //         density + 3 * (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
-                                //         + 9.0/2 *
-                                //         (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)*
-                                //         (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
-                                //         - 3.0/2 * (flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y)
-                                //     );
+                                result = core::constants::weights[direction] *
+                                    (
+                                        density + 3 * (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
+                                        + 9.0/2 *
+                                        (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)*
+                                        (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
+                                        - 3.0/2 * (flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y)
+                                    );
 
-                                // result =    -relaxation_time_inverse * (private_distribution_values[direction] - result) 
-                                //             + private_distribution_values[direction];
+                                result =    -relaxation_time_inverse * (private_distribution_values[direction] - result) 
+                                            + private_distribution_values[direction];
 
-                                distribution_values[A::at(linear_index, direction, total_nodes)] = private_distribution_values[direction];// result;
+                                distribution_values[A::at(linear_index, direction, total_nodes)] = result;//private_distribution_values[direction];// result;
                             }
                         }
                     }

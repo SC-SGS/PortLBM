@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declaration of a SYCL algorithm handler class.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        January 2025
+ * @date        February 2025
  * 
  * @copyright   Copyright (c) 2025 Marcel Graf
  */
@@ -114,11 +114,13 @@ namespace lbm
              */
             explicit SYCLAlgorithmHandler()
             : 
+            AlgorithmHandler(0),
             device_selector(std::make_unique<sycl::default_selector>()), 
             queue(std::make_unique<sycl::queue>(*device_selector)),
             active(false)
             {
                 initialize_algorithm();
+                processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
             };
 
             inline void initialize() override

@@ -16,9 +16,9 @@
  *              declared here. Any additional values that may be necessary for custom executioners should be added in 
  *              its own class.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        January 2025
+ * @date        February 2025
  * 
  * @copyright   Copyright (c) 2025 Marcel Graf
  * 
@@ -41,6 +41,8 @@ namespace lbm
         class AlgorithmHandler
         {
             public:
+
+            size_t processing_element_constraint;
 
             /**
              * @brief   (Re-)Initializes the algorithm addressed by this algorithm handler.
@@ -126,6 +128,11 @@ namespace lbm
              *          necessarily correspond to those of the GUI.
              */
             virtual double get_last_frametime() const = 0;
+
+            protected:
+
+            explicit AlgorithmHandler(size_t processing_element_constraint) : 
+            processing_element_constraint(processing_element_constraint) {};
         };
 
         /**

@@ -3,17 +3,17 @@
         "algorithm": "gpu-swap",
         "dataLayout": "collision",
         "debugMode": false,
-        "frameUpdateInterval": 10000,
+        "frameUpdateInterval": 1,
         "timeSteps": 10000,
         "workGroupSize": 1024
     },
     "domain": {
-        "horizontalNodes": 2000,
+        "horizontalNodes": 500,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 500
+        "verticalNodes": 150
     },
     "physical": {
-        "inletDensity": 1.2,
+        "inletDensity": 1.2000000029802322,
         "inletVelocity": {
             "x": 0.0,
             "y": 0.0
@@ -23,6 +23,6 @@
             "x": 0.0,
             "y": 0.0
         },
-        "relaxationTime": 1.0
+        "relaxationTime": 0.6
     }
 }

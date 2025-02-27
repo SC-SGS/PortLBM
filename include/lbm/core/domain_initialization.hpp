@@ -5,7 +5,7 @@
  * 
  * @brief       In this header file, functionality for setting up the simulation domain is declared and defined.
  * 
- * @version     3.0
+ * @version     3.2
  * 
  * @date        February 2025
  * 
@@ -18,7 +18,6 @@
 
 // Dependencies on other LBM features
 #include "simulation.hpp"
-// #include "../console/console_output.hpp" // for debug purposes only
 
 namespace lbm
 {
@@ -453,26 +452,26 @@ namespace lbm
             {
                 std::vector<double> distribution_values_cpu = 
                     maxwell_boltzmann_distribution(
-                        simulation.properties->inlet_velocity_x, simulation.properties->inlet_velocity_y, simulation.properties->inlet_density
+                        simulation.properties->inlet_velocity_x, 
+                        simulation.properties->inlet_velocity_y, 
+                        simulation.properties->inlet_density
                     );
                 
                 std::vector<double> distribution_outlet = 
                     maxwell_boltzmann_distribution(
-                        simulation.properties->outlet_velocity_x, simulation.properties->outlet_velocity_y, simulation.properties->outlet_density
+                        simulation.properties->outlet_velocity_x, 
+                        simulation.properties->outlet_velocity_y, 
+                        simulation.properties->outlet_density
                     );
 
-                distribution_values_cpu.insert(distribution_values_cpu.end(), distribution_outlet.begin(), distribution_outlet.end());
+                distribution_values_cpu.insert(
+                    distribution_values_cpu.end(), 
+                    distribution_outlet.begin(), 
+                    distribution_outlet.end()
+                );
+                
                 double test [18];
                 for(int i = 0; i < 18; ++i) test[i] = distribution_values_cpu[i];
-
-                // std::cout << "Inout distribution values: \n";
-                // console::print_vector<double>(distribution_values_cpu, distribution_values_cpu.size());
-
-                // double *distribution_values_buf_gpu = sycl::malloc_device<double>(distribution_values_cpu.size(), queue);
-
-                // queue.copy(distribution_values_cpu.data(), distribution_values_buf_gpu, distribution_values_cpu.size()).wait();
-
-                // std::cout << "Vertical range: [0, " <<  simulation.properties->vertical_nodes << "]\n";
 
                 auto event = queue.submit(
                     [&](sycl::handler &cgh)
@@ -577,7 +576,7 @@ namespace lbm
             {
                 domain_initialization::set_standstill_values<A>(simulation, queue);
 
-                // domain_initialization::set_inout_distribution_values<A, N>(simulation, queue);
+                domain_initialization::set_inout_distribution_values<A, N>(simulation, queue);
 
                 if
                 (
@@ -594,17 +593,6 @@ namespace lbm
 
                 // Set pipe boundaries
                 if(!(obstacle == "porous")) {gpu_stencils::set_pipe_boundaries<N>(simulation, queue); }
-
-                // std::vector<int8_t> phase_information(simulation.domain->total_node_count, 0);
-                // queue.copy(
-                //     simulation.data->phase_information, 
-                //     phase_information.data(), 
-                //     simulation.domain->total_node_count
-                // ).wait();
-
-                // std::cout << "Phase information after setting pipe boundaries: \n";
-                // console::print_phase_vector(phase_information, simulation.domain->horizontal_nodes);
-
                 if(obstacle == "Hagen-Poiseuille")  
                 { add_stencil<N, gpu_stencils::HagenPoiseuilleStencil>(simulation, queue); }
                 else if(obstacle == "walls")        
@@ -638,15 +626,6 @@ namespace lbm
                         simulation.domain->total_node_count
                     ).wait();
                 }
-
-                // queue.copy(
-                //     simulation.data->phase_information, 
-                //     phase_information.data(), 
-                //     simulation.decomposed_domain->total_node_count
-                // ).wait();
-
-                // std::cout << "Phase information after setting inner phases: \n";
-                // console::print_phase_vector(phase_information, simulation.decomposed_domain->horizontal_nodes);
             }
 
         } // ! namespace domain_initialization

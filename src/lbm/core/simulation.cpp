@@ -6,7 +6,7 @@
  * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.2
+ * @version     4.3
  * 
  * @date        February 2025
  * 
@@ -18,6 +18,7 @@
 #include "../../../include/lbm/file_interaction/file_interaction.hpp"
 #include "../../../include/lbm/exceptions/exceptions.hpp"
 
+// Properties /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lbm::core::Properties::Properties
 (
@@ -46,7 +47,7 @@ lbm::core::Properties::Properties
 algorithm(algorithm),
 data_layout(data_layout),
 debug_mode(debug_mode),
-work_group_size(work_group_size < 1024 ? work_group_size : 1024),
+work_group_size(work_group_size),
 time_steps(time_steps),
 frame_update_interval(frame_update_interval),
 // Domain properties
@@ -65,6 +66,7 @@ outlet_density(outlet_density),
 relaxation_time(relaxation_time)
 {};
 
+// Control ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lbm::core::Control::Control(const unsigned int max_iterations)
 :
@@ -119,27 +121,51 @@ std::string lbm::core::Properties::to_string() const
     );
 }
 
+// Domain /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+lbm::core::Domain::Domain
+(
+    unsigned int total_node_count,
+    unsigned int vertical_nodes,
+    unsigned int horizontal_nodes,
+    unsigned int subdomain_vertical_nodes,
+    unsigned int subdomain_horizontal_nodes,
+    unsigned int subdomain_count_vertical,
+    unsigned int subdomain_count_horizontal
+)
+:
+total_node_count(total_node_count),
+vertical_nodes(vertical_nodes),
+horizontal_nodes(horizontal_nodes),
+subdomain_vertical_nodes(subdomain_vertical_nodes),
+subdomain_horizontal_nodes(subdomain_horizontal_nodes),
+subdomain_count_vertical(subdomain_count_vertical),
+subdomain_count_horizontal(subdomain_count_horizontal)
+{};
+
 
 lbm::core::SwapDomain::SwapDomain
 (
     const unsigned int unexpanded_horizontal_nodes,
     const unsigned int unexpanded_vertical_nodes,
-    const size_t max_work_group_size
+    const size_t work_group_size
 )
+:
+Domain(0, 0, 0, 0, 0, 0, 0)
 {
-    // Is max_work_group_size uneven (and larger than 1)?
-    if (max_work_group_size & 0x1)
+    // Is work_group_size uneven (and larger than 1)?
+    if (work_group_size & 0x1)
     {
-        // ==> stripe subdomains with extents 1 and max_work_group_size
-        subdomain_horizontal_nodes = max_work_group_size;
+        // ==> stripe subdomains with extents 1 and work_group_size
+        subdomain_horizontal_nodes = work_group_size;
         subdomain_vertical_nodes = 1;
     }
-    else // max_work_group_size is guaranteed to be even, that is, a multiple of 2
+    else // work_group_size is guaranteed to be even, that is, a multiple of 2
     {
-        size_t power_4 = power_functions::which_power_of_4(max_work_group_size);
-        size_t power_2 = power_functions::which_power_of_2(max_work_group_size);
+        size_t power_4 = power_functions::which_power_of_4(work_group_size);
+        size_t power_2 = power_functions::which_power_of_2(work_group_size);
 
-        if (power_4) // Is max_work_group_size a power of four? 
+        if (power_4) // Is work_group_size a power of four? 
         {
             // ==> square subdomains
 
@@ -149,7 +175,7 @@ lbm::core::SwapDomain::SwapDomain
             subdomain_horizontal_nodes = size;
             subdomain_vertical_nodes = size; 
         }
-        else if (power_2) // Is max_work_group_size a power of two?
+        else if (power_2) // Is work_group_size a power of two?
         {
             // ==> as close to square as possible, with preference for horizontal length 
             size_t power_height = power_2 / 2;
@@ -159,49 +185,50 @@ lbm::core::SwapDomain::SwapDomain
             subdomain_vertical_nodes = height;
             subdomain_horizontal_nodes = 2 * height; 
         }
-        else // max_work_group_size is a multiple of two
+        else // work_group_size is a multiple of two
         {
-            //  ==> stripe subdomains with extents 2 and max_work_group_size / 2
+            //  ==> stripe subdomains with extents 2 and work_group_size / 2
             subdomain_vertical_nodes = 2;
-            subdomain_horizontal_nodes = max_work_group_size / 2; 
+            subdomain_horizontal_nodes = work_group_size / 2; 
         }
     }
     subdomain_vertical_nodes -= 1;
     subdomain_horizontal_nodes -= 2; // should be 2
 
     subdomain_count_vertical = (((unexpanded_vertical_nodes - 2) / subdomain_vertical_nodes) + 1);
-    if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; std::cout << "yes \n";}
+    if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
     vertical_nodes = (subdomain_vertical_nodes + 1) * subdomain_count_vertical + 1;
     
     subdomain_count_horizontal = (((unexpanded_horizontal_nodes - 2) / subdomain_horizontal_nodes) + 1);
-    if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; std::cout << "yes \n";}
+    if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
     horizontal_nodes = (subdomain_horizontal_nodes + 1) * subdomain_count_horizontal + 1;
 
     total_node_count = vertical_nodes * horizontal_nodes;
 };
 
 
-lbm::core::Domain::Domain
+lbm::core::DecomposedTwoLatticeDomain::DecomposedTwoLatticeDomain
 (
     const unsigned int unexpanded_horizontal_nodes,
     const unsigned int unexpanded_vertical_nodes,
-    const size_t max_work_group_size,
-    const bool buffered 
+    const size_t work_group_size
 )
+:
+Domain(0, 0, 0, 0, 0, 0, 0)
 {
-    // Is max_work_group_size uneven (and larger than 1)?
-    if (max_work_group_size & 0x1)
+    // Is work_group_size uneven (and larger than 1)?
+    if (work_group_size & 0x1)
     {
-        // ==> stripe subdomains with extents 1 and max_work_group_size
-        subdomain_horizontal_nodes = max_work_group_size;
+        // ==> stripe subdomains with extents 1 and work_group_size
+        subdomain_horizontal_nodes = work_group_size;
         subdomain_vertical_nodes = 1;
     }
-    else // max_work_group_size is guaranteed to be even, that is, a multiple of 2
+    else // work_group_size is guaranteed to be even, that is, a multiple of 2
     {
-        size_t power_4 = power_functions::which_power_of_4(max_work_group_size);
-        size_t power_2 = power_functions::which_power_of_2(max_work_group_size);
+        size_t power_4 = power_functions::which_power_of_4(work_group_size);
+        size_t power_2 = power_functions::which_power_of_2(work_group_size);
 
-        if (power_4) // Is max_work_group_size a power of four? 
+        if (power_4) // Is work_group_size a power of four? 
         {
             // ==> square subdomains
 
@@ -211,7 +238,7 @@ lbm::core::Domain::Domain
             subdomain_horizontal_nodes = size;
             subdomain_vertical_nodes = size; 
         }
-        else if (power_2) // Is max_work_group_size a power of two?
+        else if (power_2) // Is work_group_size a power of two?
         {
             // ==> as close to square as possible, with preference for horizontal length 
             size_t power_height = power_2 / 2;
@@ -221,39 +248,42 @@ lbm::core::Domain::Domain
             subdomain_vertical_nodes = height;
             subdomain_horizontal_nodes = 2 * height; 
         }
-        else // max_work_group_size is a multiple of two
+        else // work_group_size is a multiple of two
         {
-            //  ==> stripe subdomains with extents 2 and max_work_group_size / 2
+            //  ==> stripe subdomains with extents 2 and work_group_size / 2
             subdomain_vertical_nodes = 2;
-            subdomain_horizontal_nodes = max_work_group_size / 2; 
+            subdomain_horizontal_nodes = work_group_size / 2; 
         }
     }
 
     subdomain_count_vertical = ((unexpanded_vertical_nodes / subdomain_vertical_nodes) + 1);
-    if(!(unexpanded_vertical_nodes % subdomain_vertical_nodes)) { subdomain_count_vertical--; std::cout << "yes \n";}
-    vertical_nodes = (subdomain_vertical_nodes + buffered) * subdomain_count_vertical - buffered;
+    if(!(unexpanded_vertical_nodes % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
+    vertical_nodes = (subdomain_vertical_nodes) * subdomain_count_vertical;
     
     subdomain_count_horizontal = ((unexpanded_horizontal_nodes / subdomain_horizontal_nodes) + 1);
-    if(!(unexpanded_vertical_nodes % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; std::cout << "yes \n";}
-    horizontal_nodes = (subdomain_horizontal_nodes + buffered) * subdomain_count_horizontal - buffered;
+    if(!(unexpanded_vertical_nodes % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
+    horizontal_nodes = (subdomain_horizontal_nodes) * subdomain_count_horizontal;
 
     total_node_count = vertical_nodes * horizontal_nodes;
 };
 
 
-lbm::core::Domain::Domain
+lbm::core::NonDecomposedTwoLatticeDomain::NonDecomposedTwoLatticeDomain
 (
     const unsigned int horizontal_nodes,
     const unsigned int vertical_nodes
 )
 :
-total_node_count(horizontal_nodes * vertical_nodes),
-horizontal_nodes(horizontal_nodes),
-vertical_nodes(vertical_nodes),
-subdomain_vertical_nodes(vertical_nodes),
-subdomain_horizontal_nodes(horizontal_nodes),
-subdomain_count_vertical(1),
-subdomain_count_horizontal(1)
+Domain
+(
+    horizontal_nodes * vertical_nodes,
+    vertical_nodes,
+    horizontal_nodes,
+    vertical_nodes,
+    horizontal_nodes,
+    1,
+    1
+)
 {};
 
 
@@ -296,6 +326,7 @@ distribution_values_0(sycl::malloc_device<double>(9 * total_node_count, queue))
     else distribution_values_1 = nullptr;
 };
 
+// Simulation /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lbm::core::Simulation::Simulation(sycl::queue &queue)
 :
@@ -303,23 +334,45 @@ properties(std::make_unique<Properties>(file_interaction::json_to_properties()))
 results(std::make_unique<Results>(properties->domain_node_count, queue)),
 control(std::make_unique<Control>(properties->time_steps))
 {
+    size_t max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+
+    if(properties->work_group_size > max_work_group_size)
+    {
+        size_t wrong_size = properties->work_group_size;
+        properties->work_group_size = max_work_group_size;
+        properties->horizontal_nodes -= 2;
+        properties->vertical_nodes -= 2;
+
+        lbm::file_interaction::properties_to_json(*properties);
+        
+        throw lbm::exceptions::json::PropertyArgumentException
+        (
+            fmt::format
+            (
+                "Detected illegal work group size of {} that exceeds the maximum work group size of {}. "
+                "JSON property \"workGroupSize\" has been set to {} to enable graceful program restart. ",
+                wrong_size,
+                max_work_group_size,
+                max_work_group_size
+            )
+        );
+    }
     if(properties->algorithm == "gpu-two-lattice-linear")
     {
-        // domain = std::make_unique<SwapDomain>(
-        //     properties->horizontal_nodes,
-        //     properties->vertical_nodes
-        // );
-        // data = std::make_unique<Data>(properties->total_unexpanded_node_count, queue, true);
+        domain = std::make_unique<NonDecomposedTwoLatticeDomain>(
+            properties->horizontal_nodes,
+            properties->vertical_nodes
+        );
+        data = std::make_unique<Data>(properties->total_unexpanded_node_count, queue, true);
     }
     else if(properties->algorithm == "gpu-two-lattice")
     {
-        // domain = std::make_unique<SwapDomain>(
-        //     properties->horizontal_nodes,
-        //     properties->vertical_nodes,
-        //     queue.get_device().get_info<sycl::info::device::max_work_group_size>(),
-        //     false
-        // );
-        // data = std::make_unique<Data>(domain->total_node_count, queue, true);
+        domain = std::make_unique<DecomposedTwoLatticeDomain>(
+            properties->horizontal_nodes,
+            properties->vertical_nodes,
+            properties->work_group_size
+        );
+        data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
     else
     {

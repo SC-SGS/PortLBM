@@ -6,9 +6,9 @@
  * @brief       This header file contains all declarations and some implementations of the GUI
  *              for the lattice Boltzmann simulation developed in my Bachelor thesis.
  * 
- * @version     2.2
+ * @version     2.3
  * 
- * @date        January 2025
+ * @date        February 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -827,8 +827,16 @@ namespace lbm
                         (
                             ImGui::InputUnsignedInt("Work group size", &(properties_gui->work_group_size), 1, 10)
                         )
-                        { properties_changed = true;}
-
+                        { 
+                            properties_changed = true;
+                            if(properties_gui->work_group_size > algorithm_handler->processing_element_constraint)
+                            {
+                                properties_gui->work_group_size = algorithm_handler->processing_element_constraint;
+                            }
+                        }
+                        std::string m = "The maximum work group size of the target device is " + std::to_string(algorithm_handler->processing_element_constraint);
+                        ImGui::SameLine();
+                        help_marker(m.c_str());
                         properties_simulation_and_domain();
                         properties_fluid();
             

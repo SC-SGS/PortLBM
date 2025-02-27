@@ -6,7 +6,7 @@
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.2
+ * @version     4.3
  * 
  * @date        February 2025
  * 
@@ -47,46 +47,7 @@ namespace lbm
     namespace core
     {
 
-        /**
-         * @brief   Returns the Maxwell-Boltzmann-Distribution for all directions in the order proposed by Mattila et al.
-         * 
-         * @param[in]   x_velocity    x component of the velocity of the node in question
-         * @param[in]   y_velocity    y component of the velocity of the node in question
-         * @param[in]   density       density of the node in question
-         * 
-         * @return  a vector containing the distribution values
-         */
-        inline 
-        std::vector<double> maxwell_boltzmann_distribution
-        (
-            const double x_velocity, 
-            const double y_velocity, 
-            const double density
-        )
-        {
-            std::vector<double> result(9,0);
-            int velocity_x_component = 0; 
-            int velocity_y_component = 0; 
-
-            for(auto direction = 0; direction < 9; ++direction)
-            {
-                velocity_x_component = (direction % 3) - 1; 
-                velocity_y_component = (direction / 3) - 1; 
-
-                result[direction] = constants::weights.at(direction) *
-                    (
-                        density + 3 * (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
-                        + 9.0/2 * std::pow(velocity_x_component * x_velocity + velocity_y_component * y_velocity, 2)
-                        - 3.0/2 * (x_velocity * x_velocity + y_velocity * y_velocity)
-                    );
-            }
-            return result;
-        }
-
-        /** 
-         * @brief  Returns the inverse direction of that specified. 
-         */
-        inline constexpr unsigned int invert_direction(const unsigned int dir) { return 8 - dir; }
+// Properties /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief This structure contains all important properties of the simulation.
@@ -209,6 +170,8 @@ namespace lbm
             std::string to_string() const;
         };
 
+// Control ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         /**
          * @brief   This class offers options to control an algorithm and to query its progress and performance data.
          */
@@ -306,98 +269,19 @@ namespace lbm
             inline double get_last_frametime() const { return last_frametime; }
         };
 
-        /**
-         * @brief   This namespace contains convenience functions for determining which powers of certain bases
-         *          specified numbers are.
-         */
-        namespace power_functions
-        {
-            /**
-             * @brief   Returns whether the specified number is a power of four.
-             * 
-             * @param[in]   x   the number in question 
-             */
-            inline bool is_power_of_4(size_t x)
-            {
-                size_t checkbit = 3;
-                if (x & 0x1) return false;
-                while (!(checkbit & x)) x >>= 2;
-                return (!(x & 2));
-            }
-
-            /**
-             * @brief   Checks whether the specified number is a power of four other than one, and returns the power.
-             * 
-             * @param[in]   x   the number in question 
-             * 
-             * @return  the power if `x` is actually a power of 4 greater than `1`, or `0` otherwise
-             */
-            inline size_t which_power_of_4(size_t x)
-            {
-                size_t checkbit = 3;
-                size_t pow = 0;
-
-                if (x & 0x1) return 0;
-
-                while (!(checkbit & x)) 
-                {
-                    x >>= 2;
-                    pow++;
-                }
-            
-                return !(x & 2) ? pow : 0;
-            }
-
-            /**
-             * @brief   Checks whether the specified number is a power of two other than one, and returns the power.
-             * 
-             * @param[in]   x   the number in question 
-             * 
-             * @return  the power if `x` is actually a power of 2 greater than `1`, or `0` otherwise
-             */
-            inline size_t which_power_of_2(size_t x)
-            {
-                size_t checkbit = 1;
-                size_t pow = 0;
-
-                if (x & 0x1) return 0;
-
-                while (!(checkbit & x)) 
-                {
-                    x >>= 1;
-                    pow++;
-                }
-            
-                return !(x >> 1 | 0) ? pow : 0;
-            }
-        }
+// Domain /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
-         * @brief   This structure stores data describing the simulation domain on which an algorithm operates. It
-         *          prepares a suitable description of a domain for particular algorithms based on constructors 
-         *          accepting inputs from the `core::Properties` structure. The `Domain` object specifies the domain
-         *          on which the algorithm actually operates, which is only equivalent to what the `core::Properties`
-         *          object contains when no buffering and no decomposition are involved, that is, for the linear two-
-         *          lattice algorithm.
-         * 
-         *          In the case of a non-buffered and non-decomposed domain, the grid extents are just taken over from
-         *          the according `core::Properties` object. There is one subdomain, and its extents match that of the
-         *          entire domain. In this case, this object is used for convenience to facilitate defining methods
-         *          that work for multiple algorithms.
-         *  
-         *          In the case of a non-buffered and decomposed domain, as it is used for the non-linear two-lattice
-         *          algorithm, the domain is expanded to match the extents of the work groups. The decomposition is
-         *          performed depending on the maximum work group size of the device.
-         * 
-         *          In the case of a buffered and decomposed domain, as it is used for the swap algorithm, the behavior
-         *          is generally the same as for the non-buffered decomposed domain with the difference that nodes for
-         *          a buffer grid are added that are not considered part of any particular subdomain. The domain object
-         *          offers no functionality to deal with these buffers; this is considered the responsibility of the
-         *          algorithm.
-         * 
+         * @brief   This class contains variables describing the simulation domain on which an algorithm operates. The
+         *          algorithms initialized these variables differently, which is solved through inheritance. Each algo-
+         *          rithm has a custom domain class that inherits from `lbm::core::Domain`. The different ways to init-
+         *          ialize the values are implemented through the according constructors. The constructor of this class
+         *          is protected, and it is only meant to define the variables of its child classes.
          */
-        struct Domain
+        class Domain
         {
+            public:
+
             // The total amount of nodes in this domain. Buffer nodes are included for buffered domains.
             unsigned int total_node_count;
 
@@ -418,6 +302,30 @@ namespace lbm
 
             // The amount of subdomains in horizontal direction
             unsigned int subdomain_count_horizontal;
+
+            protected:
+
+            // This constructor is meant to be called by child classes only to pre-initialize their values.
+            explicit Domain
+            (
+                unsigned int total_node_count,
+                unsigned int vertical_nodes,
+                unsigned int horizontal_nodes,
+                unsigned int subdomain_vertical_nodes,
+                unsigned int subdomain_horizontal_nodes,
+                unsigned int subdomain_count_vertical,
+                unsigned int subdomain_count_horizontal
+            );
+        };
+
+        /**
+         * @brief   This structure stores data of a non-buffered and decomposed domain, as it is used by the non-linear
+         *          two-lattice algorithm. The domain is expanded to match the extents of the work groups. The decom-
+         *          position is performed depending on the specified work group size.
+         */
+        class DecomposedTwoLatticeDomain : public Domain
+        {
+            public:
 
             /**
              * @brief   Constructs a decomposed domain structure where the new total dimensions, the dimensions of
@@ -428,64 +336,71 @@ namespace lbm
              *                                          including ghost nodes
              * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
              *                                          including ghost nodes
-             * @param[in]   max_work_group_size         the maximum work group size of the target device
-             * @param[in]   buffered                    whether or not buffer nodes are to be planned in or not
+             * @param[in]   work_group_size             the desired work-group size
              */
-            explicit Domain
+            explicit DecomposedTwoLatticeDomain
             (
                 const unsigned int unexpanded_horizontal_nodes,
                 const unsigned int unexpanded_vertical_nodes,
-                const size_t max_work_group_size,
-                const bool buffered = false 
+                const size_t work_group_size
             );
+        };
+
+        /**
+         * @brief   This structure stores data of a non-buffered and non-decomposed domain, as it is used by the linear
+         *          two-lattice algorithm. The domain is not expanded and has the extents specified in the
+         *          `lbm::core::Properties` object.
+         */
+        class NonDecomposedTwoLatticeDomain : public Domain
+        {
+            public:
 
             /**
              * @brief   Constructs a non-decomposed domain structure where the new total dimensions correspond to those
-             *          specified in the `core::Properties` object. There is only one subdomain that has the extents of
-             *          the entire grid.
+             *          specified in the `lbm::core::Properties` object. There is only one subdomain that has the 
+             *          extents of the entire grid.
              * 
              * @param[in]   horizontal_nodes    the amount of horizontal nodes in the original domain including ghost 
              *                                  nodes
              * @param[in]   vertical_nodes      the amount of vertical nodes in the original domain including ghost
              *                                  nodes
              */
-            explicit Domain
+            explicit NonDecomposedTwoLatticeDomain
             (
                 const unsigned int horizontal_nodes,
                 const unsigned int vertical_nodes
             );
         };
 
-        struct SwapDomain
+        /**
+         * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the swap algo-
+         *          rithm. The semantics of the domain setup process differ from those of the two-lattice algorithm.
+         *          Since interactions with buffers are required, they are considered part of the subdomain during
+         *          streaming and collision. In turn, the fraction belonging to the actual subdomain is slightly 
+         *          smaller. Notice that inner buffers are part of overlapping subdomains.
+         */
+        class SwapDomain : public Domain
         {
-            // The total amount of nodes in this domain. Buffer nodes are included for buffered domains.
-            unsigned int total_node_count;
+            public:
 
-            // The total amount of horizontal nodes in this domain. Buffer nodes are included for buffered domains.
-            unsigned int horizontal_nodes;
-
-            // The total amount of vertical nodes in this domain. Buffer nodes are included for buffered domains.
-            unsigned int vertical_nodes;
-
-            // The amount of vertical nodes per subdomain
-            unsigned int subdomain_vertical_nodes;
-
-            // The amount of horizontal nodes per subdomain
-            unsigned int subdomain_horizontal_nodes;
-
-            // The amount of subdomains in vertical direction
-            unsigned int subdomain_count_vertical;
-
-            // The amount of subdomains in horizontal direction
-            unsigned int subdomain_count_horizontal;
-
+            /**
+             * @brief   Constructs a decomposed domain structure for use with the swap algorithm.
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             */
             explicit SwapDomain
             (
                 const unsigned int unexpanded_horizontal_nodes,
                 const unsigned int unexpanded_vertical_nodes,
-                const size_t max_work_group_size
+                const size_t work_group_size
             );
         };
+
+// Results ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief This structure contains the results of the simulation in a structure-of-arrays representation.
@@ -563,6 +478,8 @@ namespace lbm
             }
         };
 
+// Data ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         /**
          * @brief This structure contains all data on which the simulation operates internally.
          */
@@ -629,6 +546,8 @@ namespace lbm
             }
         };
 
+// Simulation /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         /**
          * @brief   This structure contains all data that is related to the simulation.
          */
@@ -638,7 +557,7 @@ namespace lbm
             std::unique_ptr<Data> data;
             std::unique_ptr<Results> results;
             std::unique_ptr<Control> control;
-            std::unique_ptr<SwapDomain> domain;
+            std::unique_ptr<Domain> domain;
 
             /**
              * @brief   This struct contains all data required for a GPU lattice Boltzmann implementation.
@@ -650,6 +569,117 @@ namespace lbm
              */
             explicit Simulation(sycl::queue &queue);
         };
+
+
+// Miscellanea ////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        /**
+         * @brief   Returns the Maxwell-Boltzmann-Distribution for all directions in the order proposed by Mattila et al.
+         * 
+         * @param[in]   x_velocity    x component of the velocity of the node in question
+         * @param[in]   y_velocity    y component of the velocity of the node in question
+         * @param[in]   density       density of the node in question
+         * 
+         * @return  a vector containing the distribution values
+         */
+        inline 
+        std::vector<double> maxwell_boltzmann_distribution
+        (
+            const double x_velocity, 
+            const double y_velocity, 
+            const double density
+        )
+        {
+            std::vector<double> result(9,0);
+            int velocity_x_component = 0; 
+            int velocity_y_component = 0; 
+
+            for(auto direction = 0; direction < 9; ++direction)
+            {
+                velocity_x_component = (direction % 3) - 1; 
+                velocity_y_component = (direction / 3) - 1; 
+
+                result[direction] = constants::weights.at(direction) *
+                    (
+                        density + 3 * (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
+                        + 9.0/2 * std::pow(velocity_x_component * x_velocity + velocity_y_component * y_velocity, 2)
+                        - 3.0/2 * (x_velocity * x_velocity + y_velocity * y_velocity)
+                    );
+            }
+            return result;
+        }
+
+        /** 
+         * @brief  Returns the inverse direction of that specified. 
+         */
+        inline constexpr unsigned int invert_direction(const unsigned int dir) { return 8 - dir; }
+
+        /**
+         * @brief   This namespace contains convenience functions for determining which powers of certain bases
+         *          specified numbers are.
+         */
+        namespace power_functions
+        {
+            /**
+             * @brief   Returns whether the specified number is a power of four.
+             * 
+             * @param[in]   x   the number in question 
+             */
+            inline bool is_power_of_4(size_t x)
+            {
+                size_t checkbit = 3;
+                if (x & 0x1) return false;
+                while (!(checkbit & x)) x >>= 2;
+                return (!(x & 2));
+            }
+
+            /**
+             * @brief   Checks whether the specified number is a power of four other than one, and returns the power.
+             * 
+             * @param[in]   x   the number in question 
+             * 
+             * @return  the power if `x` is actually a power of 4 greater than `1`, or `0` otherwise
+             */
+            inline size_t which_power_of_4(size_t x)
+            {
+                size_t checkbit = 3;
+                size_t pow = 0;
+
+                if (x & 0x1) return 0;
+
+                while (!(checkbit & x)) 
+                {
+                    x >>= 2;
+                    pow++;
+                }
+            
+                return !(x & 2) ? pow : 0;
+            }
+
+            /**
+             * @brief   Checks whether the specified number is a power of two other than one, and returns the power.
+             * 
+             * @param[in]   x   the number in question 
+             * 
+             * @return  the power if `x` is actually a power of 2 greater than `1`, or `0` otherwise
+             */
+            inline size_t which_power_of_2(size_t x)
+            {
+                size_t checkbit = 1;
+                size_t pow = 0;
+
+                if (x & 0x1) return 0;
+
+                while (!(checkbit & x)) 
+                {
+                    x >>= 1;
+                    pow++;
+                }
+            
+                return !(x >> 1 | 0) ? pow : 0;
+            }
+
+        } // ! namespace power_functions
 
     } // ! namespace core
 

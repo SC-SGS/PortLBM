@@ -261,7 +261,7 @@ Domain(0, 0, 0, 0, 0, 0, 0)
     vertical_nodes = (subdomain_vertical_nodes) * subdomain_count_vertical;
     
     subdomain_count_horizontal = ((unexpanded_horizontal_nodes / subdomain_horizontal_nodes) + 1);
-    if(!(unexpanded_vertical_nodes % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
+    if(!(unexpanded_horizontal_nodes % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
     horizontal_nodes = (subdomain_horizontal_nodes) * subdomain_count_horizontal;
 
     total_node_count = vertical_nodes * horizontal_nodes;
@@ -373,6 +373,15 @@ control(std::make_unique<Control>(properties->time_steps))
             properties->work_group_size
         );
         data = std::make_unique<Data>(domain->total_node_count, queue, true);
+    }
+    else if(properties->algorithm == "gpu-two-lattice-optimized")
+    {
+        domain = std::make_unique<DecomposedTwoLatticeDomain>(
+            properties->horizontal_nodes,
+            properties->vertical_nodes,
+            properties->work_group_size
+        );
+        data = std::make_unique<Data>(domain->total_node_count, queue, false);
     }
     else
     {

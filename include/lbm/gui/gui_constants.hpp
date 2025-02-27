@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains constants for the GUI.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        January 2025
+ * @date        February 2025
  * 
  * @copyright   Copyright (c) 2024
  */
@@ -34,7 +34,7 @@ namespace lbm
         namespace constants
         {
 
-            constexpr std::array<std::string_view, 3> algorithms = {"gpu-two-lattice", "gpu-two-lattice-linear", "gpu-swap"};
+            constexpr std::array<std::string_view, 4> algorithms = {"gpu-two-lattice", "gpu-two-lattice-linear", "gpu-two-lattice-optimized", "gpu-swap"};
             constexpr std::array<std::string_view, 3> data_layouts = {"collision", "stream", "bundle"};
             constexpr std::array<std::string_view, 8> scenarios = 
                 {"Hagen-Poiseuille", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};

@@ -26,6 +26,7 @@
 // SYCL-based LBM algorithms
 #include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 #include "../gpu/two_lattice/non-linear/non_linear_gpu_two_lattice.hpp"
+#include "../gpu/two_lattice/optimized/optimized_gpu_two_lattice.hpp"
 #include "../gpu/swap/gpu_swap.hpp"
 
 // Standard library
@@ -74,6 +75,10 @@ namespace lbm
                     {
                         algorithm = gpu::two_lattice::non_linear::get_algorithm_pointer(*properties, *queue);
                     }
+                    else if(properties->algorithm == "gpu-two-lattice-optimized")
+                    {
+                        algorithm = gpu::two_lattice::optimized::get_algorithm_pointer(*properties, *queue);
+                    }
                     else if(properties->algorithm == "gpu-swap")
                     {
                         algorithm = gpu::swap::get_algorithm_pointer(*properties, *queue);
@@ -92,6 +97,10 @@ namespace lbm
                     else if(properties->algorithm == "gpu-two-lattice")
                     {
                         algorithm = gpu::two_lattice::non_linear::get_debug_algorithm_pointer(*properties, *queue);
+                    }
+                    else if(properties->algorithm == "gpu-two-lattice-optimized")
+                    {
+                        algorithm = gpu::two_lattice::optimized::get_debug_algorithm_pointer(*properties, *queue);
                     }
                     else if(properties->algorithm == "gpu-swap")
                     {

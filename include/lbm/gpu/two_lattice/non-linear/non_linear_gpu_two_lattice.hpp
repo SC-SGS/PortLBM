@@ -3,14 +3,13 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       In this header, classes for the GPU-based linear two-lattice algorithm is declared.
- *              Both inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface 
- *              of all algorithms. The kernel functions are implemented in 
- *              `linear_two_lattice_kernels.hpp`.
+ * @brief       In this header, two classes for the GPU-based linear two-lattice algorithm are declared. Both inherit 
+ *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The 
+ *              kernel functions are implemented in `linear_two_lattice_kernels.hpp`.
  * 
- * @version     4.1
+ * @version     4.2
  * 
- * @date        January 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -23,9 +22,7 @@
 #include "../../../console/console_output.hpp"
 
 // LBM core features
-#include "../../../core/access.hpp"
 #include "../../../core/domain_initialization.hpp"
-#include "../../../core/simulation.hpp"
 
 // Algorithm
 #include "../../../execution/sycl_algorithm.hpp"
@@ -34,6 +31,7 @@
 #include "../../sycl_constants.hpp"
 
 // Kernels
+#include "../../general/non_buffered.hpp"
 #include "non_linear_two_lattice_kernels.hpp"
 
 namespace lbm
@@ -52,7 +50,7 @@ namespace lbm
         {
 
             /**
-             * @brief This namespace contains implementations using linear kernels.
+             * @brief This namespace contains implementations using non-linear kernels.
              */
             namespace non_linear
             {
@@ -83,12 +81,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->domain->vertical_nodes,
-                                            simulation->domain->horizontal_nodes
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
                                         ),
                                         sycl::range<2>(
-                                            simulation->domain->subdomain_horizontal_nodes,
-                                            simulation->domain->subdomain_vertical_nodes
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
                                     kernel
@@ -134,11 +132,11 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->domain->vertical_nodes, 
-                                            simulation->domain->horizontal_nodes
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
                                         ),
                                         sycl::range<2>(
-                                            simulation->domain->subdomain_vertical_nodes, 
+                                            simulation->domain->subdomain_vertical_nodes,
                                             simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
@@ -158,9 +156,8 @@ namespace lbm
                         (
                             [&](sycl::handler &cgh)
                             {
-                                auto kernel = kernels::InoutUpdateKernel<A>(*simulation);
+                                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
                                 cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                                // set to simulation->properties->vertical_nodes - 2 to also treat corners
                             }
                         );
                         event.wait();
@@ -195,7 +192,12 @@ namespace lbm
                         );
                     }
 
-                    explicit NonLinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) {}; 
+                    explicit NonLinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) 
+                    {
+                        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
+                            *simulation, queue
+                        );
+                    }; 
                 };
 
 // Debug non-linear two-lattice ///////////////////////////////////////////////////////////////////////////////////////
@@ -232,8 +234,8 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->domain->vertical_nodes,
-                                            simulation->domain->horizontal_nodes 
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
                                         ),
                                         sycl::range<2>(
                                             simulation->domain->subdomain_vertical_nodes,
@@ -260,12 +262,12 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->domain->vertical_nodes,
-                                            simulation->domain->horizontal_nodes
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
                                         ),
                                         sycl::range<2>(
-                                            simulation->domain->subdomain_horizontal_nodes,
-                                            simulation->domain->subdomain_vertical_nodes
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
                                     kernel
@@ -309,8 +311,8 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->domain->vertical_nodes,
-                                            simulation->domain->horizontal_nodes 
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
                                         ),
                                         sycl::range<2>(
                                             simulation->domain->subdomain_vertical_nodes,
@@ -399,11 +401,11 @@ namespace lbm
                                 cgh.parallel_for(
                                     sycl::nd_range<2>(
                                         sycl::range<2>(
-                                            simulation->domain->vertical_nodes, 
-                                            simulation->domain->horizontal_nodes
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
                                         ),
                                         sycl::range<2>(
-                                            simulation->domain->subdomain_vertical_nodes, 
+                                            simulation->domain->subdomain_vertical_nodes,
                                             simulation->domain->subdomain_horizontal_nodes
                                         )
                                     ), 
@@ -438,9 +440,8 @@ namespace lbm
                         (
                             [&](sycl::handler &cgh)
                             {
-                                auto kernel = kernels::InoutUpdateKernel<A>(*simulation);
+                                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
                                 cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                                // set to simulation->properties->vertical_nodes - 2 to also treat corners
                             }
                         );
                         event.wait();
@@ -606,6 +607,12 @@ namespace lbm
                         );
                     }
 
+                    /**
+                     * @brief   Constructs a new `NonLinearGpuTwoLatticeDebug` algorithm object and initializes its 
+                     *          domain.
+                     * 
+                     * @param[in]   queue   the SYCL queue that is used to allocate the device data
+                     */
                     explicit NonLinearGpuTwoLatticeDebug(sycl::queue &queue) 
                     : 
                     SYCLAlgorithm(queue),
@@ -619,6 +626,10 @@ namespace lbm
                     phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
                     current_iteration(0)
                     {
+                        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
+                            *simulation, queue
+                        );
+
                         all_densities->reserve(
                             simulation->properties->time_steps * simulation->properties->domain_node_count
                         );
@@ -639,117 +650,6 @@ namespace lbm
                         phase_information->shrink_to_fit();
                     }; 
                 };
-
-                /**
-                 * @brief   Initializes a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLattice` algorithm object and 
-                 *          returns a unique pointer to this object.
-                 * 
-                 * @param[in]   properties  the data layout and scenario are determined from this object
-                 * @param[in]   queue       the SYCL queue on which the algorithm operates.
-                 * 
-                 * @return  a unique pointer to a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLattice` object
-                 */
-                std::unique_ptr<execution::SYCLAlgorithm> get_algorithm_pointer
-                (
-                    const core::Properties &properties, 
-                    sycl::queue &queue
-                )
-                {
-                    std::unique_ptr<execution::SYCLAlgorithm> algorithm;
-
-                    if(properties.data_layout == "stream")
-                    {
-                        algorithm = std::make_unique<
-                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>
-                                >(queue);
-                        core::domain_initialization::setup_domain<core::access::StreamAccessor, core::access::decomposed::NonBufferedNodeAccess>(
-                            *algorithm->simulation, queue, properties.scenario
-                        );
-                    }
-                    else if(properties.data_layout == "collision")
-                    {
-                        algorithm = std::make_unique<
-                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>
-                                >(queue);
-                        core::domain_initialization::setup_domain<core::access::CollisionAccessor, core::access::decomposed::NonBufferedNodeAccess>(
-                            *algorithm->simulation, queue, properties.scenario
-                        );
-                    }
-                    else if(properties.data_layout == "bundle")
-                    {
-                        algorithm = std::make_unique<
-                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>
-                                >(queue);
-                        core::domain_initialization::setup_domain<core::access::BundleAccessor, core::access::decomposed::NonBufferedNodeAccess>(
-                            *algorithm->simulation, queue, properties.scenario
-                        );
-                    }
-                    else
-                    {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
-                    }
-
-                    return algorithm;
-                }
-
-                /**
-                 * @brief   Initializes a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug` algorithm object and 
-                 *          returns a unique pointer to this object.
-                 * 
-                 * @param[in]   properties  the data layout and scenario are determined from this object
-                 * @param[in]   queue       the SYCL queue on which the algorithm operates.
-                 * 
-                 * @return  a unique pointer to a `lbm::gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug` object
-                 */
-                std::unique_ptr<execution::SYCLAlgorithm> get_debug_algorithm_pointer
-                (
-                    const core::Properties &properties, 
-                    sycl::queue &queue
-                )
-                {
-                    std::unique_ptr<execution::SYCLAlgorithm> algorithm;
-
-                    std::cout << "lbm_sycl_executor.cpp:\tAlgorithm detected: Linear GPU two-lattice\n";
-                    if(properties.data_layout == "stream")
-                    {
-                        std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
-                        algorithm = std::make_unique<
-                            gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::StreamAccessor>
-                                >(queue);
-                        std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-                        core::domain_initialization::setup_domain<core::access::StreamAccessor, core::access::decomposed::NonBufferedNodeAccess>(
-                            *algorithm->simulation, queue, properties.scenario
-                        );
-                    }
-                    else if(properties.data_layout == "collision")
-                    {
-                        std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
-                        algorithm = std::make_unique<
-                            gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::CollisionAccessor>
-                                >(queue);
-                        std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-                        core::domain_initialization::setup_domain<core::access::CollisionAccessor, core::access::decomposed::NonBufferedNodeAccess>(
-                            *algorithm->simulation, queue, properties.scenario
-                        );
-                    }
-                    else if(properties.data_layout == "bundle")
-                    {
-                        std::cout << "lbm_sycl_executor.cpp:\tCreating algorithm object\n";
-                        algorithm = std::make_unique<
-                            gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::BundleAccessor>
-                                >(queue);
-                        std::cout << "lbm_sycl_executor.cpp:\tSetting up pipe flow environment\n";
-                        core::domain_initialization::setup_domain<core::access::BundleAccessor, core::access::decomposed::NonBufferedNodeAccess>(
-                            *algorithm->simulation, queue, properties.scenario
-                        );
-                    }
-                    else
-                    {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
-                    }
-
-                    return algorithm;
-                }
 
             } // ! namespace linear
 

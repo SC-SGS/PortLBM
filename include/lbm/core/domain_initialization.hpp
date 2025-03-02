@@ -7,7 +7,7 @@
  * 
  * @version     3.2
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -97,7 +97,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a circle obstacle.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a circle simulation.properties->scenario.
                  */
                 struct CircleStencil
                 {
@@ -126,7 +126,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a square obstacle.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a square simulation.properties->scenario.
                  */
                 struct SquareStencil
                 {
@@ -153,7 +153,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a plate obstacle.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a plate simulation.properties->scenario.
                  */
                 struct PlateStencil
                 {
@@ -181,7 +181,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a skyscraper obstacle.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a skyscraper simulation.properties->scenario.
                  *          The skyscraper has three storeys of decreasing width.
                  */
                 struct SkyscraperStencil
@@ -217,7 +217,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a wing-shaped obstacle.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a wing-shaped simulation.properties->scenario.
                  */
                 struct WingStencil
                 {
@@ -556,7 +556,7 @@ namespace lbm
 
             /**
              * @brief   Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state.
-             *          The domain consists of solid nodes on the upper and lower boundary, and further solid obstacles
+             *          The domain consists of solid nodes on the upper and lower boundary, and further solid simulation.properties->scenarios
              *          depending on the scenario specified within the simulation object.
              * 
              * @tparam  A   any `core::access::AccessorConcept` from access.hpp
@@ -564,14 +564,13 @@ namespace lbm
 
              * @param[in, out]  simulation  reference to the structure containing all simulation data 
              * @param[in]       queue       the SYCL queue to which the values residing on the GPU belong
-             * @param[in]       obstacle    what kind of obstacle is added to the domain
+             * @param[in]       simulation.properties->scenario    what kind of simulation.properties->scenario is added to the domain
              */
             template<core::access::AccessorConcept A, core::access::decomposed::NodeAccessor N> 
             void setup_domain
             (
                 Simulation &simulation, 
-                sycl::queue &queue, 
-                std::string obstacle = "Hagen-Poiseuille"
+                sycl::queue &queue
             )
             {
                 domain_initialization::set_standstill_values<A>(simulation, queue);
@@ -592,22 +591,22 @@ namespace lbm
                 }
 
                 // Set pipe boundaries
-                if(!(obstacle == "porous")) {gpu_stencils::set_pipe_boundaries<N>(simulation, queue); }
-                if(obstacle == "Hagen-Poiseuille")  
+                if(!(simulation.properties->scenario == "porous")) {gpu_stencils::set_pipe_boundaries<N>(simulation, queue); }
+                if(simulation.properties->scenario == "Hagen-Poiseuille")  
                 { add_stencil<N, gpu_stencils::HagenPoiseuilleStencil>(simulation, queue); }
-                else if(obstacle == "walls")        
+                else if(simulation.properties->scenario == "walls")        
                 { add_stencil<N, gpu_stencils::WallStencil>(simulation, queue); }
-                else if(obstacle == "circle")       
+                else if(simulation.properties->scenario == "circle")       
                 { add_stencil<N, gpu_stencils::CircleStencil>(simulation, queue); }
-                else if(obstacle == "square")       
+                else if(simulation.properties->scenario == "square")       
                 { add_stencil<N, gpu_stencils::SquareStencil>(simulation, queue); }
-                else if(obstacle == "plate")        
+                else if(simulation.properties->scenario == "plate")        
                 { add_stencil<N, gpu_stencils::PlateStencil>(simulation, queue); }
-                else if(obstacle == "skyscraper")   
+                else if(simulation.properties->scenario == "skyscraper")   
                 { add_stencil<N, gpu_stencils::SkyscraperStencil>(simulation, queue); }
-                else if(obstacle == "wing")         
+                else if(simulation.properties->scenario == "wing")         
                 { add_stencil<N, gpu_stencils::WingStencil>(simulation, queue); }
-                else if(obstacle == "porous")       
+                else if(simulation.properties->scenario == "porous")       
                 {
                     std::vector<int8_t> phase_information_cpu(simulation.domain->total_node_count, -1);
                     cpu_phase_masks::porous_medium_mask<N>

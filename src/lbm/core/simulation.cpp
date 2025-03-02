@@ -8,7 +8,7 @@
  * 
  * @version     4.3
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -256,13 +256,13 @@ Domain(0, 0, 0, 0, 0, 0, 0)
         }
     }
 
-    subdomain_count_vertical = ((unexpanded_vertical_nodes / subdomain_vertical_nodes) + 1);
-    if(!(unexpanded_vertical_nodes % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
-    vertical_nodes = (subdomain_vertical_nodes) * subdomain_count_vertical;
+    subdomain_count_vertical = (((unexpanded_vertical_nodes - 2) / subdomain_vertical_nodes) + 1);
+    if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
+    vertical_nodes = (subdomain_vertical_nodes) * subdomain_count_vertical + 2;
     
-    subdomain_count_horizontal = ((unexpanded_horizontal_nodes / subdomain_horizontal_nodes) + 1);
-    if(!(unexpanded_horizontal_nodes % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
-    horizontal_nodes = (subdomain_horizontal_nodes) * subdomain_count_horizontal;
+    subdomain_count_horizontal = (((unexpanded_horizontal_nodes - 2) / subdomain_horizontal_nodes) + 1);
+    if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
+    horizontal_nodes = (subdomain_horizontal_nodes) * subdomain_count_horizontal + 2;
 
     total_node_count = vertical_nodes * horizontal_nodes;
 };
@@ -374,15 +374,16 @@ control(std::make_unique<Control>(properties->time_steps))
         );
         data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
-    else if(properties->algorithm == "gpu-two-lattice-optimized")
-    {
-        domain = std::make_unique<DecomposedTwoLatticeDomain>(
-            properties->horizontal_nodes,
-            properties->vertical_nodes,
-            properties->work_group_size
-        );
-        data = std::make_unique<Data>(domain->total_node_count, queue, false);
-    }
+    // soon:
+    // else if(properties->algorithm == "gpu-two-lattice-optimized")
+    // {
+    //     domain = std::make_unique<DecomposedTwoLatticeDomain>(
+    //         properties->horizontal_nodes,
+    //         properties->vertical_nodes,
+    //         properties->work_group_size
+    //     );
+    //     data = std::make_unique<Data>(domain->total_node_count, queue, false);
+    // }
     else
     {
         domain = std::make_unique<SwapDomain>(

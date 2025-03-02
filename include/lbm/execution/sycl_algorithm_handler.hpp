@@ -7,7 +7,7 @@
  * 
  * @version     1.1
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2025 Marcel Graf
  */
@@ -26,7 +26,7 @@
 // SYCL-based LBM algorithms
 #include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 #include "../gpu/two_lattice/non-linear/non_linear_gpu_two_lattice.hpp"
-#include "../gpu/two_lattice/optimized/optimized_gpu_two_lattice.hpp"
+// #include "../gpu/two_lattice/optimized/optimized_gpu_two_lattice.hpp"
 #include "../gpu/swap/gpu_swap.hpp"
 
 // Standard library
@@ -57,59 +57,198 @@ namespace lbm
             bool active;
 
             /**
+             * @brief   Initializes the non-debug variant of the algorithm specified in the according properties object.
+             * 
+             * @param[in]   properties  the algorithm that is to be set up is stored in this object
+             */
+            inline void initialize_non_debug_algorithm(const core::Properties &properties)
+            {
+                if(properties.algorithm == "gpu-two-lattice-linear")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                }
+                else if(properties.algorithm == "gpu-two-lattice")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                }
+                // else if(properties->algorithm == "gpu-two-lattice-optimized")
+                // {
+
+                // }
+                else if(properties.algorithm == "gpu-swap")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::StreamAccessor>>(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::CollisionAccessor>>(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::BundleAccessor>>(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(
+                            fmt::format("Unknown data layout: ", properties.data_layout)
+                        );
+                    }
+                }
+                else
+                {
+                    throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties.data_layout));
+                }
+            }
+
+            /**
+             * @brief   Initializes the non-debug variant of the algorithm specified in the according properties object.
+             * 
+             * @param[in]   properties  the algorithm that is to be set up is stored in this object
+             */
+            inline void initialize_debug_algorithm(const core::Properties &properties)
+            {
+                if(properties.algorithm == "gpu-two-lattice-linear")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                }
+                else if(properties.algorithm == "gpu-two-lattice")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                }
+                // else if(properties->algorithm == "gpu-two-lattice-optimized")
+                // {
+                //     
+                // }
+                else if(properties.algorithm == "gpu-swap")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = 
+                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::StreamAccessor>>(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = 
+                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::CollisionAccessor>>(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = 
+                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::BundleAccessor>>(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                }
+                else
+                {
+                    throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties.data_layout));
+                }
+            }
+
+            /**
              * @brief   (Re-)Initializes the `lbm::execution::SYCLAlgorithm` object belonging to this SYCL algorithm 
              *          handler object.
              */
             inline void initialize_algorithm()
             {
                 std::unique_ptr<core::Properties> properties = 
-                    std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties());
+                    std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties());             
 
                 if(!properties->debug_mode)
                 {
-                    if(properties->algorithm == "gpu-two-lattice-linear")
-                    {
-                        algorithm = gpu::two_lattice::linear::get_algorithm_pointer(*properties, *queue);
-                    }
-                    else if(properties->algorithm == "gpu-two-lattice")
-                    {
-                        algorithm = gpu::two_lattice::non_linear::get_algorithm_pointer(*properties, *queue);
-                    }
-                    else if(properties->algorithm == "gpu-two-lattice-optimized")
-                    {
-                        algorithm = gpu::two_lattice::optimized::get_algorithm_pointer(*properties, *queue);
-                    }
-                    else if(properties->algorithm == "gpu-swap")
-                    {
-                        algorithm = gpu::swap::get_algorithm_pointer(*properties, *queue);
-                    }
-                    else
-                    {
-                        throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties->data_layout));
-                    }
+                    initialize_non_debug_algorithm(*properties);
                 }
                 else
                 {
-                    if(properties->algorithm == "gpu-two-lattice-linear")
-                    {
-                        algorithm = gpu::two_lattice::linear::get_debug_algorithm_pointer(*properties, *queue);
-                    }
-                    else if(properties->algorithm == "gpu-two-lattice")
-                    {
-                        algorithm = gpu::two_lattice::non_linear::get_debug_algorithm_pointer(*properties, *queue);
-                    }
-                    else if(properties->algorithm == "gpu-two-lattice-optimized")
-                    {
-                        algorithm = gpu::two_lattice::optimized::get_debug_algorithm_pointer(*properties, *queue);
-                    }
-                    else if(properties->algorithm == "gpu-swap")
-                    {
-                        algorithm = gpu::swap::get_debug_algorithm_pointer(*properties, *queue);
-                    }
-                    else
-                    {
-                        throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties->data_layout));
-                    }
+                    initialize_debug_algorithm(*properties);
                 }                
             }
 

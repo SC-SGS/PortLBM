@@ -3,13 +3,13 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       In this header, classes for the GPU-based swap algorithm are declared. Both inherit from the 
- *              `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The kernel 
- *              functions are implemented in `swap_kernels.hpp`.
+ * @brief       In this header, a debug and a performance class for the GPU-based swap algorithm are declared. Both 
+ *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. 
+ *              The kernel functions are implemented in `swap_kernels.hpp`.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -22,9 +22,7 @@
 #include "../../console/console_output.hpp"
 
 // LBM core features
-#include "../../core/access.hpp"
 #include "../../core/domain_initialization.hpp"
-#include "../../core/simulation.hpp"
 
 // Algorithm
 #include "../../execution/sycl_algorithm.hpp"
@@ -33,6 +31,7 @@
 #include "../sycl_constants.hpp"
 
 // Kernels
+#include "../general/buffered.hpp"
 #include "swap_kernels.hpp"
 
 namespace lbm
@@ -53,9 +52,9 @@ namespace lbm
 // Performance swap ///////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
-             * @brief Class representation of the SYCL implementation of the swap algorithm.
+             * @brief   Class representation of the SYCL implementation of the swap algorithm.
              * 
-             * @tparam A any `core::access::AccessorConcept` from access.hpp
+             * @tparam  A   any `core::access::AccessorConcept` from access.hpp
              */
             template <core::access::AccessorConcept A>
             class GpuSwap : public execution::SYCLAlgorithm
@@ -65,8 +64,8 @@ namespace lbm
                 double inlet_values [9];
 
                 /**
-                 * @brief   Performs the streaming and collision step of the swap algorithm and updates the macroscopic
-                 *          observables in the process.
+                 * @brief   Performs the combined streaming and collision step of the swap algorithm and updates the 
+                 *          macroscopic observables in the process.
                  */
                 inline void stream_and_collide()
                 {
@@ -74,12 +73,19 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = swap::kernels::StreamCollideKernel<A>(*simulation, cgh, simulation->properties->work_group_size);
+                            auto kernel = 
+                                swap::kernels::StreamCollideKernel<A>(
+                                    *simulation, 
+                                    cgh, 
+                                    simulation->properties->work_group_size
+                                );
+
                             cgh.parallel_for(
                                 sycl::nd_range<2>(
                                     sycl::range<2>(
                                         simulation->domain->vertical_nodes - 1,
-                                        simulation->domain->subdomain_count_horizontal * (simulation->domain->subdomain_horizontal_nodes + 2)
+                                        simulation->domain->subdomain_count_horizontal * 
+                                        (simulation->domain->subdomain_horizontal_nodes + 2)
                                     ),
                                     sycl::range<2>(
                                         simulation->domain->subdomain_vertical_nodes + 1,
@@ -117,7 +123,8 @@ namespace lbm
                 }
 
                 /**
-                 * @brief   Emplaces the values as preparation for the bounce-back scheme for the swap algorithm.
+                 * @brief   Emplaces the distribution values as preparation for the bounce-back scheme for the swap 
+                 *          algorithm.
                  */
                 void emplace_bounce_back()
                 {
@@ -125,7 +132,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::HorizontalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->subdomain_count_vertical - 1,
@@ -140,7 +147,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::VerticalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->vertical_nodes,
@@ -159,8 +166,10 @@ namespace lbm
                             cgh.parallel_for(
                                 sycl::nd_range<2>(
                                     sycl::range<2>(
-                                        simulation->domain->subdomain_count_vertical * simulation->domain->subdomain_vertical_nodes, 
-                                        simulation->domain->subdomain_count_horizontal * simulation->domain->subdomain_horizontal_nodes
+                                        simulation->domain->subdomain_count_vertical * 
+                                        simulation->domain->subdomain_vertical_nodes, 
+                                        simulation->domain->subdomain_count_horizontal * 
+                                        simulation->domain->subdomain_horizontal_nodes
                                     ),
                                     sycl::range<2>(
                                         simulation->domain->subdomain_vertical_nodes, 
@@ -182,17 +191,17 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::InletUpdateKernel<A>(*simulation, inlet_values);
+                            auto kernel = general::buffered::InletUpdateKernel<A>(*simulation, inlet_values);
                             cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 2), kernel); 
                         }
                     );
-                    
                     inlet_event.wait();
+
                     auto event1 = queue->submit
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::HorizontalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->subdomain_count_vertical - 1,
@@ -207,7 +216,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::VerticalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->vertical_nodes,
@@ -222,8 +231,8 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::OutletUpdateKernel<A>(*simulation);
-                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
+                            auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
+                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes), kernel); 
                         }
                     );
                     outlet_event.wait();
@@ -232,7 +241,7 @@ namespace lbm
                 public:
 
                 /**
-                 * @brief   Runs the linear swap algorithm until it is paused or it reaches the last iteration. 
+                 * @brief   Runs the swap algorithm until it is paused or reaches the last iteration. 
                  */
                 inline void execute() override
                 {
@@ -254,6 +263,11 @@ namespace lbm
                     );
                 }
 
+                /**
+                 * @brief   Constructs a new `GpuSwap` algorithm object and initializes its domain.
+                 * 
+                 * @param[in]   queue   the SYCL queue that is used to allocate the device data
+                 */
                 explicit GpuSwap(sycl::queue &queue) : SYCLAlgorithm(queue) 
                 {
                     std::vector<double> distribution = core::maxwell_boltzmann_distribution(
@@ -262,14 +276,18 @@ namespace lbm
                         simulation->properties->inlet_density
                     );
 
-                    for(int i = 0; i < 9; ++i) inlet_values[i] = distribution[i];
+                    memcpy(inlet_values, distribution.data(), 9 * sizeof(double));
+
+                    core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(
+                        *simulation, queue
+                    );
                 }; 
             };
 
 // Debug swap /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
-             * @brief Class representation of the linear SYCL debug implementation of the swap algorithm.
+             * @brief Class representation of the SYCL debug implementation of the swap algorithm.
              * 
              * @tparam A any `core::access::AccessorConcept` from access.hpp
              */
@@ -284,117 +302,14 @@ namespace lbm
                 std::unique_ptr<std::vector<double>> distribution_values;
                 std::unique_ptr<std::vector<double>> temp_macroscopic_observables;
                 std::unique_ptr<std::vector<int8_t>> phase_information;
+
                 double inlet_values [9];
 
                 unsigned int current_iteration;
 
                 /**
-                 * @brief   Performs the streaming step of the swap algorithm.
-                 */
-                void stream()
-                {
-                    // queue->submit
-                    // (
-                    //     [&](sycl::handler &cgh)
-                    //     {
-                    //         auto kernel = non_linear::kernels::StreamKernel<A>(*simulation);
-                    //         cgh.parallel_for(
-                    //             sycl::nd_range<2>(
-                    //                 sycl::range<2>(
-                    //                     simulation->domain->vertical_nodes,
-                    //                     simulation->domain->horizontal_nodes 
-                    //                 ),
-                    //                 sycl::range<2>(
-                    //                     simulation->domain->subdomain_vertical_nodes,
-                    //                     simulation->domain->subdomain_horizontal_nodes
-                    //                 )
-                    //             ), 
-                    //             kernel
-                    //         );
-                    //     }
-                    // ).wait();
-                }
-
-                /**
-                 * @brief   Performs the streaming and collision step of the swap algorithm and updates
-                 *          the macroscopic observables in the process.
-                 */
-                void update_macroscopic_observables()
-                {
-                    // queue->submit
-                    // (
-                    //     [&](sycl::handler &cgh)
-                    //     {
-                    //         auto kernel = non_linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
-                    //         cgh.parallel_for(
-                    //             sycl::nd_range<2>(
-                    //                 sycl::range<2>(
-                    //                     simulation->domain->vertical_nodes,
-                    //                     simulation->domain->horizontal_nodes
-                    //                 ),
-                    //                 sycl::range<2>(
-                    //                     simulation->domain->subdomain_horizontal_nodes,
-                    //                     simulation->domain->subdomain_vertical_nodes
-                    //                 )
-                    //             ), 
-                    //             kernel
-                    //         );
-                    //     }
-                    // ).wait();
-
-                    // queue->copy(
-                    //     simulation->results->densities_gpu, 
-                    //     simulation->results->densities_cpu->data(), 
-                    //     simulation->results->densities_cpu->size()
-                    // ).wait();
-                    // queue->copy(
-                    //     simulation->results->x_velocities_gpu, 
-                    //     simulation->results->x_velocities_cpu->data(), 
-                    //     simulation->results->x_velocities_cpu->size()
-                    // ).wait();
-                    // queue->copy(
-                    //     simulation->results->y_velocities_gpu, 
-                    //     simulation->results->y_velocities_cpu->data(), 
-                    //     simulation->results->y_velocities_cpu->size()
-                    // ).wait();
-                    // queue->copy(
-                    //     simulation->results->absolute_velocities_gpu, 
-                    //     simulation->results->absolute_velocities_cpu->data(), 
-                    //     simulation->results->absolute_velocities_cpu->size()
-                    // ).wait();
-                }
-
-                /**
-                 * @brief   Performs the collision step of the swap algorithm.
-                 * 
-                 */
-                void collide()
-                {
-                    // queue->submit
-                    // (
-                    //     [&](sycl::handler &cgh)
-                    //     {
-                    //         auto kernel = non_linear::kernels::CollideKernel<A>(*simulation);
-                    //         cgh.parallel_for(
-                    //             sycl::nd_range<2>(
-                    //                 sycl::range<2>(
-                    //                     simulation->domain->vertical_nodes,
-                    //                     simulation->domain->horizontal_nodes 
-                    //                 ),
-                    //                 sycl::range<2>(
-                    //                     simulation->domain->subdomain_vertical_nodes,
-                    //                     simulation->domain->subdomain_horizontal_nodes
-                    //                 )
-                    //             ), 
-                    //             kernel
-                    //         );
-                    //     }
-                    // ).wait();
-                }
-
-                /**
-                 * @brief   Performs the streaming and collision step of the swap algorithm and updates
-                 *          the macroscopic observables in the process.
+                 * @brief   Performs the streaming and collision step of the swap algorithm and updates the macroscopic
+                 *          observables in the process.
                  */
                 inline void stream_and_collide()
                 {
@@ -407,7 +322,8 @@ namespace lbm
                                 sycl::nd_range<2>(
                                     sycl::range<2>(
                                         simulation->domain->vertical_nodes - 1,
-                                        simulation->domain->subdomain_count_horizontal * (simulation->domain->subdomain_horizontal_nodes + 2)
+                                        simulation->domain->subdomain_count_horizontal * 
+                                        (simulation->domain->subdomain_horizontal_nodes + 2)
                                     ),
                                     sycl::range<2>(
                                         simulation->domain->subdomain_vertical_nodes + 1,
@@ -484,7 +400,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::HorizontalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->subdomain_count_vertical - 1,
@@ -499,7 +415,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::VerticalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->vertical_nodes,
@@ -516,8 +432,9 @@ namespace lbm
                         9 * simulation->domain->total_node_count
                     ).wait();
 
-                    std::cout << "\033[36mLattice after performing copy to buffers: \n"
-                            << "-------------------------------------------------------------------------------\033[0m\n";
+                    std::cout 
+                    << "\033[36mLattice after performing copy to buffers: \n"
+                    << "-------------------------------------------------------------------------------\033[0m\n";
 
                     lbm::console::buffered::print_distribution_values<A>(
                         *distribution_values, 
@@ -533,8 +450,10 @@ namespace lbm
                             cgh.parallel_for(
                                 sycl::nd_range<2>(
                                     sycl::range<2>(
-                                        simulation->domain->subdomain_count_vertical * simulation->domain->subdomain_vertical_nodes, 
-                                        simulation->domain->subdomain_count_horizontal * simulation->domain->subdomain_horizontal_nodes
+                                        simulation->domain->subdomain_count_vertical * 
+                                        simulation->domain->subdomain_vertical_nodes, 
+                                        simulation->domain->subdomain_count_horizontal * 
+                                        simulation->domain->subdomain_horizontal_nodes
                                     ),
                                     sycl::range<2>(
                                         simulation->domain->subdomain_vertical_nodes, 
@@ -552,7 +471,8 @@ namespace lbm
                         9 * simulation->domain->total_node_count
                     ).wait();
 
-                    std::cout << "\033[36mLattice after emplacing bounce-back values: \n"
+                    std::cout 
+                    << "\033[36mLattice after emplacing bounce-back values: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
                     lbm::console::buffered::print_distribution_values<A>(
@@ -565,7 +485,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::HorizontalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->subdomain_count_vertical - 1,
@@ -580,7 +500,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::VerticalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->vertical_nodes,
@@ -597,8 +517,9 @@ namespace lbm
                         9 * simulation->domain->total_node_count
                     ).wait();
 
-                    std::cout << "\033[36mLattice after performing copy to buffers: \n"
-                            << "-------------------------------------------------------------------------------\033[0m\n";
+                    std::cout 
+                    << "\033[36mLattice after performing copy to buffers: \n"
+                    << "-------------------------------------------------------------------------------\033[0m\n";
 
                     lbm::console::buffered::print_distribution_values<A>(
                         *distribution_values, 
@@ -616,9 +537,8 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::InletUpdateKernel<A>(*simulation, inlet_values);
+                            auto kernel = general::buffered::InletUpdateKernel<A>(*simulation, inlet_values);
                             cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 2), kernel); 
-                            //sycl::local_accessor<double, 1> local_memory(sycl::range<1>(9), cgh);
                         }
                     );
                     
@@ -627,7 +547,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::HorizontalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->subdomain_count_vertical - 1,
@@ -642,7 +562,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::VerticalCopyToBufferKernel<A>(*simulation);
+                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
                             cgh.parallel_for(
                                 sycl::range<2>(
                                     simulation->domain->vertical_nodes,
@@ -657,9 +577,8 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = kernels::OutletUpdateKernel<A>(*simulation);
+                            auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
                             cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                            // set to simulation->properties->vertical_nodes - 2 to also treat corners
                         }
                     );
                     outlet_event.wait();
@@ -684,8 +603,8 @@ namespace lbm
                 public:
 
                 /**
-                 * @brief   Runs the debug variant of the linear swap algorithm until it is paused or it 
-                 *          reaches the last iteration. 
+                 * @brief   Runs the debug variant of the swap algorithm until it is paused or it reaches the last 
+                 *          iteration. 
                  */
                 inline void execute() override 
                 { 
@@ -735,7 +654,8 @@ namespace lbm
 
                     std::cout << "\n";
                     std::cout << "Buffered domain:\n";
-                    std::cout << "------------------------------------------------------------------------------------\n";
+                    std::cout 
+                    << "------------------------------------------------------------------------------------\n";
                     std::cout << "\texpanded_node_count = " << simulation->domain->total_node_count << "\n";
                     std::cout << "\texpanded_horizontal_nodes = " << simulation->domain->horizontal_nodes << "\n";
                     std::cout << "\texpanded_vertical_nodes = " << simulation->domain->vertical_nodes << "\n";
@@ -743,8 +663,10 @@ namespace lbm
                     std::cout << "\tsubdomain_width = " << simulation->domain->subdomain_horizontal_nodes << "\n";
                     std::cout << "\tsubdomain_height = " << simulation->domain->subdomain_vertical_nodes << "\n";
 
-                    std::cout << "\tsubdomain_count_vertical = " << simulation->domain->subdomain_count_vertical << "\n";
-                    std::cout << "\tsubdomain_count_horizontal = " << simulation->domain->subdomain_count_horizontal << "\n";
+                    std::cout 
+                    << "\tsubdomain_count_vertical = " << simulation->domain->subdomain_count_vertical << "\n";
+                    std::cout 
+                    << "\tsubdomain_count_horizontal = " << simulation->domain->subdomain_count_horizontal << "\n";
                     std::cout << "\n";
 
                     future = hpx::async
@@ -760,56 +682,8 @@ namespace lbm
                                 << "Iteration " << current_iteration << "\n"
                                 << "===============================================================================\033[0m\n\n";
 
-                                
-
                                 emplace_bounce_back();
                                 perform_inout_update();
-
-                                // auto event1 = queue->submit
-                                // (
-                                //     [&](sycl::handler &cgh)
-                                //     {
-                                //         auto kernel = kernels::HorizontalBufferStreamKernel<A>(*simulation);
-                                //         cgh.parallel_for(
-                                //             sycl::range<2>(
-                                //                 simulation->domain->subdomain_count_vertical - 1,
-                                //                 simulation->domain->horizontal_nodes
-                                //             ), kernel
-                                //         );
-                                //     }
-                                // );
-            
-                                // auto event2 = queue->submit
-                                // (
-                                //     [&](sycl::handler &cgh)
-                                //     {
-                                //         auto kernel = kernels::VerticalBufferStreamKernel<A>(*simulation);
-                                //         cgh.parallel_for(
-                                //             sycl::range<2>(
-                                //                 simulation->domain->vertical_nodes,
-                                //                 simulation->domain->subdomain_count_horizontal - 1
-                                //             ), kernel
-                                //         );
-                                //     }
-                                // );
-                                // event1.wait();
-                                // event2.wait();
-
-                                // queue->copy(
-                                //     simulation->data->distribution_values_0, 
-                                //     distribution_values->data(), 
-                                //     9 * simulation->domain->total_node_count
-                                // ).wait();
-
-                                // std::cout 
-                                // << "\033[36mDestination lattice after buffer streaming: \n"
-                                // << "-------------------------------------------------------------------------------\033[0m\n";
-            
-                                // console::buffered::print_distribution_values<A>(
-                                //     *distribution_values, 
-                                //     *phase_information,
-                                //     *simulation
-                                // );
                                 stream_and_collide();
 
                                 std::cout 
@@ -872,6 +746,11 @@ namespace lbm
                     );
                 }
 
+                /**
+                 * @brief   Constructs a new `GpuSwapDebug` algorithm object and initializes its domain.
+                 * 
+                 * @param[in]   queue   the SYCL queue that is used to allocate the device data
+                 */
                 explicit GpuSwapDebug(sycl::queue &queue) 
                 : 
                 SYCLAlgorithm(queue),
@@ -884,14 +763,11 @@ namespace lbm
                 temp_macroscopic_observables(std::make_unique<std::vector<double>>(simulation->properties->domain_node_count, 0)),
                 phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
                 current_iteration(0)
-                // inlet_values(std::make_unique<std::vector<double>>(
-                //     core::maxwell_boltzmann_distribution(
-                //         simulation->properties->inlet_velocity_x,
-                //         simulation->properties->inlet_velocity_y,
-                //         simulation->properties->inlet_density
-                //     );
-                // ))
                 {
+                    core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(
+                        *simulation, queue
+                    );
+
                     all_densities->reserve(
                         simulation->properties->time_steps * simulation->properties->domain_node_count
                     );
@@ -921,121 +797,10 @@ namespace lbm
                 }; 
             };
 
-            /**
-             * @brief   Initializes a `lbm::gpu::swap::GpuSwap` algorithm object and 
-             *          returns a unique pointer to this object.
-             * 
-             * @param[in]   properties  the data layout and scenario are determined from this object
-             * @param[in]   queue       the SYCL queue on which the algorithm operates.
-             * 
-             * @return  a unique pointer to a `lbm::gpu::swap::GpuSwap` object
-             */
-            std::unique_ptr<execution::SYCLAlgorithm> get_algorithm_pointer
-            (
-                const core::Properties &properties, 
-                sycl::queue &queue
-            )
-            {
-                std::unique_ptr<execution::SYCLAlgorithm> algorithm;
-
-                if(properties.data_layout == "stream")
-                {
-                    algorithm = std::make_unique<
-                        gpu::swap::GpuSwap<core::access::StreamAccessor>
-                            >(queue);
-                    core::domain_initialization::setup_domain<core::access::StreamAccessor, core::access::decomposed::BufferedNodeAccess>(
-                        *algorithm->simulation, queue, properties.scenario
-                    );
-                }
-                else if(properties.data_layout == "collision")
-                {
-                    algorithm = std::make_unique<
-                        gpu::swap::GpuSwap<core::access::CollisionAccessor>
-                            >(queue);
-                    core::domain_initialization::setup_domain<core::access::CollisionAccessor, core::access::decomposed::BufferedNodeAccess>(
-                        *algorithm->simulation, queue, properties.scenario
-                    );
-                }
-                else if(properties.data_layout == "bundle")
-                {
-                    algorithm = std::make_unique<
-                        gpu::swap::GpuSwap<core::access::BundleAccessor>
-                            >(queue);
-                    core::domain_initialization::setup_domain<core::access::BundleAccessor, core::access::decomposed::BufferedNodeAccess>(
-                        *algorithm->simulation, queue, properties.scenario
-                    );
-                }
-                else
-                {
-                    throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
-                }
-
-                return algorithm;
-            }
-
-            /**
-             * @brief   Initializes a `lbm::gpu::swap::GpuSwapDebug` algorithm object and 
-             *          returns a unique pointer to this object.
-             * 
-             * @param[in]   properties  the data layout and scenario are determined from this object
-             * @param[in]   queue       the SYCL queue on which the algorithm operates.
-             * 
-             * @return  a unique pointer to a `lbm::gpu::swap::GpuSwapDebug` object
-             */
-            std::unique_ptr<execution::SYCLAlgorithm> get_debug_algorithm_pointer
-            (
-                const core::Properties &properties, 
-                sycl::queue &queue
-            )
-            {
-                std::unique_ptr<execution::SYCLAlgorithm> algorithm;
-
-                std::cout << "\tAlgorithm detected: Linear GPU swap\n";
-                if(properties.data_layout == "stream")
-                {
-                    std::cout << "\tCreating algorithm object\n";
-                    algorithm = std::make_unique<
-                        gpu::swap::GpuSwapDebug<core::access::StreamAccessor>
-                            >(queue);
-                    std::cout << "\tSetting up pipe flow environment\n";
-                    core::domain_initialization::setup_domain<core::access::StreamAccessor, core::access::decomposed::BufferedNodeAccess>(
-                        *algorithm->simulation, queue, properties.scenario
-                    );
-                }
-                else if(properties.data_layout == "collision")
-                {
-                    std::cout << "\tCreating algorithm object\n";
-                    algorithm = std::make_unique<
-                        gpu::swap::GpuSwapDebug<core::access::CollisionAccessor>
-                            >(queue);
-                    std::cout << "\tSetting up pipe flow environment\n";
-                    core::domain_initialization::setup_domain<core::access::CollisionAccessor, core::access::decomposed::BufferedNodeAccess>(
-                        *algorithm->simulation, queue, properties.scenario
-                    );
-                }
-                else if(properties.data_layout == "bundle")
-                {
-                    std::cout << "\tCreating algorithm object\n";
-                    algorithm = std::make_unique<
-                        gpu::swap::GpuSwapDebug<core::access::BundleAccessor>
-                            >(queue);
-                    std::cout << "\tSetting up pipe flow environment\n";
-                    core::domain_initialization::setup_domain<core::access::BundleAccessor, core::access::decomposed::BufferedNodeAccess>(
-                        *algorithm->simulation, queue, properties.scenario
-                    );
-                }
-                else
-                {
-                    throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
-                }
-
-                return algorithm;
-            }
-
         } // ! namespace swap
 
     } // ! namespace gpu
 
 } // ! namespace lbm
 
-#endif // ! GPU_TWO_LATTICE_HPP
+#endif // ! LBM_GPU_SWAP_HPP

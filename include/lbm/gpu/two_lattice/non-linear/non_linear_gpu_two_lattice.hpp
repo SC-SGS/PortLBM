@@ -7,7 +7,7 @@
  *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The 
  *              kernel functions are implemented in `linear_two_lattice_kernels.hpp`.
  * 
- * @version     4.2
+ * @version     4.3
  * 
  * @date        March 2025
  * 
@@ -182,7 +182,7 @@ namespace lbm
                                     perform_inout_update();
                                     stream_and_collide();
 
-                                    double *tmp = simulation->data->distribution_values_1;
+                                    real_type *tmp = simulation->data->distribution_values_1;
                                     simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
                                     simulation->data->distribution_values_0 = tmp;
 
@@ -212,11 +212,11 @@ namespace lbm
                 {
                     private:
 
-                    std::unique_ptr<std::vector<double>> all_densities;
-                    std::unique_ptr<std::vector<double>> all_x_velocities;
-                    std::unique_ptr<std::vector<double>> all_y_velocities;
-                    std::unique_ptr<std::vector<double>> distribution_values;
-                    std::unique_ptr<std::vector<double>> temp_macroscopic_observables;
+                    std::unique_ptr<std::vector<real_type>> all_densities;
+                    std::unique_ptr<std::vector<real_type>> all_x_velocities;
+                    std::unique_ptr<std::vector<real_type>> all_y_velocities;
+                    std::unique_ptr<std::vector<real_type>> distribution_values;
+                    std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
                     std::unique_ptr<std::vector<int8_t>> phase_information;
 
                     unsigned int current_iteration;
@@ -552,7 +552,7 @@ namespace lbm
 
                                     current_iteration++;
 
-                                    double *tmp = simulation->data->distribution_values_1;
+                                    real_type *tmp = simulation->data->distribution_values_1;
                                     simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
                                     simulation->data->distribution_values_0 = tmp;
 
@@ -616,13 +616,13 @@ namespace lbm
                     explicit NonLinearGpuTwoLatticeDebug(sycl::queue &queue) 
                     : 
                     SYCLAlgorithm(queue),
-                    all_densities(std::make_unique<std::vector<double>>()), 
-                    all_x_velocities(std::make_unique<std::vector<double>>()), 
-                    all_y_velocities(std::make_unique<std::vector<double>>()), 
+                    all_densities(std::make_unique<std::vector<real_type>>()), 
+                    all_x_velocities(std::make_unique<std::vector<real_type>>()), 
+                    all_y_velocities(std::make_unique<std::vector<real_type>>()), 
                     distribution_values(
-                        std::make_unique<std::vector<double>>(9 * simulation->domain->total_node_count, 0)
+                        std::make_unique<std::vector<real_type>>(9 * simulation->domain->total_node_count, 0)
                     ),
-                    temp_macroscopic_observables(std::make_unique<std::vector<double>>(simulation->properties->domain_node_count, 0)),
+                    temp_macroscopic_observables(std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
                     phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
                     current_iteration(0)
                     {

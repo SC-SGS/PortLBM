@@ -7,7 +7,7 @@
  *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. 
  *              The kernel functions are implemented in `swap_kernels.hpp`.
  * 
- * @version     1.1
+ * @version     1.2
  * 
  * @date        March 2025
  * 
@@ -61,7 +61,7 @@ namespace lbm
             {
                 private:
 
-                double inlet_values [9];
+                real_type inlet_values [9];
 
                 /**
                  * @brief   Performs the combined streaming and collision step of the swap algorithm and updates the 
@@ -270,13 +270,13 @@ namespace lbm
                  */
                 explicit GpuSwap(sycl::queue &queue) : SYCLAlgorithm(queue) 
                 {
-                    std::vector<double> distribution = core::maxwell_boltzmann_distribution(
+                    std::vector<real_type> distribution = core::maxwell_boltzmann_distribution(
                         simulation->properties->inlet_velocity_x,
                         simulation->properties->inlet_velocity_y,
                         simulation->properties->inlet_density
                     );
 
-                    memcpy(inlet_values, distribution.data(), 9 * sizeof(double));
+                    memcpy(inlet_values, distribution.data(), 9 * sizeof(real_type));
 
                     core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(
                         *simulation, queue
@@ -296,14 +296,14 @@ namespace lbm
             {
                 private:
 
-                std::unique_ptr<std::vector<double>> all_densities;
-                std::unique_ptr<std::vector<double>> all_x_velocities;
-                std::unique_ptr<std::vector<double>> all_y_velocities;
-                std::unique_ptr<std::vector<double>> distribution_values;
-                std::unique_ptr<std::vector<double>> temp_macroscopic_observables;
+                std::unique_ptr<std::vector<real_type>> all_densities;
+                std::unique_ptr<std::vector<real_type>> all_x_velocities;
+                std::unique_ptr<std::vector<real_type>> all_y_velocities;
+                std::unique_ptr<std::vector<real_type>> distribution_values;
+                std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
                 std::unique_ptr<std::vector<int8_t>> phase_information;
 
-                double inlet_values [9];
+                real_type inlet_values [9];
 
                 unsigned int current_iteration;
 
@@ -754,13 +754,13 @@ namespace lbm
                 explicit GpuSwapDebug(sycl::queue &queue) 
                 : 
                 SYCLAlgorithm(queue),
-                all_densities(std::make_unique<std::vector<double>>()), 
-                all_x_velocities(std::make_unique<std::vector<double>>()), 
-                all_y_velocities(std::make_unique<std::vector<double>>()), 
+                all_densities(std::make_unique<std::vector<real_type>>()), 
+                all_x_velocities(std::make_unique<std::vector<real_type>>()), 
+                all_y_velocities(std::make_unique<std::vector<real_type>>()), 
                 distribution_values(
-                    std::make_unique<std::vector<double>>(9 * simulation->domain->total_node_count, 0)
+                    std::make_unique<std::vector<real_type>>(9 * simulation->domain->total_node_count, 0)
                 ),
-                temp_macroscopic_observables(std::make_unique<std::vector<double>>(simulation->properties->domain_node_count, 0)),
+                temp_macroscopic_observables(std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
                 phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
                 current_iteration(0)
                 {
@@ -787,7 +787,7 @@ namespace lbm
                     temp_macroscopic_observables->shrink_to_fit();
                     phase_information->shrink_to_fit();
 
-                    std::vector<double> distribution = core::maxwell_boltzmann_distribution(
+                    std::vector<real_type> distribution = core::maxwell_boltzmann_distribution(
                                 simulation->properties->inlet_velocity_x,
                                 simulation->properties->inlet_velocity_y,
                                 simulation->properties->inlet_density

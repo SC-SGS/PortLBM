@@ -7,9 +7,9 @@
  *              values proposed by Mattila et al, as well as functions for retrieving the index of nodes and simulation
  *              results for domains with or without decomposition and buffering.
  * 
- * @version     2.3
+ * @version     2.4
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -17,6 +17,9 @@
 
 #ifndef LBM_ACCESS_HPP
 #define LBM_ACCESS_HPP
+
+// LBM core functionality
+#include "constants.hpp"
 
 // Standard library
 #include <string_view>

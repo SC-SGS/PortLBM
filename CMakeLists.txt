@@ -25,11 +25,12 @@ endif(NOT CMAKE_BUILD_TYPE)
 # Options
 option(WITH_VISUALIZATION "Build with the visualization framework" OFF)
 option(WITH_NAN_PROTECTION "Build with security against NANs" ON)
+option(USE_FLOAT "If enabled, the project is build using float instead of double as the real type" OFF)
 
 # Find crucial packages
 find_package(HPX REQUIRED)
 find_package(AdaptiveCpp CONFIG REQUIRED)
-find_package(nlohmann_json 3.11.2 REQUIRED)
+find_package(nlohmann_json REQUIRED)
 find_package(fmt REQUIRED)
 
 # Executable
@@ -54,6 +55,10 @@ endif(WITH_VISUALIZATION)
 if(WITH_NAN_PROTECTION)
   add_definitions(-DWITH_NAN_PROTECTION)
 endif(WITH_NAN_PROTECTION)
+
+if(USE_FLOAT)
+  add_definitions(-DUSE_FLOAT)
+endif(USE_FLOAT)
 
 # SYCL
 target_compile_options(${PROJECT_NAME} PUBLIC ${SYCL_FLAGS})

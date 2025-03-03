@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declaration of several exceptions for the lattice Boltzmann implementation.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        December 2024
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -132,7 +132,7 @@ namespace lbm
         {
             /**
              * @brief This exception is thrown when the value of a macroscopic observable is outside its allowed range.
-             *        The rules of physics and the defined range of `double` are considered, and the stronger condition is guiding.
+             *        The rules of physics and the defined range of `real_type` are considered, and the stronger condition is guiding.
              *        The following restrictions apply:
              * 
              *        - Densities:  Must be larger than `0` but not `nan` or `inf` 

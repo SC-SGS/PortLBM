@@ -6,9 +6,9 @@
  * @brief       This header file contains the declaration of a class modelling a simple timer.
  *              It is based on elements from std::chrono. 
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        2024-08-29
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 

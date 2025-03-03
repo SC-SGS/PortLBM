@@ -5,7 +5,7 @@
  * 
  * @brief       In this header file, functionality for setting up the simulation domain is declared and defined.
  * 
- * @version     3.2
+ * @version     3.3
  * 
  * @date        March 2025
  * 
@@ -409,15 +409,15 @@ namespace lbm
                 sycl::queue &queue
             )
             {
-                std::vector<double> distribution_values_standstill = maxwell_boltzmann_distribution(0, 0, 1);
-                double test [9] = {0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00};
+                std::vector<real_type> distribution_values_standstill = maxwell_boltzmann_distribution(0, 0, 1);
+                real_type test [9] = {0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00};
                 for(int i = 0; i < 9; ++i) test[i] = distribution_values_standstill[i];
 
                 auto event = queue.submit(
                     [&](sycl::handler &cgh)
                     {
                         unsigned int total_node_count = simulation.domain->total_node_count;
-                        double *distribution_values = simulation.data->distribution_values_0;
+                        real_type *distribution_values = simulation.data->distribution_values_0;
 
                         cgh.parallel_for(
                             total_node_count,                           
@@ -450,14 +450,14 @@ namespace lbm
                 sycl::queue &queue
             )
             {
-                std::vector<double> distribution_values_cpu = 
+                std::vector<real_type> distribution_values_cpu = 
                     maxwell_boltzmann_distribution(
                         simulation.properties->inlet_velocity_x, 
                         simulation.properties->inlet_velocity_y, 
                         simulation.properties->inlet_density
                     );
                 
-                std::vector<double> distribution_outlet = 
+                std::vector<real_type> distribution_outlet = 
                     maxwell_boltzmann_distribution(
                         simulation.properties->outlet_velocity_x, 
                         simulation.properties->outlet_velocity_y, 
@@ -470,7 +470,7 @@ namespace lbm
                     distribution_outlet.end()
                 );
                 
-                double test [18];
+                real_type test [18];
                 for(int i = 0; i < 18; ++i) test[i] = distribution_values_cpu[i];
 
                 auto event = queue.submit(
@@ -482,7 +482,7 @@ namespace lbm
                         unsigned int horizontal_nodes = simulation.domain->horizontal_nodes;
                         unsigned int subdomain_horizontal_nodes = simulation.domain->subdomain_horizontal_nodes;
                         unsigned int subdomain_vertical_nodes = simulation.domain->subdomain_vertical_nodes;
-                        double *distribution_values = simulation.data->distribution_values_0;
+                        real_type *distribution_values = simulation.data->distribution_values_0;
 
                         cgh.parallel_for(
                             sycl::range<2>(2, simulation.properties->vertical_nodes),

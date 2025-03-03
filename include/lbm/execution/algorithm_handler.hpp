@@ -16,16 +16,19 @@
  *              declared here. Any additional values that may be necessary for custom executioners should be added in 
  *              its own class.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
- * @copyright   Copyright (c) 2025 Marcel Graf
+ * @copyright   Copyright (c) 2025
  * 
  */
 
 #ifndef LBM_ALGORITHM_HANDLER_HPP
 #define LBM_ALGORITHM_HANDLER_HPP
+
+// LBM core functionality
+#include "constants.hpp"
 
 #include <vector>
 
@@ -79,22 +82,22 @@ namespace lbm
             /**
              * @brief   Returns a reference to the vector internally storing the density values.
              */
-            virtual std::vector<double> &get_densities() const = 0;
+            virtual std::vector<real_type> &get_densities() const = 0;
 
             /**
              * @brief   Returns a reference to the vector internally storing the x-components of the velocities.
              */
-            virtual std::vector<double> &get_x_velocities() const = 0;
+            virtual std::vector<real_type> &get_x_velocities() const = 0;
 
             /**
              * @brief   Returns a reference to the vector internally storing the y-components of the velocities.
              */
-            virtual std::vector<double> &get_y_velocities() const = 0;
+            virtual std::vector<real_type> &get_y_velocities() const = 0;
 
             /**
              * @brief   Returns a reference to the vector internally storing the absolutes of the velocity values.
              */
-            virtual std::vector<double> &get_absolute_velocities() const = 0;
+            virtual std::vector<real_type> &get_absolute_velocities() const = 0;
 
             /**
              * @brief   Returns the number of horizontal nodes of the simulated domain.
@@ -109,25 +112,25 @@ namespace lbm
             /**
              * @brief   Returns the density specified at the inlet of the simulation domain of the addressed algorithm.
              */
-            virtual double get_inlet_density() const = 0;
+            virtual real_type get_inlet_density() const = 0;
 
             /**
              * @brief   Returns the density specified at the outlet of the simulation domain of the addressed algorithm.
              */
-            virtual double get_outlet_density() const = 0;
+            virtual real_type get_outlet_density() const = 0;
 
             /**
              * @brief   Returns the current progress of the addressed algorithm, that is, which fraction of the
              *          total iteration count is already finished.
              */
-            virtual double get_progress() const = 0;
+            virtual real_type get_progress() const = 0;
 
             /**
              * @brief   Returns the last frame time of the addressed algorithm, that is, the duration of the last
              *          LBM iteration. Notice that the frametimes and hence the framerates of the backend do not
              *          necessarily correspond to those of the GUI.
              */
-            virtual double get_last_frametime() const = 0;
+            virtual real_type get_last_frametime() const = 0;
 
             protected:
 

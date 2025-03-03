@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declaration of a SYCL algorithm handler class.
  * 
- * @version     1.1
+ * @version     1.2
  * 
  * @date        March 2025
  * 
@@ -302,16 +302,16 @@ namespace lbm
                 queue->wait(); 
             }
 
-            inline std::vector<double> &get_densities() const override 
+            inline std::vector<real_type> &get_densities() const override 
             { return *algorithm->simulation->results->densities_cpu; }
 
-            inline std::vector<double> &get_x_velocities() const override 
+            inline std::vector<real_type> &get_x_velocities() const override 
             { return *algorithm->simulation->results->x_velocities_cpu; }
 
-            inline std::vector<double> &get_y_velocities() const override 
+            inline std::vector<real_type> &get_y_velocities() const override 
             { return *algorithm->simulation->results->y_velocities_cpu; }
 
-            inline std::vector<double> &get_absolute_velocities() const override 
+            inline std::vector<real_type> &get_absolute_velocities() const override 
             { return *algorithm->simulation->results->absolute_velocities_cpu; }
 
             inline unsigned int get_horizontal_nodes() const override 
@@ -320,16 +320,16 @@ namespace lbm
             inline unsigned int get_vertical_nodes() const override 
             { return algorithm->simulation->properties->vertical_nodes; }
 
-            inline double get_progress() const override 
+            inline real_type get_progress() const override 
             { return algorithm->simulation->control->get_progress(); }
 
-            inline double get_last_frametime() const override 
+            inline real_type get_last_frametime() const override 
             { return algorithm->simulation->control->get_last_frametime(); }    
 
-            inline double get_inlet_density() const override 
+            inline real_type get_inlet_density() const override 
             { return algorithm->simulation->properties->inlet_density; }
 
-            inline double get_outlet_density() const override 
+            inline real_type get_outlet_density() const override 
             { return algorithm->simulation->properties->outlet_density; }          
         };
 

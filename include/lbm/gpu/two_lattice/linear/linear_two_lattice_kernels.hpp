@@ -6,7 +6,7 @@
  * @brief       This header file contains the declarations and definitions of kernels for the two-lattice algorithm
  *              with linear work item evaluation.
  * 
- * @version     1.2
+ * @version     1.3
  * 
  * @date        March 2025
  * 
@@ -63,8 +63,8 @@ namespace lbm
                         private:
 
                         int8_t *phase_information;
-                        double *source;
-                        double *destination;
+                        real_type *source;
+                        real_type *destination;
 
                         unsigned int vertical_nodes;
                         unsigned int horizontal_nodes;
@@ -120,12 +120,12 @@ namespace lbm
                         private:
 
                         int8_t *phase_information;
-                        double *destination;
+                        real_type *destination;
 
-                        double *densities;
-                        double *x_velocities;
-                        double *y_velocities;
-                        double *absolute_velocity_values;
+                        real_type *densities;
+                        real_type *x_velocities;
+                        real_type *y_velocities;
+                        real_type *absolute_velocity_values;
 
                         unsigned int vertical_nodes;
                         unsigned int horizontal_nodes;
@@ -160,10 +160,10 @@ namespace lbm
                             {
                                 unsigned int iteration_node_offset =
                                     lbm::core::access::results::get_result_index(id, horizontal_nodes);
-                                double dist_vals[9];
-                                double density = 0;
-                                double absolute_velocity = 0;
-                                sycl::vec<double,2> flow_velocity{0,0};
+                                real_type dist_vals[9];
+                                real_type density = 0;
+                                real_type absolute_velocity = 0;
+                                sycl::vec<real_type,2> flow_velocity{0,0};
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
 
@@ -217,16 +217,16 @@ namespace lbm
                         private:
 
                         int8_t *phase_information;
-                        double *destination;
+                        real_type *destination;
 
-                        double *densities;
-                        double *x_velocities;
-                        double *y_velocities;
-                        double *absolute_velocity_values;
+                        real_type *densities;
+                        real_type *x_velocities;
+                        real_type *y_velocities;
+                        real_type *absolute_velocity_values;
 
                         unsigned int vertical_nodes;
                         unsigned int horizontal_nodes;
-                        double relaxation_time_inverse;
+                        real_type relaxation_time_inverse;
 
                         public:
 
@@ -259,15 +259,15 @@ namespace lbm
                                 unsigned int iteration_node_offset =
                                     lbm::core::access::results::get_result_index(id, horizontal_nodes);
 
-                                double& x_velocity = x_velocities[iteration_node_offset];
-                                double& y_velocity = y_velocities[iteration_node_offset];
-                                double& density = densities[iteration_node_offset];
+                                real_type& x_velocity = x_velocities[iteration_node_offset];
+                                real_type& y_velocity = y_velocities[iteration_node_offset];
+                                real_type& density = densities[iteration_node_offset];
 
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
 
-                                double value;
-                                double result;
+                                real_type value;
+                                real_type result;
 
                                 for (const auto& direction : core::constants::all_directions)
                                 {
@@ -306,17 +306,17 @@ namespace lbm
                         private:
 
                         int8_t *phase_information;
-                        double *source;
-                        double *destination;
+                        real_type *source;
+                        real_type *destination;
 
-                        double *densities;
-                        double *x_velocities;
-                        double *y_velocities;
-                        double *absolute_velocity_values;
+                        real_type *densities;
+                        real_type *x_velocities;
+                        real_type *y_velocities;
+                        real_type *absolute_velocity_values;
 
                         unsigned int vertical_nodes;
                         unsigned int horizontal_nodes;
-                        double relaxation_time_inverse;
+                        real_type relaxation_time_inverse;
 
                         public:
 
@@ -351,14 +351,14 @@ namespace lbm
                                 unsigned int iteration_node_offset =
                                     lbm::core::access::results::get_result_index(id, horizontal_nodes);
 
-                                double distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-                                double result = 0;
-                                double density = 0;
+                                real_type distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+                                real_type result = 0;
+                                real_type density = 0;
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
-                                double flow_velocity_x = 0;
-                                double flow_velocity_y = 0;
-                                double absolute_velocity = 0;
+                                real_type flow_velocity_x = 0;
+                                real_type flow_velocity_y = 0;
+                                real_type absolute_velocity = 0;
 
                                 // Loading distribution values and macroscopic observables
                                 for (const auto& direction : core::constants::all_directions)
@@ -439,7 +439,7 @@ namespace lbm
                         private:
 
                         int8_t *phase_information;
-                        double *destination;
+                        real_type *destination;
 
                         unsigned int horizontal_nodes;
                         unsigned int total_nodes;

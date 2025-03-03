@@ -6,7 +6,7 @@
  * @brief       This namespace contains kernels that can be used in multiple non-buffered lattice Boltzmann 
  *              implementations.        
  * 
- * @version     1.0
+ * @version     1.1
  * 
  * @date        March 2025
  * 
@@ -51,10 +51,10 @@ namespace lbm
                     {
                         private:
 
-                        double *source;
-                        double *y_velocities;
-                        double outlet_density;
-                        double outlet_density_inverse;
+                        real_type *source;
+                        real_type *y_velocities;
+                        real_type outlet_density;
+                        real_type outlet_density_inverse;
                         unsigned int horizontal_nodes;
                         unsigned int horizontal_nodes_original;
                         unsigned int vertical_nodes;
@@ -86,10 +86,10 @@ namespace lbm
                         {
                             unsigned int missing[3];
 
-                            double f_inverse[3];
-                            double f_1 = 0;
-                            double f_4 = 0;
-                            double f_7 = 0;
+                            real_type f_inverse[3];
+                            real_type f_1 = 0;
+                            real_type f_4 = 0;
+                            real_type f_7 = 0;
 
                             for(int i = 0; i < 3; ++i) { missing[i] = 3 * i; }
 
@@ -127,10 +127,10 @@ namespace lbm
                                     )];
                             }
 
-                            double x_velocity = 
+                            real_type x_velocity = 
                                 - 1 + (1 / outlet_density) * (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
                             
-                            double y_velocity =
+                            real_type y_velocity =
                                 y_velocities[core::access::decomposed::get_results_index(horizontal_nodes_original - 3, y, horizontal_nodes_original)];
 
                             source[A::at(

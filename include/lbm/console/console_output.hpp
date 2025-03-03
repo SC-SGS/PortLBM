@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declarations of various functions for console outputs.
  * 
- * @version     1.4
+ * @version     1.5
  * 
- * @date        January 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -124,13 +124,13 @@ namespace lbm
         template <core::access::AccessorConcept A> inline 
         void print_distribution_values
         (
-            const std::vector<double> &distribution_values,
+            const std::vector<real_type> &distribution_values,
             const unsigned int horizontal_nodes,
             const unsigned int vertical_nodes
         )
         {
             constexpr std::array<size_t, 9> print_dirs = {6, 7, 8, 3, 4, 5, 0, 1, 2};
-            std::vector<double> current_values(9,0);
+            std::vector<real_type> current_values(9,0);
 
             unsigned int current_node_index = 0;
             std::cout << std::setprecision(3) << std::fixed;
@@ -144,7 +144,7 @@ namespace lbm
                         if(x == 0 && y == 0) std::cout << "\033[31m";
                         else if(x == (horizontal_nodes - 1) && y == (vertical_nodes - 1)) std::cout << "\033[34m";
                         current_node_index = core::access::get_node_index(x, y, horizontal_nodes);
-                        std::vector<double> current_values(9,0);
+                        std::vector<real_type> current_values(9,0);
                         for(auto direction = 0; direction < 9; ++direction)
                         {
                             current_values[direction] = 
@@ -192,8 +192,8 @@ namespace lbm
         void print_velocities
         (
             const core::Properties &properties,
-            const std::vector<double> &x_velocities, 
-            const std::vector<double> &y_velocities,
+            const std::vector<real_type> &x_velocities, 
+            const std::vector<real_type> &y_velocities,
             const unsigned int time_step = 0
         );
 
@@ -210,7 +210,7 @@ namespace lbm
         void print_densities
         (
             const core::Properties &properties,
-            const std::vector<double> &densities,
+            const std::vector<real_type> &densities,
             const unsigned int time_step = 0
         );
 
@@ -225,8 +225,8 @@ namespace lbm
         void print_velocities
         (
             const core::Properties &properties,
-            const std::vector<double> &x_velocities, 
-            const std::vector<double> &y_velocities
+            const std::vector<real_type> &x_velocities, 
+            const std::vector<real_type> &y_velocities
         );
 
         /**
@@ -239,7 +239,7 @@ namespace lbm
         void print_densities
         (
             const core::Properties &properties,
-            const std::vector<double> &densities
+            const std::vector<real_type> &densities
         );
 
         /**
@@ -266,9 +266,9 @@ namespace lbm
         void print_simulation_results
         (
             const core::Properties &properties,
-            const std::vector<double> &densities,
-            const std::vector<double> &x_velocities,
-            const std::vector<double> &y_velocities
+            const std::vector<real_type> &densities,
+            const std::vector<real_type> &x_velocities,
+            const std::vector<real_type> &y_velocities
         );
 
         /**
@@ -291,7 +291,7 @@ namespace lbm
         void debug_prints
         (
             const core::Properties &properties,
-            const std::vector<double> &distribution_values,
+            const std::vector<real_type> &distribution_values,
             const std::vector<int8_t> &phase_information
         )
         {
@@ -333,13 +333,13 @@ namespace lbm
             template <core::access::AccessorConcept A> inline 
             void print_distribution_values
             (
-                const std::vector<double> &distribution_values,
+                const std::vector<real_type> &distribution_values,
                 const std::vector<int8_t> &phase_information,
                 const core::Simulation &simulation
             )
             {
                 constexpr std::array<size_t, 9> print_dirs = {6, 7, 8, 3, 4, 5, 0, 1, 2};
-                std::vector<double> current_values(9,0);
+                std::vector<real_type> current_values(9,0);
 
                 unsigned int current_node_index = 0;
                 std::cout << std::setprecision(3) << std::fixed;

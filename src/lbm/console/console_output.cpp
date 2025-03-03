@@ -5,9 +5,9 @@
  * 
  * @brief       This source file contains the definitions of various functions for console outputs.
  * 
- * @version     1.4
+ * @version     1.45
  * 
- * @date        January 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -44,8 +44,8 @@ void lbm::console::print_phase_vector
 void lbm::console::print_velocities
 (
     const core::Properties &properties,
-    const std::vector<double> &x_velocities, 
-    const std::vector<double> &y_velocities,
+    const std::vector<real_type> &x_velocities, 
+    const std::vector<real_type> &y_velocities,
     const unsigned int time_step
 )
 {
@@ -77,8 +77,8 @@ void lbm::console::print_velocities
 void lbm::console::print_velocities
 (
     const core::Properties &properties,
-    const std::vector<double> &x_velocities, 
-    const std::vector<double> &y_velocities
+    const std::vector<real_type> &x_velocities, 
+    const std::vector<real_type> &y_velocities
 )
 {
     unsigned int index = 0;
@@ -106,12 +106,12 @@ void lbm::console::print_velocities
 void lbm::console::print_densities
 (
     const core::Properties &properties,
-    const std::vector<double> &densities,
+    const std::vector<real_type> &densities,
     const unsigned int time_step
 )
 {
     unsigned int node_index = 0;
-    double value = 0;
+    real_type value = 0;
 
     for(auto y = properties.vertical_nodes - 1; y-- > 1; )
     {
@@ -137,11 +137,11 @@ void lbm::console::print_densities
 void lbm::console::print_densities
 (
     const core::Properties &properties,
-    const std::vector<double> &densities
+    const std::vector<real_type> &densities
 )
 {
     unsigned int node_index = 0;
-    double value = 0;
+    real_type value = 0;
 
     for(auto y = properties.vertical_nodes - 1; y-- > 1; )
     {
@@ -196,9 +196,9 @@ void lbm::console::print_simulation_results
 void lbm::console::print_simulation_results
 (
     const core::Properties &properties,
-    const std::vector<double> &densities,
-    const std::vector<double> &x_velocities,
-    const std::vector<double> &y_velocities
+    const std::vector<real_type> &densities,
+    const std::vector<real_type> &x_velocities,
+    const std::vector<real_type> &y_velocities
 )
 {
     std::cout << "Velocity values: \n\n";

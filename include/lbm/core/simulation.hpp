@@ -6,9 +6,9 @@
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.3
+ * @version     4.4
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -128,15 +128,15 @@ namespace lbm
 
             /* Physical */
 
-            double inlet_velocity_x;
-            double inlet_velocity_y;
-            double inlet_density;
+            real_type inlet_velocity_x;
+            real_type inlet_velocity_y;
+            real_type inlet_density;
 
-            double outlet_velocity_x;
-            double outlet_velocity_y;
-            double outlet_density;
+            real_type outlet_velocity_x;
+            real_type outlet_velocity_y;
+            real_type outlet_density;
 
-            double relaxation_time;
+            real_type relaxation_time;
 
             /**
              * @brief Constructs a new properties object with the specified parameters.
@@ -155,13 +155,13 @@ namespace lbm
                 const unsigned int vertical_nodes,
                 const unsigned int horizontal_nodes,
                 // Physical
-                const double inlet_velocity_x,
-                const double inlet_velocity_y,
-                const double inlet_density,
-                const double outlet_velocity_x,
-                const double outlet_velocity_y,
-                const double outlet_density,
-                const double relaxation_time
+                const real_type inlet_velocity_x,
+                const real_type inlet_velocity_y,
+                const real_type inlet_density,
+                const real_type outlet_velocity_x,
+                const real_type outlet_velocity_y,
+                const real_type outlet_density,
+                const real_type relaxation_time
             ); 
 
             /**
@@ -189,13 +189,13 @@ namespace lbm
             unsigned int max_iterations;
 
             // The current progress of the targeted algorithm in range [0,1]
-            double progress;
+            real_type progress;
 
             // Pointer to a high resolution HPX timer that measures the time spent for performing one iteration
             std::unique_ptr<hpx::chrono::high_resolution_timer> timer;
 
             // The last measured calculation time for one full lattice Boltzmann iteration
-            double last_frametime;
+            real_type last_frametime;
 
             public:
 
@@ -242,7 +242,7 @@ namespace lbm
             inline void finalize_iteration() 
             { 
                 current_iteration++; 
-                progress = (double)current_iteration / (double)max_iterations;
+                progress = (real_type)current_iteration / (real_type)max_iterations;
                 last_frametime = timer->elapsed_microseconds() * 0.001;
             }
 
@@ -260,13 +260,13 @@ namespace lbm
              * @brief   Returns the progress of the controlled algorithm, that is, which fraction of the total amount 
              *          of iterations it has already completed.
              */
-            inline double get_progress() const { return progress; }
+            inline real_type get_progress() const { return progress; }
 
             /**
              * @brief   Returns the last frametime of the controlled algorithm, that is, how long the completion of
              *          the last iteration took.
              */
-            inline double get_last_frametime() const { return last_frametime; }
+            inline real_type get_last_frametime() const { return last_frametime; }
         };
 
 // Domain /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -422,10 +422,10 @@ namespace lbm
              *          are not meaningful, and have to be scaled by a factor to retrieve pressure values. 
              *          However, they are meaningful for compressible fluids.
              */
-            std::unique_ptr<std::vector<double>> densities_cpu;
+            std::unique_ptr<std::vector<real_type>> densities_cpu;
 
             // GPU-allocated densities
-            double *densities_gpu;
+            real_type *densities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the x components of the velocity vectors of all nodes 
@@ -433,10 +433,10 @@ namespace lbm
              *          differenciated further regarding their velocities. All differenciation between solid and fluid
              *          nodes is realized through the density values.
              */
-            std::unique_ptr<std::vector<double>> x_velocities_cpu;
+            std::unique_ptr<std::vector<real_type>> x_velocities_cpu;
 
             // GPU-allocated x components of the velocity vectors
-            double *x_velocities_gpu;
+            real_type *x_velocities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the y components of the velocity vectors of all nodes 
@@ -444,19 +444,19 @@ namespace lbm
              *          differenciated further regarding their velocities. All differenciation between solid and fluid 
              *          nodes is realized through the density values.
              */
-            std::unique_ptr<std::vector<double>> y_velocities_cpu;
+            std::unique_ptr<std::vector<real_type>> y_velocities_cpu;
 
             // GPU-allocated y components of the velocity vectors
-            double *y_velocities_gpu;
+            real_type *y_velocities_gpu;
 
             /**
              * @brief   A unique pointer to a vector containing the absolutes of the velocity vectors of each node. It
              *          is required for visualization purposes only and remains unused otherwise.
              */
-            std::unique_ptr<std::vector<double>> absolute_velocities_cpu;
+            std::unique_ptr<std::vector<real_type>> absolute_velocities_cpu;
 
             // GPU-allocated absolutes of the velocity vectors
-            double *absolute_velocities_gpu;
+            real_type *absolute_velocities_gpu;
 
             /**
              * @brief   Constructs a new simulation results object based on the provided properties structure. The 
@@ -509,14 +509,14 @@ namespace lbm
              *          The storage pattern is defined by the data layout on which the algorithm operates. All 
              *          algorithms use this array.
              */
-            double *distribution_values_0;
+            real_type *distribution_values_0;
 
             /**
              * @brief   This GPU-allocated array is only used for the linear and non-linear two-lattice algorithm,
              *          in which case it also contains the distribution values. For the swap algorithm, it remains
              *          uninitialized, that is, a `nullptr`.
              */
-            double *distribution_values_1;
+            real_type *distribution_values_1;
 
             /**
              * @brief Constructs a new Data object with an accessor object of the specified type.
@@ -583,14 +583,14 @@ namespace lbm
          * @return  a vector containing the distribution values
          */
         inline 
-        std::vector<double> maxwell_boltzmann_distribution
+        std::vector<real_type> maxwell_boltzmann_distribution
         (
-            const double x_velocity, 
-            const double y_velocity, 
-            const double density
+            const real_type x_velocity, 
+            const real_type y_velocity, 
+            const real_type density
         )
         {
-            std::vector<double> result(9,0);
+            std::vector<real_type> result(9,0);
             int velocity_x_component = 0; 
             int velocity_y_component = 0; 
 

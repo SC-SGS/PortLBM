@@ -6,9 +6,9 @@
  * @brief       This header file contains all declarations and some implementations of the GUI
  *              for the lattice Boltzmann simulation developed in my Bachelor thesis.
  * 
- * @version     2.3
+ * @version     2.4
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -120,11 +120,11 @@ namespace lbm
         {
             explicit Progress();
 
-            double progress;
-            double framerate_backend;
-            double frametime_backend;
-            double framerate_frontend;
-            double frametime_frontend;
+            real_type progress;
+            real_type framerate_backend;
+            real_type frametime_backend;
+            real_type framerate_frontend;
+            real_type frametime_frontend;
         };
 
         /**
@@ -171,11 +171,11 @@ namespace lbm
             explicit Colormaps();
 
             ImPlotColormap density_colormap;
-            double density_colormap_lower_scale;
-            double density_colormap_upper_scale;
+            real_type density_colormap_lower_scale;
+            real_type density_colormap_upper_scale;
             ImPlotColormap velocity_colormap;
-            double velocity_colormap_lower_scale;
-            double velocity_colormap_upper_scale;
+            real_type velocity_colormap_lower_scale;
+            real_type velocity_colormap_upper_scale;
         };
 
         /**
@@ -185,8 +185,8 @@ namespace lbm
         {
             explicit VelocityQuiverData(const size_t &size);
 
-            std::unique_ptr<std::vector<double>> x_values;
-            std::unique_ptr<std::vector<double>> y_values;
+            std::unique_ptr<std::vector<real_type>> x_values;
+            std::unique_ptr<std::vector<real_type>> y_values;
         };
 
         struct FPSBuffer 
@@ -205,7 +205,7 @@ namespace lbm
                 data.reserve(max_size);
             }
 
-            inline void add(const double x, const float y) 
+            inline void add(const real_type x, const float y) 
             {
                 if (data.size() < max_size) { data.push_back(ImVec2(x,y)); }
                 else 
@@ -579,14 +579,19 @@ namespace lbm
 
                 if
                 (
+                    #ifdef USE_FLOAT
+                    ImGui::InputFloat("Inlet density", &(properties_gui->inlet_density), 0.01f, 0.1f) |
+                    ImGui::InputFloat("Outlet density", &(properties_gui->outlet_density), 0.01f, 0.1f) |
+                    ImGui::InputFloat("Inlet velocity x", &(properties_gui->inlet_velocity_x), 0.01f, 0.1f) |
+                    ImGui::InputFloat("Inlet velocity y", &(properties_gui->inlet_velocity_y), 0.01f, 0.1f) |
+                    ImGui::InputFloat("Relaxation time", &(properties_gui->relaxation_time), 0.01, 0.1)
+                    #else
                     ImGui::InputDouble("Inlet density", &(properties_gui->inlet_density), 0.01f, 0.1f) |
                     ImGui::InputDouble("Outlet density", &(properties_gui->outlet_density), 0.01f, 0.1f) |
                     ImGui::InputDouble("Inlet velocity x", &(properties_gui->inlet_velocity_x), 0.01f, 0.1f) |
                     ImGui::InputDouble("Inlet velocity y", &(properties_gui->inlet_velocity_y), 0.01f, 0.1f) |
-                    // Outlet velocity commented out on Jan 22, 2025 since it is currently without effect
-                    // ImGui::InputDouble("Outlet velocity x", &(properties_gui->outlet_velocity_x), 0.01f, 0.1f) |
-                    // ImGui::InputDouble("Outlet velocity y", &(properties_gui->outlet_velocity_y), 0.01f, 0.1f) |
                     ImGui::InputDouble("Relaxation time", &(properties_gui->relaxation_time), 0.01, 0.1)
+                    #endif
                 )
                 { properties_changed = true; }
             }
@@ -982,11 +987,23 @@ namespace lbm
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
                         ImGui::SameLine();
+
+                        #ifdef USE_FLOAT
+                        ImGui::InputFloat("Lower scale", &colormaps->density_colormap_lower_scale, 0.001, 0.01);
+                        #else
                         ImGui::InputDouble("Lower scale", &colormaps->density_colormap_lower_scale, 0.001, 0.01);
+                        #endif
+
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
                         ImGui::SameLine();
+
+                        #ifdef USE_FLOAT
+                        ImGui::InputFloat("Upper scale", &colormaps->density_colormap_upper_scale, 0.001, 0.01);
+                        #else
                         ImGui::InputDouble("Upper scale", &colormaps->density_colormap_upper_scale, 0.001, 0.01);
+                        #endif
+                    
                         ImPlot::PushColormap(colormaps->density_colormap);
 
                         if
@@ -1048,7 +1065,7 @@ namespace lbm
                                 {
                                     ImGui::BeginTooltip();
                                     ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
-                                    double value = 
+                                    real_type value = 
                                         algorithm_handler->get_densities().at((algorithm_handler->get_horizontal_nodes() - 2) * 
                                         ((int)floor(mouse.y)) + (int)floor(mouse.x));
 
@@ -1125,11 +1142,23 @@ namespace lbm
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                         ImGui::SameLine();
+
+                        #ifdef USE_FLOAT
+                        ImGui::InputFloat("Lower scale", &colormaps->velocity_colormap_lower_scale, 0.01, 0.1);
+                        #else
                         ImGui::InputDouble("Lower scale", &colormaps->velocity_colormap_lower_scale, 0.01, 0.1);
+                        #endif
+                        
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                         ImGui::SameLine();
+
+                        #ifdef USE_FLOAT
+                        ImGui::InputFloat("Upper scale", &colormaps->velocity_colormap_upper_scale, 0.01, 0.1);
+                        #else
                         ImGui::InputDouble("Upper scale", &colormaps->velocity_colormap_upper_scale, 0.01, 0.1);
+                        #endif
+
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                         ImGui::SameLine();
@@ -1363,10 +1392,10 @@ namespace lbm
                             unsigned int dnode_index = 0;
                             unsigned int node_index = 0;
                             unsigned int velocity_value_index = 0;
-                            double base_x = 0;
-                            double base_y = 0;
-                            double offset_x = 0;
-                            double offset_y = 0;
+                            real_type base_x = 0;
+                            real_type base_y = 0;
+                            real_type offset_x = 0;
+                            real_type offset_y = 0;
 
                             velocity_quiver_data->x_values->assign(2 * algorithm_handler->get_horizontal_nodes() * algorithm_handler->get_vertical_nodes(), 0);
                             velocity_quiver_data->y_values->assign(2 * algorithm_handler->get_horizontal_nodes() * algorithm_handler->get_vertical_nodes(), 0);

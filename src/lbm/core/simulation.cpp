@@ -6,7 +6,7 @@
  * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.3
+ * @version     4.4
  * 
  * @date        March 2025
  * 
@@ -34,13 +34,13 @@ lbm::core::Properties::Properties
     const unsigned int vertical_nodes,
     const unsigned int horizontal_nodes,
     // Physical
-    const double inlet_velocity_x,
-    const double inlet_velocity_y,
-    const double inlet_density,
-    const double outlet_velocity_x,
-    const double outlet_velocity_y,
-    const double outlet_density,
-    const double relaxation_time
+    const real_type inlet_velocity_x,
+    const real_type inlet_velocity_y,
+    const real_type inlet_density,
+    const real_type outlet_velocity_x,
+    const real_type outlet_velocity_y,
+    const real_type outlet_density,
+    const real_type relaxation_time
 ) 
 :
 // Algorithmic properties
@@ -291,22 +291,29 @@ lbm::core::Results::Results(const size_t &size, sycl::queue &queue)
 :
 queue(std::make_shared<sycl::queue>(queue)),
 
-densities_cpu(std::make_unique<std::vector<double>>(size, -1.0f)),
-densities_gpu(sycl::malloc_device<double>(size, queue)),
+densities_cpu(std::make_unique<std::vector<real_type>>(size, -1.0f)),
+densities_gpu(sycl::malloc_device<real_type>(size, queue)),
 
-x_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
-x_velocities_gpu(sycl::malloc_device<double>(size, queue)),
+x_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
+x_velocities_gpu(sycl::malloc_device<real_type>(size, queue)),
 
-y_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
-y_velocities_gpu(sycl::malloc_device<double>(size, queue)),
+y_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
+y_velocities_gpu(sycl::malloc_device<real_type>(size, queue)),
 
-absolute_velocities_cpu(std::make_unique<std::vector<double>>(size, 0.0f)),
-absolute_velocities_gpu(sycl::malloc_device<double>(size, queue))
+absolute_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
+absolute_velocities_gpu(sycl::malloc_device<real_type>(size, queue))
 {
+    #ifdef USE_FLOAT
+    queue.fill(densities_gpu, -1.0f, size).wait();
+    queue.fill(x_velocities_gpu, 0.0f, size).wait();
+    queue.fill(y_velocities_gpu, 0.0f, size).wait();
+    queue.fill(absolute_velocities_gpu, 0.0f, size).wait();
+    #else
     queue.fill(densities_gpu, -1.0, size).wait();
     queue.fill(x_velocities_gpu, 0.0, size).wait();
     queue.fill(y_velocities_gpu, 0.0, size).wait();
     queue.fill(absolute_velocities_gpu, 0.0, size).wait();
+    #endif
 
     densities_cpu->shrink_to_fit();
     x_velocities_cpu->shrink_to_fit();
@@ -319,10 +326,10 @@ lbm::core::Data::Data(const size_t total_node_count, sycl::queue &queue, const b
 :
 queue(std::make_shared<sycl::queue>(queue)),
 phase_information(sycl::malloc_device<int8_t>(total_node_count, queue)),
-distribution_values_0(sycl::malloc_device<double>(9 * total_node_count, queue))
+distribution_values_0(sycl::malloc_device<real_type>(9 * total_node_count, queue))
 {
     queue.fill(phase_information, (int8_t)-1, total_node_count).wait();
-    if(two_lattice) distribution_values_1 = sycl::malloc_device<double>(9 * total_node_count, queue);
+    if(two_lattice) distribution_values_1 = sycl::malloc_device<real_type>(9 * total_node_count, queue);
     else distribution_values_1 = nullptr;
 };
 

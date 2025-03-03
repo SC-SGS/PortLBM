@@ -6,9 +6,9 @@
  * @brief       This source file contains the definitions of two functions for retrieving the properties of a 
  *              simulation from a JSON file and for storing properties to a JSON file.
  * 
- * @version     1.3
+ * @version     1.4
  * 
- * @date        February 2025
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  */
@@ -69,12 +69,12 @@ lbm::core::Properties lbm::file_interaction::json_to_properties(const std::strin
         data.at("domain").at("verticalNodes").get<unsigned int>() + offset,
         data.at("domain").at("horizontalNodes").get<unsigned int>() + offset,
         // Physical
-        data.at("physical").at("inletVelocity").at("x").get<double>(),
-        data.at("physical").at("inletVelocity").at("y").get<double>(),
-        data.at("physical").at("inletDensity").get<double>(),
-        data.at("physical").at("outletVelocity").at("x").get<double>(),
-        data.at("physical").at("outletVelocity").at("y").get<double>(),
-        data.at("physical").at("outletDensity").get<double>(),
-        data.at("physical").at("relaxationTime").get<double>()
+        data.at("physical").at("inletVelocity").at("x").get<real_type>(),
+        data.at("physical").at("inletVelocity").at("y").get<real_type>(),
+        data.at("physical").at("inletDensity").get<real_type>(),
+        data.at("physical").at("outletVelocity").at("x").get<real_type>(),
+        data.at("physical").at("outletVelocity").at("y").get<real_type>(),
+        data.at("physical").at("outletDensity").get<real_type>(),
+        data.at("physical").at("relaxationTime").get<real_type>()
     );
 }

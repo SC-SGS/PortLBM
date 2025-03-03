@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declarations and definitions of kernels for the swap algorithm.
  * 
- * @version     1.2
+ * @version     1.3
  * 
  * @date        March 2025
  * 
@@ -54,7 +54,7 @@ namespace lbm
 
                     int8_t *phase_information;
 
-                    double *distribution_values;
+                    real_type *distribution_values;
 
                     unsigned int horizontal_nodes;
                     unsigned int total_nodes;
@@ -127,12 +127,12 @@ namespace lbm
 
                     int8_t *phase_information;
 
-                    double *distribution_values;
+                    real_type *distribution_values;
 
-                    double *densities;
-                    double *x_velocities;
-                    double *y_velocities;
-                    double *absolute_velocity_values;
+                    real_type *densities;
+                    real_type *x_velocities;
+                    real_type *y_velocities;
+                    real_type *absolute_velocity_values;
 
                     unsigned int vertical_nodes_expanded;
                     unsigned int horizontal_nodes_expanded;
@@ -142,10 +142,10 @@ namespace lbm
                     unsigned int subdomain_horizontal_nodes;
                     unsigned int subdomain_vertical_nodes;
 
-                    double relaxation_time_inverse;
+                    real_type relaxation_time_inverse;
 
                     unsigned int local_buffer_length;
-                    sycl::local_accessor<double, 1> local;
+                    sycl::local_accessor<real_type, 1> local;
 
                     public:
 
@@ -173,7 +173,7 @@ namespace lbm
                     subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
                     subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes),
                     local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 1)),
-                    local(sycl::local_accessor<double, 1>(sycl::range<1>(4 * local_buffer_length), cgh))
+                    local(sycl::local_accessor<real_type, 1>(sycl::range<1>(4 * local_buffer_length), cgh))
                     {}
 
                     /**
@@ -202,15 +202,15 @@ namespace lbm
 
                         unsigned int buffer_target_index = 0;
 
-                        double density = 0;
+                        real_type density = 0;
                         int velocity_x_component = 0; 
                         int velocity_y_component = 0; 
-                        double flow_velocity_x = 0;
-                        double flow_velocity_y = 0;
-                        double absolute_velocity = 0;
+                        real_type flow_velocity_x = 0;
+                        real_type flow_velocity_y = 0;
+                        real_type absolute_velocity = 0;
 
-                        double private_distribution_values [9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-                        double result = 0;
+                        real_type private_distribution_values [9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+                        real_type result = 0;
 
                         // Send out active values and accept passive values of neighbor
                         for(auto& dir : {5, 6, 7, 8})

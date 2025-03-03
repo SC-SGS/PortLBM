@@ -1,5 +1,5 @@
 /**
- * @file        linear_two_lattice_kernels.hpp
+ * @file        non_linear_two_lattice_kernels.hpp
  * 
  * @author      Marcel Graf
  * 
@@ -14,8 +14,8 @@
  * 
  */
 
-#ifndef LINEAR_TWO_LATTICE_KERNELS_HPP
-#define LINEAR_TWO_LATTICE_KERNELS_HPP
+#ifndef NON_LINEAR_TWO_LATTICE_KERNELS_HPP
+#define NON_LINEAR_TWO_LATTICE_KERNELS_HPP
 
 // Dependencies on other LBM core features
 #include "../../../core/access.hpp"
@@ -40,7 +40,7 @@ namespace lbm
              *          That is, work item indices are assigned linearly, no work group structuring is introduced,
              *          and no padding is applied since none is necessary.
              */
-            namespace linear
+            namespace non_linear
             {
 
                 /**
@@ -81,25 +81,29 @@ namespace lbm
                         phase_information(simulation.data->phase_information),
                         source(simulation.data->distribution_values_0),
                         destination(simulation.data->distribution_values_1),
-                        vertical_nodes(simulation.properties->vertical_nodes),
-                        horizontal_nodes(simulation.properties->horizontal_nodes)
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes(simulation.domain->horizontal_nodes)
                         {}
 
                         /**
                          * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
                          * 
-                         * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
+                         * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
                          */
-                        void operator()(const sycl::id<1> &id) const
+                        void operator()(const sycl::nd_item<2> &nd_item) const
                         {
-                            if(!phase_information[id])
+                            auto global_id_x = nd_item.get_global_id(1) + 1;
+                            auto global_id_y = nd_item.get_global_id(0) + 1;
+                            auto linear_index = core::access::get_node_index(global_id_x, global_id_y, horizontal_nodes);
+
+                            if(!phase_information[linear_index])
                             {
                                 for (const auto& direction : core::constants::all_directions)
                                 {
-                                    destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] =
+                                    destination[A::at(linear_index, direction, horizontal_nodes * vertical_nodes)] =
                                         source[
                                             A::at(
-                                                lbm::core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
+                                                lbm::core::access::get_neighbor(linear_index, 8 - direction, horizontal_nodes), 
                                                 direction, 
                                                 horizontal_nodes * vertical_nodes
                                             )
@@ -128,7 +132,8 @@ namespace lbm
                         real_type *absolute_velocity_values;
 
                         unsigned int vertical_nodes;
-                        unsigned int horizontal_nodes;
+                        unsigned int horizontal_nodes_expanded;
+                        unsigned int horizontal_nodes_domain;
 
                         public:
 
@@ -145,32 +150,42 @@ namespace lbm
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
                         absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                        vertical_nodes(simulation.properties->vertical_nodes),
-                        horizontal_nodes(simulation.properties->horizontal_nodes)
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
+                        horizontal_nodes_domain(simulation.properties->horizontal_nodes)
                         {}
 
                         /**
                          * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
                          * 
-                         * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
-                         */
-                        void operator()(const sycl::id<1> &id) const 
+                         * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
+                         */ 
+                        void operator()(const sycl::nd_item<2> &nd_item) const 
                         {
-                            if(!phase_information[id])
+                            auto global_id_x = nd_item.get_global_id(1) + 1;
+                            auto global_id_y = nd_item.get_global_id(0) + 1;
+                            auto linear_index = core::access::get_node_index(global_id_x, global_id_y, horizontal_nodes_expanded);
+
+                            if(!phase_information[linear_index])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+                                    lbm::core::access::decomposed::get_results_index(
+                                        global_id_x, 
+                                        global_id_y, 
+                                        horizontal_nodes_domain
+                                    );
+
                                 real_type dist_vals[9];
                                 real_type density = 0;
                                 real_type absolute_velocity = 0;
-                                sycl::vec<real_type,2> flow_velocity{0,0};
+                                sycl::vec<real_type, 2> flow_velocity{0,0};
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
 
                                 for (const auto& direction : core::constants::all_directions)
                                 {
-                                    dist_vals[direction] = destination[A::at(id, direction, horizontal_nodes * vertical_nodes)];
-                                    
+                                    dist_vals[direction] = 
+                                        destination[A::at(linear_index, direction, horizontal_nodes_expanded * vertical_nodes)];
                                 }
                                 
                                 for(const auto& i : core::constants::all_directions)
@@ -182,16 +197,17 @@ namespace lbm
                                     flow_velocity[1] += dist_vals[i] * velocity_y_component;
                                 }
 
-                                absolute_velocity = sycl::sqrt(flow_velocity[0] * flow_velocity[0] + flow_velocity[1] * flow_velocity[1]);
+                                absolute_velocity = 
+                                    sycl::sqrt(flow_velocity[0] * flow_velocity[0] + flow_velocity[1] * flow_velocity[1]);
 
                                 #ifdef WITH_NAN_PROTECTION 
 
                                 if(sycl::isnan(density) || density > std::numeric_limits<float>::max()) 
                                     density = 0;
                                 if(sycl::isnan(flow_velocity[0]) || flow_velocity[0] > std::numeric_limits<float>::max()) 
-                                flow_velocity[0] = 0;
+                                    flow_velocity[0] = 0;
                                 if(sycl::isnan(flow_velocity[1]) || flow_velocity[1] > std::numeric_limits<float>::max()) 
-                                flow_velocity[1] = 0;
+                                    flow_velocity[1] = 0;
                                 if(sycl::isnan(absolute_velocity) || absolute_velocity > std::numeric_limits<float>::max()) 
                                     absolute_velocity = 0;
 
@@ -225,7 +241,8 @@ namespace lbm
                         real_type *absolute_velocity_values;
 
                         unsigned int vertical_nodes;
-                        unsigned int horizontal_nodes;
+                        unsigned int horizontal_nodes_expanded;
+                        unsigned int horizontal_nodes_domain;
                         real_type relaxation_time_inverse;
 
                         public:
@@ -242,22 +259,27 @@ namespace lbm
                         densities(simulation.results->densities_gpu),
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
-                        vertical_nodes(simulation.properties->vertical_nodes),
-                        horizontal_nodes(simulation.properties->horizontal_nodes),
+                        vertical_nodes(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
+                        horizontal_nodes_domain(simulation.properties->horizontal_nodes),
                         relaxation_time_inverse(1 / simulation.properties->relaxation_time)
                         {}
 
                         /**
                          * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
                          * 
-                         * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
+                         * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
                          */
-                        void operator()(const sycl::id<1> &id) const 
+                        void operator()(const sycl::nd_item<2> &nd_item) const 
                         {
-                            if(!phase_information[id])
+                            auto global_id_x = nd_item.get_global_id(1) + 1;
+                            auto global_id_y = nd_item.get_global_id(0) + 1;
+                            auto linear_index = core::access::get_node_index(global_id_x, global_id_y, horizontal_nodes_expanded);
+
+                            if(!phase_information[linear_index])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+                                    lbm::core::access::decomposed::get_results_index(global_id_x, global_id_y, horizontal_nodes_domain);
 
                                 real_type& x_velocity = x_velocities[iteration_node_offset];
                                 real_type& y_velocity = y_velocities[iteration_node_offset];
@@ -271,7 +293,7 @@ namespace lbm
 
                                 for (const auto& direction : core::constants::all_directions)
                                 {
-                                    value = destination[A::at(id, direction, horizontal_nodes * vertical_nodes)];
+                                    value = destination[A::at(linear_index, direction, horizontal_nodes_expanded * vertical_nodes)];
 
                                     velocity_x_component = (direction % 3) - 1; 
                                     velocity_y_component = (direction / 3) - 1; 
@@ -286,7 +308,7 @@ namespace lbm
                                         );
 
                                     result = -relaxation_time_inverse * (value - result) + value;
-                                    destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] = result;
+                                    destination[A::at(linear_index, direction, horizontal_nodes_expanded * vertical_nodes)] = result;
                                 }
                             }
                         }
@@ -314,8 +336,9 @@ namespace lbm
                         real_type *y_velocities;
                         real_type *absolute_velocity_values;
 
-                        unsigned int vertical_nodes;
-                        unsigned int horizontal_nodes;
+                        unsigned int vertical_nodes_expanded;
+                        unsigned int horizontal_nodes_expanded;
+                        unsigned int horizontal_nodes_domain;
                         real_type relaxation_time_inverse;
 
                         public:
@@ -334,22 +357,27 @@ namespace lbm
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
                         absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                        vertical_nodes(simulation.properties->vertical_nodes),
-                        horizontal_nodes(simulation.properties->horizontal_nodes),
+                        vertical_nodes_expanded(simulation.domain->vertical_nodes),
+                        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
+                        horizontal_nodes_domain(simulation.properties->horizontal_nodes),
                         relaxation_time_inverse(1 / simulation.properties->relaxation_time)
                         {}
 
                         /**
                          * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
                          * 
-                         * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
+                         * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
                          */
-                        void operator()(const sycl::item<1> &id) const
+                        void operator()(const sycl::nd_item<2> &nd_item) const 
                         {
-                            if(!phase_information[id])
+                            auto global_id_x = nd_item.get_global_id(1) + 1;
+                            auto global_id_y = nd_item.get_global_id(0) + 1;
+                            auto linear_index = core::access::get_node_index(global_id_x, global_id_y, horizontal_nodes_expanded);
+
+                            if(!phase_information[linear_index])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+                                    lbm::core::access::decomposed::get_results_index(global_id_x, global_id_y, horizontal_nodes_domain);
 
                                 real_type distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
                                 real_type result = 0;
@@ -360,16 +388,16 @@ namespace lbm
                                 real_type flow_velocity_y = 0;
                                 real_type absolute_velocity = 0;
 
-                                // Loading distribution values and macroscopic observables
+                                // Loading distribution values
                                 for (const auto& direction : core::constants::all_directions)
                                 {
                                     // Loading distribution values
                                     distribution_values[direction] = 
                                         source[
                                             A::at(
-                                                lbm::core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
+                                                lbm::core::access::get_neighbor(linear_index, 8 - direction, horizontal_nodes_expanded), 
                                                 direction, 
-                                                horizontal_nodes * vertical_nodes
+                                                horizontal_nodes_expanded * vertical_nodes_expanded
                                             )
                                         ];
                                 }
@@ -383,8 +411,9 @@ namespace lbm
                                     flow_velocity_x += distribution_values[direction] * velocity_x_component;
                                     flow_velocity_y += distribution_values[direction] * velocity_y_component;
                                 }
-
-                                absolute_velocity = sycl::sqrt(flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y);
+                                
+                                absolute_velocity = 
+                                    sycl::sqrt(flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y);
 
                                 // Streaming and collision
                                 for (const auto& direction : core::constants::all_directions)
@@ -394,9 +423,11 @@ namespace lbm
 
                                     result = core::constants::weights[direction] *
                                         (
-                                            density + 3 * (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
+                                            density 
+                                            + 3 * 
+                                            (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
                                             + 9.0/2 *
-                                            (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)*
+                                            (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y) *
                                             (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
                                             - 3.0/2 * (flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y)
                                         );
@@ -404,7 +435,13 @@ namespace lbm
                                     result =    -relaxation_time_inverse * (distribution_values[direction] - result) 
                                                 + distribution_values[direction];
 
-                                    destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] = result;
+                                    destination[
+                                            A::at(
+                                                linear_index, 
+                                                direction, 
+                                                horizontal_nodes_expanded * vertical_nodes_expanded
+                                            )
+                                        ] = result;
                                 }
 
                                 #ifdef WITH_NAN_PROTECTION 
@@ -446,34 +483,33 @@ namespace lbm
 
                         public:
 
-                        /**
-                         * @brief Constructor for a new `EmplaceBounceBackKernel` object.
-                         *        Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
-                         * 
-                         * @param[in]   simulation  the structure containing all simulation data
-                         */
                         EmplaceBounceBackKernel(const core::Simulation &simulation):
                         phase_information(simulation.data->phase_information),
                         destination(simulation.data->distribution_values_0),
-                        horizontal_nodes(simulation.properties->horizontal_nodes),
-                        total_nodes(simulation.properties->total_unexpanded_node_count)
+                        horizontal_nodes(simulation.domain->horizontal_nodes),
+                        total_nodes(simulation.domain->total_node_count)
                         {}
 
                         /**
                          * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
                          * 
-                         * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
+                         * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
                          */
-                        void operator()(const sycl::item<1> &id) const
+                        void operator()(const sycl::nd_item<2> &nd_item) const
                         {
-                            if(phase_information[id] == 1)
+                            auto global_id_x = nd_item.get_global_id(1) + 1;
+                            auto global_id_y = nd_item.get_global_id(0) + 1;
+                            auto linear_index = 
+                                core::access::get_node_index(global_id_x, global_id_y, horizontal_nodes);
+
+                            if(phase_information[linear_index] == 1)
                             {
                                 for(const auto& dir : core::constants::streaming_directions)
                                 {
-                                    destination[A::at(id, dir, total_nodes)] =
+                                    destination[A::at(linear_index, dir, total_nodes)] =
                                     destination[
                                         A::at(
-                                            core::access::get_neighbor(id, dir, horizontal_nodes), 
+                                            core::access::get_neighbor(linear_index, dir, horizontal_nodes), 
                                             8 - dir, 
                                             total_nodes
                                         )
@@ -483,7 +519,7 @@ namespace lbm
                         }
                     };
 
-                } // ! namespace linear
+                } // ! namespace non_linear
 
             } // ! namespace kernels
 

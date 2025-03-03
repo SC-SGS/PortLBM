@@ -1,10 +1,10 @@
 /**
- * @file        linear_gpu_two_lattice.hpp
+ * @file        non_linear_gpu_two_lattice.hpp
  * 
  * @author      Marcel Graf
  * 
  * @brief       In this header, two classes for the GPU-based linear two-lattice algorithm are declared. Both inherit 
- *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The
+ *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The 
  *              kernel functions are implemented in `linear_two_lattice_kernels.hpp`.
  * 
  * @version     4.3
@@ -15,10 +15,8 @@
  * 
  */
 
-#ifndef LINEAR_GPU_TWO_LATTICE_HPP
-#define LINEAR_GPU_TWO_LATTICE_HPP
-
-// Includes ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifndef NON_LINEAR_GPU_TWO_LATTICE_HPP
+#define NON_LINEAR_GPU_TWO_LATTICE_HPP
 
 // Console output
 #include "../../../console/console_output.hpp"
@@ -34,9 +32,7 @@
 
 // Kernels
 #include "../../general/non_buffered.hpp"
-#include "linear_two_lattice_kernels.hpp"
-
-// Linear two-lattice /////////////////////////////////////////////////////////////////////////////////////////////////
+#include "non_linear_two_lattice_kernels.hpp"
 
 namespace lbm
 {
@@ -54,27 +50,26 @@ namespace lbm
         {
 
             /**
-             * @brief This namespace contains implementations using linear kernels.
+             * @brief This namespace contains implementations using non-linear kernels.
              */
-            namespace linear
+            namespace non_linear
             {
 
-// Performance linear two-lattice /////////////////////////////////////////////////////////////////////////////////////
+// Performance non-linear two-lattice /////////////////////////////////////////////////////////////////////////////////
 
                 /**
-                 * @brief   Class representation of the linear SYCL implementation of the two-lattice algorithm.
+                 * @brief Class representation of the linear SYCL implementation of the two-lattice algorithm.
                  * 
-                 * @tparam  A   any `core::access::AccessorConcept` from access.hpp
+                 * @tparam A any `core::access::AccessorConcept` from access.hpp
                  */
                 template <core::access::AccessorConcept A>
-                class LinearGpuTwoLattice : public execution::SYCLAlgorithm
+                class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
                 {
                     private:
 
                     /**
-                     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates the
-                     *          macroscopic observables in the process. The latter are copied to the host in regular
-                     *          intervals.
+                     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
+                     *          the macroscopic observables in the process.
                      */
                     inline void stream_and_collide()
                     {
@@ -82,21 +77,24 @@ namespace lbm
                         (
                             [&](sycl::handler &cgh)
                             {
-                                auto kernel = linear::kernels::StreamCollideKernel<A>(*simulation);
+                                auto kernel = non_linear::kernels::StreamCollideKernel<A>(*simulation);
                                 cgh.parallel_for(
-                                    sycl::range<1>(
-                                        simulation->properties->vertical_nodes * 
-                                        simulation->properties->horizontal_nodes
-                                    ), kernel
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
+                                        )
+                                    ), 
+                                    kernel
                                 );
                             }
                         );
                         event.wait();
-
-                        if(
-                            !(simulation->control->get_current_iteration() % 
-                                simulation->properties->frame_update_interval)
-                        )
+                        if(!(simulation->control->get_current_iteration() % simulation->properties->frame_update_interval))
                         {
                             queue->copy(
                                 simulation->results->densities_gpu, 
@@ -122,8 +120,7 @@ namespace lbm
                     }
 
                     /**
-                     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice 
-                     *          algorithm.
+                     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
                      */
                     void emplace_bounce_back()
                     {
@@ -133,10 +130,17 @@ namespace lbm
                             {
                                 auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
                                 cgh.parallel_for(
-                                    sycl::range<1>(
-                                        simulation->properties->vertical_nodes * 
-                                        simulation->properties->horizontal_nodes
-                                    ), kernel
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
+                                        )
+                                    ), 
+                                    kernel
                                 );
                             }
                         );
@@ -162,8 +166,7 @@ namespace lbm
                     public:
 
                     /**
-                     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last 
-                     *          iteration. 
+                     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last iteration. 
                      */
                     inline void execute() override
                     {
@@ -189,12 +192,7 @@ namespace lbm
                         );
                     }
 
-                    /**
-                     * @brief   Constructs a `LinearGpuTwoLattice` algorithm object and initializes its domain.
-                     * 
-                     * @param[in]   queue   the SYCL queue used for interation with the device 
-                     */
-                    explicit LinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) 
+                    explicit NonLinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) 
                     {
                         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
                             *simulation, queue
@@ -202,7 +200,7 @@ namespace lbm
                     }; 
                 };
 
-// Debug linear two-lattice ///////////////////////////////////////////////////////////////////////////////////////////
+// Debug non-linear two-lattice ///////////////////////////////////////////////////////////////////////////////////////
 
                 /**
                  * @brief Class representation of the linear SYCL debug implementation of the two-lattice algorithm.
@@ -210,26 +208,17 @@ namespace lbm
                  * @tparam A any `core::access::AccessorConcept` from access.hpp
                  */
                 template <core::access::AccessorConcept A>
-                class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
+                class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
                 {
                     private:
 
-                    // Contains the density values of all nodes during all iterations
                     std::unique_ptr<std::vector<real_type>> all_densities;
-                    
-                    // Contains the x velocity components of all nodes during all iterations
                     std::unique_ptr<std::vector<real_type>> all_x_velocities;
-
-                    // Contains the y velocity components of all nodes during all iterations
                     std::unique_ptr<std::vector<real_type>> all_y_velocities;
-
-                    // Acts as a buffer for distribution values that are to be printed to the console
                     std::unique_ptr<std::vector<real_type>> distribution_values;
-
-                    // Contains a copy of the phase information located on the GPU
+                    std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
                     std::unique_ptr<std::vector<int8_t>> phase_information;
 
-                    // Contains the current iteration of the algorithm
                     unsigned int current_iteration;
 
                     /**
@@ -241,9 +230,19 @@ namespace lbm
                         (
                             [&](sycl::handler &cgh)
                             {
-                                auto kernel = linear::kernels::StreamKernel<A>(*simulation);
+                                auto kernel = non_linear::kernels::StreamKernel<A>(*simulation);
                                 cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
+                                        )
+                                    ), 
+                                    kernel
                                 );
                             }
                         ).wait();
@@ -259,11 +258,42 @@ namespace lbm
                         (
                             [&](sycl::handler &cgh)
                             {
-                                auto kernel = linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
+                                auto kernel = non_linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
                                 cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
+                                        )
+                                    ), 
+                                    kernel
                                 );
                             }
+                        ).wait();
+
+                        queue->copy(
+                            simulation->results->densities_gpu, 
+                            simulation->results->densities_cpu->data(), 
+                            simulation->results->densities_cpu->size()
+                        ).wait();
+                        queue->copy(
+                            simulation->results->x_velocities_gpu, 
+                            simulation->results->x_velocities_cpu->data(), 
+                            simulation->results->x_velocities_cpu->size()
+                        ).wait();
+                        queue->copy(
+                            simulation->results->y_velocities_gpu, 
+                            simulation->results->y_velocities_cpu->data(), 
+                            simulation->results->y_velocities_cpu->size()
+                        ).wait();
+                        queue->copy(
+                            simulation->results->absolute_velocities_gpu, 
+                            simulation->results->absolute_velocities_cpu->data(), 
+                            simulation->results->absolute_velocities_cpu->size()
                         ).wait();
                     }
 
@@ -277,9 +307,19 @@ namespace lbm
                         (
                             [&](sycl::handler &cgh)
                             {
-                                auto kernel = linear::kernels::CollideKernel<A>(*simulation);
+                                auto kernel = non_linear::kernels::CollideKernel<A>(*simulation);
                                 cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
+                                        )
+                                    ), 
+                                    kernel
                                 );
                             }
                         ).wait();
@@ -292,11 +332,10 @@ namespace lbm
                     inline void stream_and_collide()
                     {
                         stream();
-
                         queue->copy(
                             simulation->data->distribution_values_1, 
                             distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout 
@@ -305,59 +344,11 @@ namespace lbm
                         
                         lbm::console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->properties->horizontal_nodes, 
-                            simulation->properties->vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );
                     
                         update_macroscopic_observables();
-
-                        auto event_x_velocities_copy = queue->copy(
-                            simulation->results->x_velocities_gpu, 
-                            simulation->results->x_velocities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        );
-
-                        auto event_y_velocities_copy = queue->copy(
-                            simulation->results->y_velocities_gpu, 
-                            simulation->results->y_velocities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        );
-
-                        auto event_densities_copy = queue->copy(
-                            simulation->results->densities_gpu, 
-                            simulation->results->densities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        );
-
-                        queue->copy(
-                            simulation->results->absolute_velocities_gpu, 
-                            simulation->results->absolute_velocities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        ).wait();
-
-                        event_x_velocities_copy.wait();
-
-                        all_x_velocities->insert(
-                            all_x_velocities->end(), 
-                            simulation->results->x_velocities_cpu->begin(), 
-                            simulation->results->x_velocities_cpu->end()
-                        );
-
-                        event_y_velocities_copy.wait();
-
-                        all_y_velocities->insert(
-                            all_y_velocities->end(), 
-                            simulation->results->y_velocities_cpu->begin(), 
-                            simulation->results->y_velocities_cpu->end()
-                        );
-
-                        event_densities_copy.wait();
-
-                        all_densities->insert(
-                            all_densities->end(), 
-                            simulation->results->densities_cpu->begin(), 
-                            simulation->results->densities_cpu->end()
-                        );
 
                         std::cout 
                         << "Velocities: \n"
@@ -370,9 +361,8 @@ namespace lbm
                             0
                         );
 
-                        std::cout 
-                        << "Densities: \n"
-                        << "-------------------------------------------------------------------------------\n";
+                        std::cout << "Densities: \n"
+                                << "-------------------------------------------------------------------------------\n";
                         lbm::console::print_densities(
                             *simulation->properties, 
                             *simulation->results->densities_cpu, 
@@ -384,7 +374,7 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_1, 
                             distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout 
@@ -393,8 +383,8 @@ namespace lbm
 
                         lbm::console::print_distribution_values<A>(
                             *distribution_values,
-                            simulation->properties->horizontal_nodes, 
-                            simulation->properties->vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );    
                     }
 
@@ -409,7 +399,17 @@ namespace lbm
                             {
                                 auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
                                 cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
+                                    sycl::nd_range<2>(
+                                        sycl::range<2>(
+                                            simulation->domain->vertical_nodes - 2,
+                                            simulation->domain->horizontal_nodes - 2
+                                        ),
+                                        sycl::range<2>(
+                                            simulation->domain->subdomain_vertical_nodes,
+                                            simulation->domain->subdomain_horizontal_nodes
+                                        )
+                                    ), 
+                                    kernel
                                 );
                             }
                         );
@@ -418,16 +418,16 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_0, 
                             distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
-                        << "-------------------------------------------------------------------------------\033[0m\n";
+                                << "-------------------------------------------------------------------------------\033[0m\n";
 
                         lbm::console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->properties->horizontal_nodes, 
-                            simulation->properties->vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );
                     }
 
@@ -449,7 +449,7 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_0, 
                             distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         std::cout 
@@ -458,8 +458,8 @@ namespace lbm
 
                         lbm::console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->properties->horizontal_nodes, 
-                            simulation->properties->vertical_nodes
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
                         );
                     }
 
@@ -470,61 +470,61 @@ namespace lbm
                      *          reaches the last iteration. 
                      */
                     inline void execute() override 
-                    {
-                        if(current_iteration == 0)
-                        {
-                            console::print_ansi_color_message();
-                            console::print_color_legend();
+                    { 
+                        console::print_ansi_color_message();
+                        console::print_color_legend();
 
+                        queue->copy(
+                            simulation->data->distribution_values_0, 
+                            distribution_values->data(), 
+                            9 * simulation->domain->total_node_count
+                        ).wait();
 
-                            auto event_distribution_values_copy = queue->copy(
-                                simulation->data->distribution_values_0, 
-                                distribution_values->data(), 
-                                9 * simulation->properties->total_unexpanded_node_count
-                            );
+                        console::print_distribution_values<A>(
+                            *distribution_values, 
+                            simulation->domain->horizontal_nodes, 
+                            simulation->domain->vertical_nodes
+                        );
 
-                            auto event_phase_information_copy = queue->copy(
-                                simulation->data->phase_information, 
-                                phase_information->data(), 
-                                simulation->properties->total_unexpanded_node_count
-                            );
+                        queue->copy(
+                            simulation->data->phase_information, 
+                            phase_information->data(), 
+                            simulation->domain->total_node_count
+                        ).wait();
 
-                            std::cout << "Initial distribution values: \n";
-                            std::cout << "-------------------------------------------------------------------------------\n";
+                        console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
 
-                            event_distribution_values_copy.wait();
+                        std::cout 
+                        << "\033[36mNow running GPU two-lattice for " 
+                        << simulation->properties->time_steps 
+                        << " iterations.\033[0m\n\n";
 
-                            console::print_distribution_values<A>(
-                                *distribution_values, 
-                                simulation->properties->horizontal_nodes, 
-                                simulation->properties->vertical_nodes
-                            );
+                        std::cout 
+                        << "Running on " 
+                        << queue->get_device().get_info<sycl::info::device::name>() 
+                        << "\n\n";
 
-                            std::cout << "Phase information: \n";
-                            std::cout << "-------------------------------------------------------------------------------\n";
+                        fmt::print
+                        (
+                            "Simulation properties:\n"
+                            "-------------------------------------------------------------------------------\n"
+                        );
 
-                            event_phase_information_copy.wait();
+                        fmt::print(fmt::runtime(simulation->properties->to_string()));   
 
-                            console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
+                        std::cout << "\n";
+                        std::cout << "Buffered domain:\n";
+                        std::cout << "------------------------------------------------------------------------------------\n";
+                        std::cout << "\texpanded_node_count = " << simulation->domain->total_node_count << "\n";
+                        std::cout << "\texpanded_horizontal_nodes = " << simulation->domain->horizontal_nodes << "\n";
+                        std::cout << "\texpanded_vertical_nodes = " << simulation->domain->vertical_nodes << "\n";
 
-                            std::cout 
-                            << "\033[36mNow running GPU two-lattice for " 
-                            << simulation->properties->time_steps 
-                            << " iterations.\033[0m\n\n";
+                        std::cout << "\tsubdomain_width = " << simulation->domain->subdomain_horizontal_nodes << "\n";
+                        std::cout << "\tsubdomain_height = " << simulation->domain->subdomain_vertical_nodes << "\n";
 
-                            std::cout 
-                            << "Running on " 
-                            << queue->get_device().get_info<sycl::info::device::name>() 
-                            << "\n\n";
-
-                            fmt::print
-                            (
-                                "Simulation properties:\n"
-                                "-------------------------------------------------------------------------------\n"
-                            );
-
-                            fmt::print(fmt::runtime(simulation->properties->to_string())); 
-                        } 
+                        std::cout << "\tsubdomain_count_vertical = " << simulation->domain->subdomain_count_vertical << "\n";
+                        std::cout << "\tsubdomain_count_horizontal = " << simulation->domain->subdomain_count_horizontal << "\n";
+                        std::cout << "\n";
 
                         future = hpx::async
                         (
@@ -556,46 +556,78 @@ namespace lbm
                                     simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
                                     simulation->data->distribution_values_0 = tmp;
 
+                                    queue->copy(
+                                        simulation->results->x_velocities_gpu, 
+                                        temp_macroscopic_observables->data(), 
+                                        simulation->properties->domain_node_count
+                                    ).wait();
+
+                                    all_x_velocities->insert(
+                                        all_x_velocities->end(), 
+                                        temp_macroscopic_observables->begin(), 
+                                        temp_macroscopic_observables->end()
+                                    );
+
+                                    queue->copy(
+                                        simulation->results->y_velocities_gpu, 
+                                        temp_macroscopic_observables->data(), 
+                                        simulation->properties->domain_node_count
+                                    ).wait();
+
+                                    all_y_velocities->insert(
+                                        all_y_velocities->end(), 
+                                        temp_macroscopic_observables->begin(), 
+                                        temp_macroscopic_observables->end()
+                                    );
+
+                                    queue->copy(
+                                        simulation->results->densities_gpu, 
+                                        temp_macroscopic_observables->data(), 
+                                        simulation->properties->domain_node_count
+                                    ).wait();
+
+                                    all_densities->insert(
+                                        all_densities->end(), 
+                                        temp_macroscopic_observables->begin(), 
+                                        temp_macroscopic_observables->end()
+                                    );
+
                                     simulation->control->finalize_iteration();
                                 }
+
+                                std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
+
+                                lbm::console::print_simulation_results(
+                                    *simulation->properties, 
+                                    *all_densities, 
+                                    *all_x_velocities, 
+                                    *all_y_velocities
+                                );
                             }
                         );
-
-                        if(simulation->control->is_finished())
-                        {
-                            std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
-
-                            lbm::console::print_simulation_results(
-                                *simulation->properties, 
-                                *all_densities, 
-                                *all_x_velocities, 
-                                *all_y_velocities
-                            );
-                        }
                     }
 
                     /**
-                     * @brief   Constructs a new `LinearGpuTwoLatticeDebug` algorithm object and initializes its domain.
+                     * @brief   Constructs a new `NonLinearGpuTwoLatticeDebug` algorithm object and initializes its 
+                     *          domain.
                      * 
                      * @param[in]   queue   the SYCL queue that is used to allocate the device data
                      */
-                    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue) 
+                    explicit NonLinearGpuTwoLatticeDebug(sycl::queue &queue) 
                     : 
                     SYCLAlgorithm(queue),
                     all_densities(std::make_unique<std::vector<real_type>>()), 
                     all_x_velocities(std::make_unique<std::vector<real_type>>()), 
                     all_y_velocities(std::make_unique<std::vector<real_type>>()), 
                     distribution_values(
-                        std::make_unique<std::vector<real_type>>(
-                            9 * simulation->properties->total_unexpanded_node_count, 0)
+                        std::make_unique<std::vector<real_type>>(9 * simulation->domain->total_node_count, 0)
                     ),
-                    phase_information(
-                        std::make_unique<std::vector<int8_t>>(simulation->properties->total_unexpanded_node_count, 0)
-                    ),
+                    temp_macroscopic_observables(std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
+                    phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
                     current_iteration(0)
                     {
                         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
-                                *simulation, queue
+                            *simulation, queue
                         );
 
                         all_densities->reserve(
@@ -614,6 +646,7 @@ namespace lbm
                         all_y_velocities->shrink_to_fit();
 
                         distribution_values->shrink_to_fit();
+                        temp_macroscopic_observables->shrink_to_fit();
                         phase_information->shrink_to_fit();
                     }; 
                 };

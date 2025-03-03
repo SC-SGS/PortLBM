@@ -6,9 +6,9 @@
  * @brief       This header file contains the declarations of two functions for retrieving the properties of a simulation
  *              from a JSON file and for storing properties to a JSON file.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        November 2024
+ * @date        January 2025
  * 
  * @copyright   Copyright (c) 2024
  */
@@ -16,10 +16,13 @@
 #ifndef FILE_INTERACTION_HPP
 #define FILE_INTERACTION_HPP
 
+// Dependencies on LBM core features
 #include "../core/simulation.hpp"
 
+// C++ JSON integration by N. Lohmann
 #include <nlohmann/json.hpp>
 
+// Standard library
 #include <fstream>
 #include <iostream>
 
@@ -39,7 +42,7 @@ namespace lbm
         void properties_to_json
         (
             const core::Properties &properties,
-            const std::string &path = "../settings/domain.json"
+            const std::string &path = "../settings/settings.json"
         );
 
         /**
@@ -47,12 +50,12 @@ namespace lbm
          * 
          * @param[in] path the path to the JSON file
          * 
-         * @return a unique pointer to a `Properties` object
+         * @return a `Properties` object
          */
-        std::unique_ptr<core::Properties> json_to_properties(const std::string &path = "../settings/domain.json");
+        core::Properties json_to_properties(const std::string &path = "../settings/settings.json", const int offset = 0);
 
     } // !namespace file_interaction
 
 } // !namespace lbm
 
-#endif
+#endif // ! FILE_INTERACTION_HPP

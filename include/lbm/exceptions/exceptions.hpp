@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the declaration of several exceptions for the lattice Boltzmann implementation.
  * 
- * @version     1.0
+ * @version     1.2
  * 
- * @date        2024-10-10
+ * @date        March 2025
  * 
  * @copyright   Copyright (c) 2024
  * 
@@ -16,17 +16,20 @@
 #ifndef EXCEPTIONS_HPP
 #define EXCEPTIONS_HPP
 
+// Format
+#include <fmt/core.h>
+
+// Standary library
 #include <stdexcept>                                                   
 #include <string_view>                            
 
-#include <fmt/core.h>
-
-/**
+/*
  * Careful: At the time this file was created, the used Clang 18.1.3 compiler includes the `source_location.hpp` header
  *          as an experimental feature. This may change in future versions of Clang, and the include direction may change
  *          to `<source_location>`.
  */
-#include <experimental/source_location>
+//#include <experimental/source_location>
+#include <source_location> // tested under clang 18.1.8 with AMDGPU target
 
 namespace lbm
 {
@@ -37,12 +40,12 @@ namespace lbm
     namespace exceptions
     {
         /**
-         * @brief This general exception class is essentially a `std::runtime_error` with a `std::experimental::source_location`. 
+         * @brief This general exception class is essentially a `std::runtime_error` with a `std::source_location`. 
          */
         class Exception : public std::runtime_error
         {
             std::string_view exception_name;
-            std::experimental::source_location source_location;
+            std::source_location source_location;
             
             public:
 
@@ -50,7 +53,7 @@ namespace lbm
                 (
                     const std::string &message, 
                     const std::string_view &exception_name = "Exception", 
-                    const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                    const std::source_location &source_location = std::source_location::current()
                 );
 
                 /**
@@ -89,7 +92,7 @@ namespace lbm
                     explicit PropertyArgumentException
                     (
                         const std::string &message,
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
 
@@ -103,7 +106,7 @@ namespace lbm
                     explicit MissingPropertyException
                     (
                         const std::string &message,
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
 
@@ -117,7 +120,7 @@ namespace lbm
                     explicit UnknownPropertyException
                     (
                         const std::string &message, 
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
         } // ! namespace json
@@ -129,7 +132,7 @@ namespace lbm
         {
             /**
              * @brief This exception is thrown when the value of a macroscopic observable is outside its allowed range.
-             *        The rules of physics and the defined range of `double` are considered, and the stronger condition is guiding.
+             *        The rules of physics and the defined range of `real_type` are considered, and the stronger condition is guiding.
              *        The following restrictions apply:
              * 
              *        - Densities:  Must be larger than `0` but not `nan` or `inf` 
@@ -144,7 +147,7 @@ namespace lbm
                     explicit OutOfBoundsException
                     (
                         const std::string &message, 
-                        const std::experimental::source_location &source_location= std::experimental::source_location::current()
+                        const std::source_location &source_location= std::source_location::current()
                     );
             };
         } // ! namespace observables
@@ -165,10 +168,31 @@ namespace lbm
                     explicit OutOfDomainException
                     (
                         const std::string &message, 
-                        const std::experimental::source_location &source_location = std::experimental::source_location::current()
+                        const std::source_location &source_location = std::source_location::current()
                     );
             };
         } // ! namespace domain
+
+        /**
+         * @brief This namespace contains exceptions related to the execution of LBM algorithms.
+         */
+        namespace algorithm
+        {
+            /**
+             * @brief   This exception is thrown when a thread waits for an algorithm to finish its execution although
+             *          the target algorithm has not commenced execution or it will never be able to finish.
+             */
+            class WaitException : public Exception
+            {
+                public:
+
+                    explicit WaitException
+                    (
+                        const std::string &message, 
+                        const std::source_location &source_location = std::source_location::current()
+                    );
+            };
+        } // ! namespace algorithm
 
     } // ! namespace exceptions
 

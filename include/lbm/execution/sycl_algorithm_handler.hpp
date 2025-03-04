@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declaration of a SYCL algorithm handler class.
  * 
- * @version     1.2
+ * @version     1.3
  * 
  * @date        March 2025
  * 
@@ -26,7 +26,7 @@
 // SYCL-based LBM algorithms
 #include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 #include "../gpu/two_lattice/non-linear/non_linear_gpu_two_lattice.hpp"
-// #include "../gpu/two_lattice/optimized/optimized_gpu_two_lattice.hpp"
+#include "../gpu/two_lattice/optimized/optimized_gpu_two_lattice.hpp"
 #include "../gpu/swap/gpu_swap.hpp"
 
 // Standard library
@@ -113,10 +113,31 @@ namespace lbm
                         throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
                     }
                 }
-                // else if(properties->algorithm == "gpu-two-lattice-optimized")
-                // {
-
-                // }
+                else if(properties.algorithm == "gpu-two-lattice-optimized")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::optimized::OptimizedGpuTwoLattice<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::optimized::OptimizedGpuTwoLattice<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::optimized::OptimizedGpuTwoLattice<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                }
                 else if(properties.algorithm == "gpu-swap")
                 {
                     if(properties.data_layout == "stream")
@@ -201,10 +222,31 @@ namespace lbm
                         throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
                     }
                 }
-                // else if(properties->algorithm == "gpu-two-lattice-optimized")
-                // {
-                //     
-                // }
+                else if(properties.algorithm == "gpu-two-lattice-optimized")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::optimized::OptimizedGpuTwoLatticeDebug<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::optimized::OptimizedGpuTwoLatticeDebug<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::optimized::OptimizedGpuTwoLatticeDebug<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                    }
+                }
                 else if(properties.algorithm == "gpu-swap")
                 {
                     if(properties.data_layout == "stream")

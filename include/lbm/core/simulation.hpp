@@ -6,7 +6,7 @@
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.4
+ * @version     4.5
  * 
  * @date        March 2025
  * 
@@ -393,6 +393,34 @@ namespace lbm
              * @param[in]   work_group_size             the desired work-group size
              */
             explicit SwapDomain
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                const size_t work_group_size
+            );
+        };
+
+        /**
+         * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the swap algo-
+         *          rithm. The semantics of the domain setup process differ from those of the two-lattice algorithm.
+         *          Since interactions with buffers are required, they are considered part of the subdomain during
+         *          streaming and collision. In turn, the fraction belonging to the actual subdomain is slightly 
+         *          smaller. Notice that inner buffers are part of overlapping subdomains.
+         */
+        class BufferedTwoLatticeDomain : public Domain
+        {
+            public:
+
+            /**
+             * @brief   Constructs a decomposed domain structure for use with the swap algorithm.
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             */
+            explicit BufferedTwoLatticeDomain
             (
                 const unsigned int unexpanded_horizontal_nodes,
                 const unsigned int unexpanded_vertical_nodes,

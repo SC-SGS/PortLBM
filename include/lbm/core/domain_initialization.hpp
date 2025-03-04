@@ -18,6 +18,7 @@
 
 // Dependencies on other LBM features
 #include "simulation.hpp"
+#include "../console/console_output.hpp"
 
 namespace lbm
 {
@@ -308,7 +309,8 @@ namespace lbm
                                         id.get(1) + 1, id.get(0) * vertical_nodes_org + 1 - 3 * id.get(0), 
                                         subdomain_vertical_nodes, 
                                         subdomain_horizontal_nodes, 
-                                        extended_horizontal_nodes
+                                        extended_horizontal_nodes,
+                                        horizontal_nodes_org
                                     )
                                 ] = 1;
                             }  
@@ -367,7 +369,8 @@ namespace lbm
                                         y, 
                                         subdomain_vertical_nodes, 
                                         subdomain_horizontal_nodes, 
-                                        extended_horizontal_nodes
+                                        extended_horizontal_nodes,
+                                        horizontal_nodes_org
                                     )
                                 ] = value;
                         }
@@ -383,7 +386,8 @@ namespace lbm
                                     y, 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
-                                    extended_horizontal_nodes
+                                    extended_horizontal_nodes,
+                                    horizontal_nodes_org
                                 )
                             ] = 1;
                         }
@@ -493,7 +497,8 @@ namespace lbm
                                     id.get(1), 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
-                                    horizontal_nodes
+                                    horizontal_nodes,
+                                    horizontal_nodes_org
                                 );
 
                                 for(int i = 0; i < 9; ++i)
@@ -543,7 +548,8 @@ namespace lbm
                                         y, 
                                         subdomain_vertical_nodes, 
                                         subdomain_horizontal_nodes, 
-                                        extended_horizontal_nodes
+                                        extended_horizontal_nodes,
+                                        horizontal_nodes_org
                                     )
                                 ] = S::evaluate(x, y, vertical_nodes_org, horizontal_nodes_org);
                             }  
@@ -576,6 +582,20 @@ namespace lbm
                 domain_initialization::set_standstill_values<A>(simulation, queue);
 
                 domain_initialization::set_inout_distribution_values<A, N>(simulation, queue);
+
+                // std::vector<double> distribution_values(9 * simulation.domain->total_node_count, 0);
+
+                // queue.copy(
+                //     simulation.data->distribution_values_0, 
+                //     distribution_values.data(), 
+                //     9 * simulation.domain->total_node_count
+                // ).wait();
+
+                // lbm::console::print_distribution_values<A>(
+                //     distribution_values, 
+                //     simulation.domain->horizontal_nodes, 
+                //     simulation.domain->vertical_nodes
+                // );
 
                 if
                 (

@@ -373,7 +373,8 @@ namespace lbm
                     std::cout << "\n";
                 }
             } 
-        }
+            
+        } // ! namespace buffered
 
     } // ! namespace console
 

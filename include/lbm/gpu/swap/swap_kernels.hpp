@@ -57,6 +57,7 @@ namespace lbm
                     real_type *distribution_values;
 
                     unsigned int horizontal_nodes;
+                    unsigned int horizontal_nodes_original;
                     unsigned int total_nodes;
 
                     unsigned int subdomain_horizontal_nodes;
@@ -74,6 +75,7 @@ namespace lbm
                     phase_information(simulation.data->phase_information),
                     distribution_values(simulation.data->distribution_values_0),
                     horizontal_nodes(simulation.domain->horizontal_nodes),
+                    horizontal_nodes_original(simulation.properties->horizontal_nodes),
                     total_nodes(simulation.domain->total_node_count),
                     subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
                     subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes)
@@ -94,7 +96,8 @@ namespace lbm
                                 global_id_y, 
                                 subdomain_vertical_nodes, 
                                 subdomain_horizontal_nodes, 
-                                horizontal_nodes
+                                horizontal_nodes,
+                                horizontal_nodes_original
                             );
 
                         if(phase_information[linear_index] == 1)

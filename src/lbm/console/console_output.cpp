@@ -5,7 +5,7 @@
  * 
  * @brief       This source file contains the definitions of various functions for console outputs.
  * 
- * @version     1.45
+ * @version     1.5
  * 
  * @date        March 2025
  * 
@@ -50,7 +50,6 @@ void lbm::console::print_velocities
 )
 {
     unsigned int index = 0;
-    std::cout << "LENGTH OF X VELOCITIES VECTOR IS " << x_velocities.size() << "\n";
 
     for(auto y = properties.vertical_nodes - 1; y-- > 1; )
     {

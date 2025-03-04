@@ -6,7 +6,7 @@
  * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.4
+ * @version     4.5
  * 
  * @date        March 2025
  * 
@@ -207,6 +207,67 @@ Domain(0, 0, 0, 0, 0, 0, 0)
 };
 
 
+lbm::core::BufferedTwoLatticeDomain::BufferedTwoLatticeDomain
+(
+    const unsigned int unexpanded_horizontal_nodes,
+    const unsigned int unexpanded_vertical_nodes,
+    const size_t work_group_size
+)
+:
+Domain(0, 0, 0, 0, 0, 0, 0)
+{
+    // Is work_group_size uneven (and larger than 1)?
+    if (work_group_size & 0x1)
+    {
+        // ==> stripe subdomains with extents 1 and work_group_size
+        subdomain_horizontal_nodes = work_group_size;
+        subdomain_vertical_nodes = 1;
+    }
+    else // work_group_size is guaranteed to be even, that is, a multiple of 2
+    {
+        size_t power_4 = power_functions::which_power_of_4(work_group_size);
+        size_t power_2 = power_functions::which_power_of_2(work_group_size);
+
+        if (power_4) // Is work_group_size a power of four? 
+        {
+            // ==> square subdomains
+
+            size_t size = 1;
+            for(int i = 0; i < power_4; ++i) { size *= 2; }
+
+            subdomain_horizontal_nodes = size;
+            subdomain_vertical_nodes = size; 
+        }
+        else if (power_2) // Is work_group_size a power of two?
+        {
+            // ==> as close to square as possible, with preference for horizontal length 
+            size_t power_height = power_2 / 2;
+            size_t height = 1;
+            for(int i = 0; i < power_height; ++i) { height *= 2; }
+
+            subdomain_vertical_nodes = height;
+            subdomain_horizontal_nodes = 2 * height; 
+        }
+        else // work_group_size is a multiple of two
+        {
+            //  ==> stripe subdomains with extents 2 and work_group_size / 2
+            subdomain_vertical_nodes = 2;
+            subdomain_horizontal_nodes = work_group_size / 2; 
+        }
+    }
+
+    subdomain_count_vertical = (((unexpanded_vertical_nodes - 2) / subdomain_vertical_nodes) + 1);
+    if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
+    vertical_nodes = (subdomain_vertical_nodes + 1) * subdomain_count_vertical + 1;
+    
+    subdomain_count_horizontal = (((unexpanded_horizontal_nodes - 2) / subdomain_horizontal_nodes) + 1);
+    if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
+    horizontal_nodes = (subdomain_horizontal_nodes + 1) * subdomain_count_horizontal + 1;
+
+    total_node_count = vertical_nodes * horizontal_nodes;
+};
+
+
 lbm::core::DecomposedTwoLatticeDomain::DecomposedTwoLatticeDomain
 (
     const unsigned int unexpanded_horizontal_nodes,
@@ -286,6 +347,7 @@ Domain
 )
 {};
 
+// Simulation /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lbm::core::Results::Results(const size_t &size, sycl::queue &queue)
 :
@@ -333,7 +395,6 @@ distribution_values_0(sycl::malloc_device<real_type>(9 * total_node_count, queue
     else distribution_values_1 = nullptr;
 };
 
-// Simulation /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lbm::core::Simulation::Simulation(sycl::queue &queue)
 :
@@ -382,15 +443,15 @@ control(std::make_unique<Control>(properties->time_steps))
         data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
     // soon:
-    // else if(properties->algorithm == "gpu-two-lattice-optimized")
-    // {
-    //     domain = std::make_unique<DecomposedTwoLatticeDomain>(
-    //         properties->horizontal_nodes,
-    //         properties->vertical_nodes,
-    //         properties->work_group_size
-    //     );
-    //     data = std::make_unique<Data>(domain->total_node_count, queue, false);
-    // }
+    else if(properties->algorithm == "gpu-two-lattice-optimized")
+    {
+        domain = std::make_unique<BufferedTwoLatticeDomain>(
+            properties->horizontal_nodes,
+            properties->vertical_nodes,
+            properties->work_group_size
+        );
+        data = std::make_unique<Data>(domain->total_node_count, queue, false);
+    }
     else
     {
         domain = std::make_unique<SwapDomain>(

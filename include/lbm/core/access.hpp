@@ -323,7 +323,8 @@ namespace lbm
                         const unsigned int global_y,
                         const unsigned int subdomain_vertical_nodes,
                         const unsigned int subdomain_horizontal_nodes,
-                        const unsigned int extended_horizontal_nodes
+                        const unsigned int extended_horizontal_nodes,
+                        const unsigned int unextended_horizontal_nodes
                     )
                     {
                         return global_x + global_y * extended_horizontal_nodes;
@@ -358,16 +359,23 @@ namespace lbm
                         const unsigned int y,
                         const unsigned int subdomain_vertical_nodes,
                         const unsigned int subdomain_horizontal_nodes,
-                        const unsigned int extended_horizontal_nodes
+                        const unsigned int extended_horizontal_nodes,
+                        const unsigned int unextended_horizontal_nodes
                     )
                     {
                         // return (x + ((x - 1) / subdomain_horizontal_nodes)) + 
                         //     (y + ((y - 1) / subdomain_vertical_nodes)) * extended_horizontal_nodes;
 
-                        int b_1 = x - 1;
-                        int b_2 = y - 1;
-                        return (x + (b_1 / (int)subdomain_horizontal_nodes)) + 
-                            (y + (b_2 / (int)subdomain_vertical_nodes)) * extended_horizontal_nodes;
+                        // int b_1 = x - 1;
+                        // int b_2 = y - 1;
+                        // return (x + (b_1 / (int)(subdomain_horizontal_nodes))) + 
+                        //     (y + (b_2 / (int)(subdomain_vertical_nodes))) * extended_horizontal_nodes;
+
+                        bool cond1 = x > 0;
+                        bool cond2 = x == (unextended_horizontal_nodes - 1);
+                        bool cond3 = y > 0;
+                        return cond1 * (x + ((x - 1) / subdomain_horizontal_nodes)) - cond2 + 
+                            (cond3 * (y + ((y - 1) / subdomain_vertical_nodes))) * extended_horizontal_nodes;
                     }
                 };
 

@@ -188,6 +188,7 @@ namespace lbm
                     real_type inlet_velocity_y;
 
                     unsigned int horizontal_nodes;
+                    unsigned int horizontal_nodes_org;
                     unsigned int total_nodes;
 
                     unsigned int subdomain_vertical_nodes;
@@ -208,6 +209,7 @@ namespace lbm
                     inlet_velocity_x(simulation.properties->inlet_velocity_x),
                     inlet_velocity_y(simulation.properties->inlet_velocity_y),
                     horizontal_nodes(simulation.domain->horizontal_nodes),
+                    horizontal_nodes_org(simulation.properties->horizontal_nodes),
                     total_nodes(simulation.domain->total_node_count),
                     subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes),
                     subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes)
@@ -228,7 +230,8 @@ namespace lbm
                                 id.get_id(0) + 1, 
                                 subdomain_vertical_nodes, 
                                 subdomain_horizontal_nodes, 
-                                horizontal_nodes
+                                horizontal_nodes,
+                                horizontal_nodes_org
                             );
 
                         for(int i = 0; i < 9; ++i)
@@ -307,7 +310,8 @@ namespace lbm
                                     y, 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
-                                    horizontal_nodes
+                                    horizontal_nodes,
+                                    horizontal_nodes_original
                                 );
 
                         f_1 = distribution_values[A::at(
@@ -377,7 +381,7 @@ namespace lbm
                     }
                 };                
 
-            } // ! namespace non_buffered
+            } // ! namespace buffered
 
         } // ! namespace general
 

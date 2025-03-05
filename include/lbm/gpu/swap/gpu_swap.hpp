@@ -128,35 +128,41 @@ namespace lbm
                  */
                 void emplace_bounce_back()
                 {
-                    auto event1 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->subdomain_count_vertical - 1,
-                                    simulation->domain->horizontal_nodes
-                                ), kernel
-                            );
-                        }
-                    );
-                    event1.wait();
+                    if(simulation->domain->subdomain_count_vertical > 1)
+                    {
+                        auto event1 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->subdomain_count_vertical - 1,
+                                        simulation->domain->horizontal_nodes
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event1.wait();
+                    }
 
-                    auto event2 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->vertical_nodes,
-                                    simulation->domain->subdomain_count_horizontal - 1
-                                ), kernel
-                            );
-                        }
-                    );
-                    event2.wait();
+                    if(simulation->domain->subdomain_count_horizontal > 1)
+                    {
+                        auto event2 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->vertical_nodes,
+                                        simulation->domain->subdomain_count_horizontal - 1
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event2.wait();
+                    }
 
                     auto event3 = queue->submit
                     (
@@ -197,35 +203,41 @@ namespace lbm
                     );
                     inlet_event.wait();
 
-                    auto event1 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->subdomain_count_vertical - 1,
-                                    simulation->domain->horizontal_nodes
-                                ), kernel
-                            );
-                        }
-                    );
-                    event1.wait();
+                    if(simulation->domain->subdomain_count_vertical > 1)
+                    {
+                        auto event1 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->subdomain_count_vertical - 1,
+                                        simulation->domain->horizontal_nodes
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event1.wait();
+                    }
 
-                    auto event2 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->vertical_nodes,
-                                    simulation->domain->subdomain_count_horizontal - 1
-                                ), kernel
-                            );
-                        }
-                    );
-                    event2.wait();
+                    if(simulation->domain->subdomain_count_horizontal > 1)
+                    {
+                        auto event2 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->vertical_nodes,
+                                        simulation->domain->subdomain_count_horizontal - 1
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event2.wait();
+                    }
 
                     auto outlet_event = queue->submit
                     (
@@ -396,35 +408,41 @@ namespace lbm
                  */
                 void emplace_bounce_back()
                 {
-                    auto event1 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->subdomain_count_vertical - 1,
-                                    simulation->domain->horizontal_nodes
-                                ), kernel
-                            );
-                        }
-                    );
-                    event1.wait();
+                    if(simulation->domain->subdomain_count_vertical > 1)
+                    {
+                        auto event1 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->subdomain_count_vertical - 1,
+                                        simulation->domain->horizontal_nodes
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event1.wait();
+                    }
 
-                    auto event2 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->vertical_nodes,
-                                    simulation->domain->subdomain_count_horizontal - 1
-                                ), kernel
-                            );
-                        }
-                    );
-                    event2.wait();
+                    if(simulation->domain->subdomain_count_horizontal > 1)
+                    {
+                        auto event2 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->vertical_nodes,
+                                        simulation->domain->subdomain_count_horizontal - 1
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event2.wait();
+                    }
 
                     queue->copy(
                         simulation->data->distribution_values_0, 
@@ -481,35 +499,41 @@ namespace lbm
                         *simulation
                     );
 
-                    auto event4 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->subdomain_count_vertical - 1,
-                                    simulation->domain->horizontal_nodes
-                                ), kernel
-                            );
-                        }
-                    );
-                    event4.wait();
+                    if(simulation->domain->subdomain_count_vertical > 1)
+                    {
+                        auto event1 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->subdomain_count_vertical - 1,
+                                        simulation->domain->horizontal_nodes
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event1.wait();
+                    }
 
-                    auto event5 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->vertical_nodes,
-                                    simulation->domain->subdomain_count_horizontal - 1
-                                ), kernel
-                            );
-                        }
-                    );
-                    event5.wait();
+                    if(simulation->domain->subdomain_count_horizontal > 1)
+                    {
+                        auto event2 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->vertical_nodes,
+                                        simulation->domain->subdomain_count_horizontal - 1
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event2.wait();
+                    }
 
                     queue->copy(
                         simulation->data->distribution_values_0, 
@@ -543,35 +567,42 @@ namespace lbm
                     );
                     
                     inlet_event.wait();
-                    auto event1 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->subdomain_count_vertical - 1,
-                                    simulation->domain->horizontal_nodes
-                                ), kernel
-                            );
-                        }
-                    );
-                    event1.wait();
 
-                    auto event2 = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                            cgh.parallel_for(
-                                sycl::range<2>(
-                                    simulation->domain->vertical_nodes,
-                                    simulation->domain->subdomain_count_horizontal - 1
-                                ), kernel
-                            );
-                        }
-                    );
-                    event2.wait();
+                    if(simulation->domain->subdomain_count_vertical > 1)
+                    {
+                        auto event1 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->subdomain_count_vertical - 1,
+                                        simulation->domain->horizontal_nodes
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event1.wait();
+                    }
+
+                    if(simulation->domain->subdomain_count_horizontal > 1)
+                    {
+                        auto event2 = queue->submit
+                        (
+                            [&](sycl::handler &cgh)
+                            {
+                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                                cgh.parallel_for(
+                                    sycl::range<2>(
+                                        simulation->domain->vertical_nodes,
+                                        simulation->domain->subdomain_count_horizontal - 1
+                                    ), kernel
+                                );
+                            }
+                        );
+                        event2.wait();
+                    }
 
                     auto outlet_event = queue->submit
                     (

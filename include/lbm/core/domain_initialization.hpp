@@ -481,25 +481,35 @@ namespace lbm
                     [&](sycl::handler &cgh)
                     {
                         unsigned int horizontal_nodes_org =  simulation.properties->horizontal_nodes;
+                        unsigned int vertical_nodes_org =  simulation.properties->vertical_nodes;
                         unsigned int total_node_count = simulation.domain->total_node_count;
                         unsigned int vertical_nodes = simulation.domain->vertical_nodes;
                         unsigned int horizontal_nodes = simulation.domain->horizontal_nodes;
                         unsigned int subdomain_horizontal_nodes = simulation.domain->subdomain_horizontal_nodes;
                         unsigned int subdomain_vertical_nodes = simulation.domain->subdomain_vertical_nodes;
+                        unsigned int vertical_subdomain_count = simulation.domain->subdomain_count_vertical;
+                        unsigned int horizontal_subdomain_count = simulation.domain->subdomain_count_horizontal;
                         real_type *distribution_values = simulation.data->distribution_values_0;
+                        int8_t buffered = 
+                        ((vertical_nodes - subdomain_vertical_nodes * vertical_subdomain_count) > 2) || 
+                        ((horizontal_nodes - subdomain_horizontal_nodes * horizontal_subdomain_count) > 2);
 
                         cgh.parallel_for(
-                            sycl::range<2>(2, simulation.properties->vertical_nodes),
+                            sycl::range<2>(2, simulation.properties->vertical_nodes - 2),
                             [=](const sycl::id<2> &id)     
                             {
+                                int8_t neighboring_dir [2] = {3, 5};
+
+                                // Inner node, NOT ghost node!
                                 unsigned int node = N::get_index(
-                                    id.get(0) * (horizontal_nodes_org - 1), 
-                                    id.get(1), 
+                                    1 + id.get(0) * (horizontal_nodes_org - 3), 
+                                    1 + id.get(1), 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
                                     horizontal_nodes,
                                     horizontal_nodes_org
                                 );
+                                node = core::access::get_neighbor(node, neighboring_dir[id.get(0)], horizontal_nodes);
 
                                 for(int i = 0; i < 9; ++i)
                                 {
@@ -582,20 +592,6 @@ namespace lbm
                 domain_initialization::set_standstill_values<A>(simulation, queue);
 
                 domain_initialization::set_inout_distribution_values<A, N>(simulation, queue);
-
-                // std::vector<double> distribution_values(9 * simulation.domain->total_node_count, 0);
-
-                // queue.copy(
-                //     simulation.data->distribution_values_0, 
-                //     distribution_values.data(), 
-                //     9 * simulation.domain->total_node_count
-                // ).wait();
-
-                // lbm::console::print_distribution_values<A>(
-                //     distribution_values, 
-                //     simulation.domain->horizontal_nodes, 
-                //     simulation.domain->vertical_nodes
-                // );
 
                 if
                 (

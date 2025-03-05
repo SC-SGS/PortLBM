@@ -226,13 +226,15 @@ namespace lbm
                     {
                         unsigned int current_node = 
                             core::access::decomposed::BufferedNodeAccess::get_index(
-                                0, 
+                                1, 
                                 id.get_id(0) + 1, 
                                 subdomain_vertical_nodes, 
                                 subdomain_horizontal_nodes, 
                                 horizontal_nodes,
                                 horizontal_nodes_org
                             );
+                        
+                        current_node = core::access::get_neighbor(current_node, 3, horizontal_nodes);
 
                         for(int i = 0; i < 9; ++i)
                         {

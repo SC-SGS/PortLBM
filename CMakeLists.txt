@@ -1,11 +1,11 @@
-# Description:   CMake file for Bachelor thesis
-#                Real-time visualized and GPU-accelerated Lattice Boltzmann simulations
+# Description:    CMake file for Bachelor thesis
+#                 Real-time visualized and GPU-accelerated Lattice Boltzmann simulations
 #
-# Author:        Marcel Graf
+# Author:         Marcel Graf
 #
-# Copyright:     (C) 2024 Marcel Graf
+# Copyright:      (c) Marcel Graf
 #
-# Last modified: December 27, 2024
+# Last modified:  March 13, 2025
 
 cmake_minimum_required(VERSION 3.18.2)
 
@@ -15,12 +15,12 @@ set(CMAKE_CXX_STANDARD 20)
 
 if(NOT CMAKE_BUILD_TYPE)
 
-  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose one of the following build types: Debug Release RelWithDebInfo MinSizeRel" FORCE)
+  set(
+    CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING 
+    "Choose one of the following build types: Debug Release RelWithDebInfo MinSizeRel" FORCE
+  )
   
 endif(NOT CMAKE_BUILD_TYPE)
-
-# Compiler options
-#set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG} "-Wall -Wextra -pedantic -ggdb3")
 
 # Options
 option(WITH_VISUALIZATION "Build with the visualization framework" OFF)
@@ -42,7 +42,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 target_link_libraries(${PROJECT_NAME} PUBLIC HPX::hpx HPX::wrap_main nlohmann_json::nlohmann_json fmt::fmt)
 
-# If the option for live visualization is set, find the necessary packages
+# If the option for live visualization is set, find the necessary packages and add definition
 if(WITH_VISUALIZATION)
 
   add_definitions(-DWITH_VISUALIZATION)
@@ -52,10 +52,12 @@ if(WITH_VISUALIZATION)
 
 endif(WITH_VISUALIZATION)
 
+# If the option for NaN protection is set, add the respective definition
 if(WITH_NAN_PROTECTION)
   add_definitions(-DWITH_NAN_PROTECTION)
 endif(WITH_NAN_PROTECTION)
 
+# If the option for using float instead of double is set, add the respective definition
 if(USE_FLOAT)
   add_definitions(-DUSE_FLOAT)
 endif(USE_FLOAT)

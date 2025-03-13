@@ -5,11 +5,11 @@
  * 
  * @brief       In this header file, functionality for setting up the simulation domain is declared and defined.
  * 
- * @version     3.3
+ * @version     3.4
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -18,7 +18,6 @@
 
 // Dependencies on other LBM features
 #include "simulation.hpp"
-#include "../console/console_output.hpp"
 
 namespace lbm
 {
@@ -38,8 +37,8 @@ namespace lbm
             /**
              * @brief   This namespace contains structures that are used for parameterizing certain phase information
              *          stencils using templates. These stencil structures all implement an `evaluate` method that
-             *          defines a condition for when a node is solid (`1`) or fluid (`0`).
-             * 
+             *          defines a condition for when a node is solid (`1`) or fluid (`0`). It is assumed that all nodes
+             *          are initialized as ghost (`-1`).
              */
             namespace gpu_stencils
             {
@@ -98,7 +97,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a circle simulation.properties->scenario.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a circle scenario.
                  */
                 struct CircleStencil
                 {
@@ -127,7 +126,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a square simulation.properties->scenario.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a square scenario.
                  */
                 struct SquareStencil
                 {
@@ -154,7 +153,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a plate simulation.properties->scenario.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a plate scenario.
                  */
                 struct PlateStencil
                 {
@@ -182,7 +181,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a skyscraper simulation.properties->scenario.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a skyscraper scenario.
                  *          The skyscraper has three storeys of decreasing width.
                  */
                 struct SkyscraperStencil
@@ -218,7 +217,7 @@ namespace lbm
                 };
 
                 /**
-                 * @brief   This stencil defines the evaluation condition for a scenario with a wing-shaped simulation.properties->scenario.
+                 * @brief   This stencil defines the evaluation condition for a scenario with a wing-shaped scenario.
                  */
                 struct WingStencil
                 {
@@ -306,11 +305,11 @@ namespace lbm
                             {
                                 phase_information[
                                     N::get_index(
-                                        id.get(1) + 1, id.get(0) * vertical_nodes_org + 1 - 3 * id.get(0), 
+                                        id.get(1) + 1, 
+                                        id.get(0) * vertical_nodes_org + 1 - 3 * id.get(0), 
                                         subdomain_vertical_nodes, 
                                         subdomain_horizontal_nodes, 
-                                        extended_horizontal_nodes,
-                                        horizontal_nodes_org
+                                        extended_horizontal_nodes
                                     )
                                 ] = 1;
                             }  
@@ -369,8 +368,7 @@ namespace lbm
                                         y, 
                                         subdomain_vertical_nodes, 
                                         subdomain_horizontal_nodes, 
-                                        extended_horizontal_nodes,
-                                        horizontal_nodes_org
+                                        extended_horizontal_nodes
                                     )
                                 ] = value;
                         }
@@ -386,8 +384,7 @@ namespace lbm
                                     y, 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
-                                    extended_horizontal_nodes,
-                                    horizontal_nodes_org
+                                    extended_horizontal_nodes
                                 )
                             ] = 1;
                         }
@@ -413,23 +410,22 @@ namespace lbm
                 sycl::queue &queue
             )
             {
-                std::vector<real_type> distribution_values_standstill = maxwell_boltzmann_distribution(0, 0, 1);
-                real_type test [9] = {0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00};
-                for(int i = 0; i < 9; ++i) test[i] = distribution_values_standstill[i];
+                real_type values [9];
+                maxwell_boltzmann_distribution(0, 0, 1, values);
+
+                unsigned int total_node_count = simulation.domain->total_node_count;
+                real_type *distribution_values = simulation.data->distribution_values_0;
 
                 auto event = queue.submit(
                     [&](sycl::handler &cgh)
                     {
-                        unsigned int total_node_count = simulation.domain->total_node_count;
-                        real_type *distribution_values = simulation.data->distribution_values_0;
-
                         cgh.parallel_for(
                             total_node_count,                           
                             [=](const sycl::id<1> &idx)     
                             {
                                 for(int direction = 0; direction < 9; ++direction)
                                 {
-                                    distribution_values[A::at(idx, direction, total_node_count)] = test[direction];
+                                    distribution_values[A::at(idx, direction, total_node_count)] = values[direction];
                                 }
                             }  
                         );
@@ -439,13 +435,13 @@ namespace lbm
             }
 
             /**
-             * @brief   Sets the inlet and outlet properties as specified within the simulation object.
+             * @brief   Sets the inlet and outlet distribution values as specified within the simulation object.
              * 
              * @tparam  A   any `core::access::AccessorConcept` from access.hpp
              * @tparam  N   any `lbm::core::access::decomposed::NodeAccessor` from access.hpp
              * 
              * @param[in, out]  simulation  this object contains the relevant pointers to device memory
-             * @param[in]       queue       the SYCL queue that is to be used
+             * @param[in]       queue       the SYCL queue used
              */
             template <access::AccessorConcept A, core::access::decomposed::NodeAccessor N>
             void set_inout_distribution_values
@@ -454,66 +450,62 @@ namespace lbm
                 sycl::queue &queue
             )
             {
-                std::vector<real_type> distribution_values_cpu = 
-                    maxwell_boltzmann_distribution(
+                real_type values [18];
+
+                maxwell_boltzmann_distribution(
                         simulation.properties->inlet_velocity_x, 
                         simulation.properties->inlet_velocity_y, 
-                        simulation.properties->inlet_density
+                        simulation.properties->inlet_density,
+                        values
                     );
                 
-                std::vector<real_type> distribution_outlet = 
+                real_type distribution_outlet [9]; 
                     maxwell_boltzmann_distribution(
                         simulation.properties->outlet_velocity_x, 
                         simulation.properties->outlet_velocity_y, 
-                        simulation.properties->outlet_density
+                        simulation.properties->outlet_density,
+                        distribution_outlet
                     );
-
-                distribution_values_cpu.insert(
-                    distribution_values_cpu.end(), 
-                    distribution_outlet.begin(), 
-                    distribution_outlet.end()
-                );
                 
-                real_type test [18];
-                for(int i = 0; i < 18; ++i) test[i] = distribution_values_cpu[i];
+                memcpy(values + 9, distribution_outlet, 9 * sizeof(real_type)); 
+
+                unsigned int horizontal_nodes_org =  simulation.properties->horizontal_nodes;
+                unsigned int vertical_nodes_org =  simulation.properties->vertical_nodes;
+                unsigned int total_node_count = simulation.domain->total_node_count;
+                unsigned int vertical_nodes = simulation.domain->vertical_nodes;
+                unsigned int horizontal_nodes = simulation.domain->horizontal_nodes;
+                unsigned int subdomain_horizontal_nodes = simulation.domain->subdomain_horizontal_nodes;
+                unsigned int subdomain_vertical_nodes = simulation.domain->subdomain_vertical_nodes;
+                unsigned int vertical_subdomain_count = simulation.domain->subdomain_count_vertical;
+                unsigned int horizontal_subdomain_count = simulation.domain->subdomain_count_horizontal;
+
+                real_type *distribution_values = simulation.data->distribution_values_0;
+
+                int8_t buffered = 
+                ((vertical_nodes - subdomain_vertical_nodes * vertical_subdomain_count) > 2) || 
+                ((horizontal_nodes - subdomain_horizontal_nodes * horizontal_subdomain_count) > 2);
 
                 auto event = queue.submit(
                     [&](sycl::handler &cgh)
                     {
-                        unsigned int horizontal_nodes_org =  simulation.properties->horizontal_nodes;
-                        unsigned int vertical_nodes_org =  simulation.properties->vertical_nodes;
-                        unsigned int total_node_count = simulation.domain->total_node_count;
-                        unsigned int vertical_nodes = simulation.domain->vertical_nodes;
-                        unsigned int horizontal_nodes = simulation.domain->horizontal_nodes;
-                        unsigned int subdomain_horizontal_nodes = simulation.domain->subdomain_horizontal_nodes;
-                        unsigned int subdomain_vertical_nodes = simulation.domain->subdomain_vertical_nodes;
-                        unsigned int vertical_subdomain_count = simulation.domain->subdomain_count_vertical;
-                        unsigned int horizontal_subdomain_count = simulation.domain->subdomain_count_horizontal;
-                        real_type *distribution_values = simulation.data->distribution_values_0;
-                        int8_t buffered = 
-                        ((vertical_nodes - subdomain_vertical_nodes * vertical_subdomain_count) > 2) || 
-                        ((horizontal_nodes - subdomain_horizontal_nodes * horizontal_subdomain_count) > 2);
-
                         cgh.parallel_for(
                             sycl::range<2>(2, simulation.properties->vertical_nodes - 2),
                             [=](const sycl::id<2> &id)     
                             {
                                 int8_t neighboring_dir [2] = {3, 5};
 
-                                // Inner node, NOT ghost node!
                                 unsigned int node = N::get_index(
                                     1 + id.get(0) * (horizontal_nodes_org - 3), 
                                     1 + id.get(1), 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
-                                    horizontal_nodes,
-                                    horizontal_nodes_org
+                                    horizontal_nodes
                                 );
                                 node = core::access::get_neighbor(node, neighboring_dir[id.get(0)], horizontal_nodes);
 
                                 for(int i = 0; i < 9; ++i)
                                 {
-                                    distribution_values[A::at(node, i, total_node_count)] = test[i + 9 * id.get(0)];
+                                    distribution_values[A::at(node, i, total_node_count)] = values[i + 9 * id.get(0)];
                                 }
                             }  
                         );
@@ -530,7 +522,7 @@ namespace lbm
              * @tparam  S   any `lbm::core::domain_initialization::gpu_stencils::GPUStencil` 
              * 
              * @param[in]   simulation  this object contains a pointer to the phase information vector on the GPU
-             * @param[in]   queue       the SYCL queue that is to be used
+             * @param[in]   queue       the SYCL queue used
              */
             template<core::access::decomposed::NodeAccessor N, gpu_stencils::GPUStencil S> 
             void add_stencil(Simulation &simulation, sycl::queue &queue)
@@ -558,8 +550,7 @@ namespace lbm
                                         y, 
                                         subdomain_vertical_nodes, 
                                         subdomain_horizontal_nodes, 
-                                        extended_horizontal_nodes,
-                                        horizontal_nodes_org
+                                        extended_horizontal_nodes
                                     )
                                 ] = S::evaluate(x, y, vertical_nodes_org, horizontal_nodes_org);
                             }  
@@ -571,16 +562,15 @@ namespace lbm
             }
 
             /**
-             * @brief   Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state.
-             *          The domain consists of solid nodes on the upper and lower boundary, and further solid simulation.properties->scenarios
+             * @brief   Sets the up pipe flow environment object with a fluid in an equilibrium non-moving state. The 
+             *          domain consists of solid nodes on the upper and lower boundary, and further solid nodes 
              *          depending on the scenario specified within the simulation object.
              * 
              * @tparam  A   any `core::access::AccessorConcept` from access.hpp
              * @tparam  N   any `lbm::core::access::decomposed::NodeAccessor` from access.hpp   
 
              * @param[in, out]  simulation  reference to the structure containing all simulation data 
-             * @param[in]       queue       the SYCL queue to which the values residing on the GPU belong
-             * @param[in]       simulation.properties->scenario    what kind of simulation.properties->scenario is added to the domain
+             * @param[in]       queue       the SYCL queue used
              */
             template<core::access::AccessorConcept A, core::access::decomposed::NodeAccessor N> 
             void setup_domain
@@ -607,7 +597,9 @@ namespace lbm
                 }
 
                 // Set pipe boundaries
-                if(!(simulation.properties->scenario == "porous")) {gpu_stencils::set_pipe_boundaries<N>(simulation, queue); }
+                if(!(simulation.properties->scenario == "porous")) 
+                {gpu_stencils::set_pipe_boundaries<N>(simulation, queue); }
+
                 if(simulation.properties->scenario == "Hagen-Poiseuille")  
                 { add_stencil<N, gpu_stencils::HagenPoiseuilleStencil>(simulation, queue); }
                 else if(simulation.properties->scenario == "walls")        

@@ -1408,7 +1408,7 @@ namespace lbm
                                     node_index = core::access::get_node_index(x, y, algorithm_handler->get_horizontal_nodes());
 
                                     velocity_value_index = 
-                                        core::access::results::get_result_index(
+                                        core::access::get_result_index(
                                             core::access::get_node_index(x, y, algorithm_handler->get_horizontal_nodes()), 
                                             algorithm_handler->get_horizontal_nodes()
                                         );

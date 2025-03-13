@@ -169,7 +169,7 @@ namespace lbm
                             if(!phase_information[linear_index])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::decomposed::get_results_index(
+                                    lbm::core::access::get_result_index(
                                         global_id_x, 
                                         global_id_y, 
                                         horizontal_nodes_domain
@@ -279,7 +279,7 @@ namespace lbm
                             if(!phase_information[linear_index])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::decomposed::get_results_index(global_id_x, global_id_y, horizontal_nodes_domain);
+                                    lbm::core::access::get_result_index(global_id_x, global_id_y, horizontal_nodes_domain);
 
                                 real_type& x_velocity = x_velocities[iteration_node_offset];
                                 real_type& y_velocity = y_velocities[iteration_node_offset];
@@ -377,7 +377,7 @@ namespace lbm
                             if(!phase_information[linear_index])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::decomposed::get_results_index(global_id_x, global_id_y, horizontal_nodes_domain);
+                                    lbm::core::access::get_result_index(global_id_x, global_id_y, horizontal_nodes_domain);
 
                                 real_type distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
                                 real_type result = 0;

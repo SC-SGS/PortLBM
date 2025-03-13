@@ -1,16 +1,16 @@
 {
     "algorithmic": {
-        "algorithm": "gpu-two-lattice-optimized",
-        "dataLayout": "collision",
-        "debugMode": true,
+        "algorithm": "gpu-two-lattice-buffered",
+        "dataLayout": "stream",
+        "debugMode": false,
         "frameUpdateInterval": 1,
-        "timeSteps": 11,
-        "workGroupSize": 16
+        "timeSteps": 100000,
+        "workGroupSize": 1024
     },
     "domain": {
-        "horizontalNodes": 10,
+        "horizontalNodes": 400,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 10
+        "verticalNodes": 100
     },
     "physical": {
         "inletDensity": 1.2000000476837158,

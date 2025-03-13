@@ -5,7 +5,7 @@
  * 
  * @brief       This source file contains the definitions of various functions for console outputs.
  * 
- * @version     1.5
+ * @version     1.6
  * 
  * @date        March 2025
  * 
@@ -23,17 +23,19 @@ void lbm::console::print_phase_vector
 )
 {
     unsigned int vertical_nodes = vector.size() / horizontal_nodes;
+    int number = 0;
 
     for(auto y = vertical_nodes; y-- > 0; )
     {
         for(auto x = 0; x < horizontal_nodes; ++x)
         {
-            if(vector[core::access::get_node_index(x, y, horizontal_nodes)] == 1) 
-                std::cout << "\033[33m " << (int)vector[core::access::get_node_index(x, y, horizontal_nodes)] << "\033[0m";
-            else if(vector[core::access::get_node_index(x, y, horizontal_nodes)] == -1) 
-                std::cout << "\033[32m" << (int)vector[core::access::get_node_index(x, y, horizontal_nodes)] << "\033[0m";
-            else std::cout << "\033[34m ~\033[0m"; 
-            std::cout << " ";
+            number = static_cast<int>(vector[core::access::get_node_index(x, y, horizontal_nodes)]); 
+            std::cout << " "; 
+            if(number == 1) std::cout << "\033[33m ";
+            else if (number == 0) std::cout << "\033[34m ";
+            else std::cout << "\033[32m"; 
+
+            std::cout << number << "\033[0m ";
         }
         std::cout << "\n";
     }
@@ -55,10 +57,9 @@ void lbm::console::print_velocities
     {
         for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
-            index = core::access::results::get_result_index(
-                            core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
-                            properties.domain_node_count, time_step);
-
+            index = core::access::get_result_index(
+                x, y, properties.horizontal_nodes, properties.domain_node_count, time_step
+            );
             
             std::cout << "(";
             if(x_velocities[index] >= 0) std::cout << " ";
@@ -86,8 +87,7 @@ void lbm::console::print_velocities
     {
         for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
-            index = core::access::results::get_result_index(
-                            core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes);
+            index = core::access::get_result_index(x, y, properties.horizontal_nodes);
 
             std::cout << "(";
             if(x_velocities[index] >= 0) std::cout << " ";
@@ -120,9 +120,10 @@ void lbm::console::print_densities
             else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
 
             value = densities[
-                        core::access::results::get_result_index(
-                        core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes,
-                        properties.domain_node_count, time_step)];
+                        core::access::get_result_index(
+                        x, y, properties.horizontal_nodes,properties.domain_node_count, time_step
+                    )];
+
             if(value >= 0) std::cout << " ";
             std::cout << value; 
             std::cout << "\033[0m  ";
@@ -149,9 +150,7 @@ void lbm::console::print_densities
             if(x == 0 && y == 0) std::cout << "\033[31m";
             else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
 
-            value = densities[
-                        core::access::results::get_result_index(
-                        core::access::get_node_index(x, y, properties.horizontal_nodes), properties.horizontal_nodes)];
+            value = densities[core::access::get_result_index(x, y, properties.horizontal_nodes)];
             if(value >= 0) std::cout << " ";
             std::cout << value; 
             std::cout << "\033[0m  ";

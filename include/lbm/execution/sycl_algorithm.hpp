@@ -6,11 +6,11 @@
  * @brief       In this header file, an abstract class for algorithms is defined.
  *              All algorithms inherit from this this base class and implement the execute methods.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        January 2025
+ * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -36,8 +36,8 @@ namespace lbm
     {
 
         /**
-         * @brief   Abstract base class of all Lattice Boltzmann algorithms.
-         *          Its non-abstract child classes must implement the execute methods.
+         * @brief   Abstract base class of all lattice Boltzmann algorithms. Its non-abstract child classes must 
+         *          implement the execute methods.
          */
         class SYCLAlgorithm
         {
@@ -49,10 +49,15 @@ namespace lbm
              */
             hpx::future<void> future;
 
+            /**
+             * @brief   Shared pointer to the queue that is used for communication with the GPU.
+             */
             std::shared_ptr<sycl::queue> queue;
 
             /**
-             * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
+             * @brief   The constructor of a SYCLAlgorithm object initializes the HPX future with a dummy value.
+             * 
+             * @param[in]   queue   This queue is used for communication with the GPU.
              */
             explicit SYCLAlgorithm(sycl::queue &queue)
             : 
@@ -63,6 +68,9 @@ namespace lbm
 
             public:
 
+            /**
+             * @brief   Unique pointer to the simulation object on which this algorithm operates.
+             */
             std::unique_ptr<core::Simulation> simulation;
   
             /**
@@ -71,7 +79,8 @@ namespace lbm
             inline bool is_ready() const { return future.is_ready(); }
 
             /**
-             * @brief   Blocks the thread on which this method is accessed until the algorithm
+             * @brief   Blocks the thread on which this method is accessed until the algorithm is paused or reaches its
+             *          final iteration.
              */
             inline void block_until_finished()
             {
@@ -79,17 +88,21 @@ namespace lbm
                 catch(const std::exception& e) 
                 {
                     throw exceptions::algorithm::WaitException(
-                        "A thread accessed a blocking statement causing it to wait for an algorithm that has not been launched."
+                        "A thread accessed a blocking statement causing it to wait for an algorithm that has not been "
+                        "launched."
                     ); 
                 }
             }
 
             /**
-             * @brief   Performs the algorithm until it is either paused or it reaches the last iteration.
-             *          The instructions are enqueued in the queue stored by this `Algorithm` object.
+             * @brief   Performs the algorithm until it is either paused or it reaches the last iteration. The 
+             *          instructions are enqueued in the queue stored by this `Algorithm` object.
              */
             virtual void execute() = 0; 
 
+            /**
+             * @brief   Explicit declaration of default destructor is necessary for polymorphism.
+             */
             virtual ~SYCLAlgorithm() = default;
         };
 
@@ -97,4 +110,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif // ! LBM_ALGORITHM_HPP
+#endif // ! LBM_SYCL_ALGORITHM_HPP

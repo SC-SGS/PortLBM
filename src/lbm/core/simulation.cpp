@@ -347,7 +347,7 @@ Domain
 )
 {};
 
-// Simulation /////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SIMULATION /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lbm::core::Results::Results(const size_t &size, sycl::queue &queue)
 :
@@ -384,14 +384,14 @@ absolute_velocities_gpu(sycl::malloc_device<real_type>(size, queue))
 };
 
 
-lbm::core::Data::Data(const size_t total_node_count, sycl::queue &queue, const bool two_lattice)
+lbm::core::Data::Data(const size_t total_node_count, sycl::queue &queue, const bool dual_lattice)
 :
 queue(std::make_shared<sycl::queue>(queue)),
 phase_information(sycl::malloc_device<int8_t>(total_node_count, queue)),
 distribution_values_0(sycl::malloc_device<real_type>(9 * total_node_count, queue))
 {
     queue.fill(phase_information, (int8_t)-1, total_node_count).wait();
-    if(two_lattice) distribution_values_1 = sycl::malloc_device<real_type>(9 * total_node_count, queue);
+    if(dual_lattice) distribution_values_1 = sycl::malloc_device<real_type>(9 * total_node_count, queue);
     else distribution_values_1 = nullptr;
 };
 
@@ -442,8 +442,7 @@ control(std::make_unique<Control>(properties->time_steps))
         );
         data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
-    // soon:
-    else if(properties->algorithm == "gpu-two-lattice-optimized")
+    else if(properties->algorithm == "gpu-two-lattice-buffered")
     {
         domain = std::make_unique<BufferedTwoLatticeDomain>(
             properties->horizontal_nodes,

@@ -353,7 +353,7 @@ namespace lbm
                         << "\033[36mDestination lattice after stream and collide: \n"
                         << "-------------------------------------------------------------------------------\n\033[0m";
                         
-                        lbm::console::buffered::print_distribution_values<A>(
+                        console::print_distribution_values<A>(
                             *distribution_values, 
                             *phase_information,
                             *simulation
@@ -487,7 +487,7 @@ namespace lbm
                         std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
                                 << "-------------------------------------------------------------------------------\033[0m\n";
 
-                        lbm::console::buffered::print_distribution_values<A>(
+                        console::print_distribution_values<A>(
                             *distribution_values, 
                             *phase_information,
                             *simulation
@@ -520,7 +520,7 @@ namespace lbm
                         << "\033[36mDestination lattice after updating inlets and outlets: \n"
                         << "-------------------------------------------------------------------------------\033[0m\n";
 
-                        lbm::console::buffered::print_distribution_values<A>(
+                        console::print_distribution_values<A>(
                             *distribution_values, 
                             *phase_information,
                             *simulation
@@ -550,7 +550,7 @@ namespace lbm
                             simulation->domain->total_node_count
                         ).wait();
 
-                        lbm::console::buffered::print_distribution_values<A>(
+                        console::print_distribution_values<A>(
                             *distribution_values, 
                             *phase_information,
                             *simulation

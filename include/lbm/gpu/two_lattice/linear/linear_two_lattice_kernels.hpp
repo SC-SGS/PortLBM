@@ -99,7 +99,7 @@ namespace lbm
                                     destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] =
                                         source[
                                             A::at(
-                                                lbm::core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
+                                                core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
                                                 direction, 
                                                 horizontal_nodes * vertical_nodes
                                             )
@@ -159,7 +159,8 @@ namespace lbm
                             if(!phase_information[id])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+                                    core::access::get_result_index(id, horizontal_nodes);
+                                    
                                 real_type dist_vals[9];
                                 real_type density = 0;
                                 real_type absolute_velocity = 0;
@@ -257,7 +258,7 @@ namespace lbm
                             if(!phase_information[id])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+                                    core::access::get_result_index(id, horizontal_nodes);
 
                                 real_type& x_velocity = x_velocities[iteration_node_offset];
                                 real_type& y_velocity = y_velocities[iteration_node_offset];
@@ -349,7 +350,7 @@ namespace lbm
                             if(!phase_information[id])
                             {
                                 unsigned int iteration_node_offset =
-                                    lbm::core::access::results::get_result_index(id, horizontal_nodes);
+                                    core::access::get_result_index(id, horizontal_nodes);
 
                                 real_type distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
                                 real_type result = 0;
@@ -367,7 +368,7 @@ namespace lbm
                                     distribution_values[direction] = 
                                         source[
                                             A::at(
-                                                lbm::core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
+                                                core::access::get_neighbor(id, 8 - direction, horizontal_nodes), 
                                                 direction, 
                                                 horizontal_nodes * vertical_nodes
                                             )

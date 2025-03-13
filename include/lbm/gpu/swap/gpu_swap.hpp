@@ -282,13 +282,12 @@ namespace lbm
                  */
                 explicit GpuSwap(sycl::queue &queue) : SYCLAlgorithm(queue) 
                 {
-                    std::vector<real_type> distribution = core::maxwell_boltzmann_distribution(
+                    core::maxwell_boltzmann_distribution(
                         simulation->properties->inlet_velocity_x,
                         simulation->properties->inlet_velocity_y,
-                        simulation->properties->inlet_density
+                        simulation->properties->inlet_density,
+                        inlet_values
                     );
-
-                    memcpy(inlet_values, distribution.data(), 9 * sizeof(real_type));
 
                     core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(
                         *simulation, queue
@@ -377,7 +376,7 @@ namespace lbm
                     << "\033[36mLattice after combined stream and collide: \n"
                     << "-------------------------------------------------------------------------------\n\033[0m";
                     
-                    lbm::console::buffered::print_distribution_values<A>(
+                    console::print_distribution_values<A>(
                         *distribution_values, 
                         *phase_information,
                         *simulation
@@ -454,7 +453,7 @@ namespace lbm
                     << "\033[36mLattice after performing copy to buffers: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    lbm::console::buffered::print_distribution_values<A>(
+                    console::print_distribution_values<A>(
                         *distribution_values, 
                         *phase_information,
                         *simulation
@@ -493,7 +492,7 @@ namespace lbm
                     << "\033[36mLattice after emplacing bounce-back values: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    lbm::console::buffered::print_distribution_values<A>(
+                    console::print_distribution_values<A>(
                         *distribution_values, 
                         *phase_information,
                         *simulation
@@ -545,7 +544,7 @@ namespace lbm
                     << "\033[36mLattice after performing copy to buffers: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    lbm::console::buffered::print_distribution_values<A>(
+                    console::print_distribution_values<A>(
                         *distribution_values, 
                         *phase_information,
                         *simulation
@@ -624,7 +623,7 @@ namespace lbm
                     << "\033[36mDestination lattice after updating inlets and outlets: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    console::buffered::print_distribution_values<A>(
+                    console::print_distribution_values<A>(
                         *distribution_values, 
                         *phase_information,
                         *simulation
@@ -657,7 +656,7 @@ namespace lbm
                     event2.wait();
                     event1.wait();
 
-                    console::buffered::print_distribution_values<A>(
+                    console::print_distribution_values<A>(
                         *distribution_values, 
                         *phase_information,
                         *simulation
@@ -818,13 +817,12 @@ namespace lbm
                     temp_macroscopic_observables->shrink_to_fit();
                     phase_information->shrink_to_fit();
 
-                    std::vector<real_type> distribution = core::maxwell_boltzmann_distribution(
-                                simulation->properties->inlet_velocity_x,
-                                simulation->properties->inlet_velocity_y,
-                                simulation->properties->inlet_density
-                            );
-
-                    for(int i = 0; i < 9; ++i) inlet_values[i] = distribution[i];
+                    core::maxwell_boltzmann_distribution(
+                            simulation->properties->inlet_velocity_x,
+                            simulation->properties->inlet_velocity_y,
+                            simulation->properties->inlet_density,
+                            inlet_values
+                        );
                 }; 
             };
 

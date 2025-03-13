@@ -3,18 +3,18 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       This header file contains the declarations of two functions for retrieving the properties of a simulation
- *              from a JSON file and for storing properties to a JSON file.
+ * @brief       This header file contains the declarations of two functions for retrieving the properties of a 
+ *              simulation from a JSON file and for storing properties to a JSON file.
  * 
- * @version     1.2
+ * @version     1.3
  * 
- * @date        January 2025
+ * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  */
 
-#ifndef FILE_INTERACTION_HPP
-#define FILE_INTERACTION_HPP
+#ifndef LBM_FILE_INTERACTION_HPP
+#define LBM_FILE_INTERACTION_HPP
 
 // Dependencies on LBM core features
 #include "../core/simulation.hpp"
@@ -34,10 +34,10 @@ namespace lbm
     namespace file_interaction
     {
         /**
-         * @brief Outputs a JSON file to the specified path based on the specified `Properties` object.
+         * @brief   Outputs a JSON file to the specified path based on the specified `Properties` object.
          * 
-         * @param[in] properties the properties are read from this object    
-         * @param[in] path       the path where the JSON file is stored
+         * @param[in]   properties  the properties are read from this object    
+         * @param[in]   path        the path where the JSON file is stored
          */
         void properties_to_json
         (
@@ -46,16 +46,18 @@ namespace lbm
         );
 
         /**
-         * @brief Creates a `Properties` object based on an input JSON file.
+         * @brief   Creates a `core::Properties` object based on an input JSON file.
          * 
-         * @param[in] path the path to the JSON file
+         * @param[in]   path    the path to the JSON file
+         * @param[in]   offset  this offset is added to the horizontal and vertical node count, e.g., for removing the
+         *                      ghost nodes
          * 
-         * @return a `Properties` object
+         * @return  a `Properties` object
          */
         core::Properties json_to_properties(const std::string &path = "../settings/settings.json", const int offset = 0);
 
-    } // !namespace file_interaction
+    } // ! namespace file_interaction
 
-} // !namespace lbm
+} // ! namespace lbm
 
-#endif // ! FILE_INTERACTION_HPP
+#endif // ! LBM_FILE_INTERACTION_HPP

@@ -230,8 +230,7 @@ namespace lbm
                                 id.get_id(0) + 1, 
                                 subdomain_vertical_nodes, 
                                 subdomain_horizontal_nodes, 
-                                horizontal_nodes,
-                                horizontal_nodes_org
+                                horizontal_nodes
                             );
                         
                         current_node = core::access::get_neighbor(current_node, 3, horizontal_nodes);
@@ -312,8 +311,7 @@ namespace lbm
                                     y, 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
-                                    horizontal_nodes,
-                                    horizontal_nodes_original
+                                    horizontal_nodes
                                 );
 
                         f_1 = distribution_values[A::at(
@@ -349,7 +347,7 @@ namespace lbm
                                 (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
                         
                         real_type y_velocity =
-                            y_velocities[core::access::decomposed::get_results_index(
+                            y_velocities[core::access::get_result_index(
                                 horizontal_nodes_original - 3, 
                                 y, 
                                 horizontal_nodes_original

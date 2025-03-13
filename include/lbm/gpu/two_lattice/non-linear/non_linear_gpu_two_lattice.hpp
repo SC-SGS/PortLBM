@@ -342,10 +342,10 @@ namespace lbm
                         << "\033[36mDestination lattice after streaming: \n"
                         << "-------------------------------------------------------------------------------\n\033[0m";
                         
-                        lbm::console::print_distribution_values<A>(
+                        console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->domain->horizontal_nodes, 
-                            simulation->domain->vertical_nodes
+                            *phase_information,
+                            *simulation
                         );
                     
                         update_macroscopic_observables();
@@ -381,11 +381,11 @@ namespace lbm
                         << "\033[36mDestination lattice after collision: \n"
                         << "-------------------------------------------------------------------------------\n\033[0m";
 
-                        lbm::console::print_distribution_values<A>(
-                            *distribution_values,
-                            simulation->domain->horizontal_nodes, 
-                            simulation->domain->vertical_nodes
-                        );    
+                        console::print_distribution_values<A>(
+                            *distribution_values, 
+                            *phase_information,
+                            *simulation
+                        ); 
                     }
 
                     /**
@@ -424,10 +424,10 @@ namespace lbm
                         std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
                                 << "-------------------------------------------------------------------------------\033[0m\n";
 
-                        lbm::console::print_distribution_values<A>(
+                        console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->domain->horizontal_nodes, 
-                            simulation->domain->vertical_nodes
+                            *phase_information,
+                            *simulation
                         );
                     }
 
@@ -456,10 +456,10 @@ namespace lbm
                         << "\033[36mDestination lattice after updating inlets and outlets: \n"
                         << "-------------------------------------------------------------------------------\033[0m\n";
 
-                        lbm::console::print_distribution_values<A>(
+                        console::print_distribution_values<A>(
                             *distribution_values, 
-                            simulation->domain->horizontal_nodes, 
-                            simulation->domain->vertical_nodes
+                            *phase_information,
+                            *simulation
                         );
                     }
 
@@ -473,18 +473,6 @@ namespace lbm
                     { 
                         console::print_ansi_color_message();
                         console::print_color_legend();
-
-                        queue->copy(
-                            simulation->data->distribution_values_0, 
-                            distribution_values->data(), 
-                            9 * simulation->domain->total_node_count
-                        ).wait();
-
-                        console::print_distribution_values<A>(
-                            *distribution_values, 
-                            simulation->domain->horizontal_nodes, 
-                            simulation->domain->vertical_nodes
-                        );
 
                         queue->copy(
                             simulation->data->phase_information, 

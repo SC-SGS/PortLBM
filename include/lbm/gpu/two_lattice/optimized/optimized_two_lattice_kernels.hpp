@@ -115,7 +115,7 @@ namespace lbm
                             {
                                 // Get index of results vector
                                 unsigned int iteration_node_offset =
-                                lbm::core::access::decomposed::get_results_index(
+                                lbm::core::access::get_result_index(
                                     (global_id_x) - (global_id_x / (nd_item.get_local_range(1) + 1)),
                                     (global_id_y) - (global_id_y / (nd_item.get_local_range(0) + 1)),
                                     horizontal_nodes_domain
@@ -255,8 +255,7 @@ namespace lbm
                                     global_id_y, 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
-                                    horizontal_nodes,
-                                    horizontal_nodes_original
+                                    horizontal_nodes
                                 );
 
                             if(phase_information[linear_index] == 1)

@@ -5,15 +5,16 @@
  * 
  * @brief       This file contains implementations for GUI-related structs declared in lbm_gui.hpp.
  *              
- * @version     2.5
+ * @version     2.6
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
 #include "../../../include/lbm/gui/lbm_gui.hpp"
+
 
 lbm::gui::Windows::Windows(bool debug) 
 :

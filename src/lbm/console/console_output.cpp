@@ -5,11 +5,11 @@
  * 
  * @brief       This source file contains the definitions of various functions for console outputs.
  * 
- * @version     1.6
+ * @version     1.7
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -116,8 +116,10 @@ void lbm::console::print_densities
     {
         for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
-            if(x == 0 && y == 0) std::cout << "\033[31m";
-            else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
+            if(x == 0 && y == 0) 
+                std::cout << "\033[31m";
+            else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes - 1)) 
+                std::cout << "\033[34m";
 
             value = densities[
                         core::access::get_result_index(
@@ -147,8 +149,10 @@ void lbm::console::print_densities
     {
         for(auto x = 1; x < properties.horizontal_nodes - 1; ++x)
         {
-            if(x == 0 && y == 0) std::cout << "\033[31m";
-            else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) std::cout << "\033[34m";
+            if(x == 0 && y == 0) 
+                std::cout << "\033[31m";
+            else if(x == (properties.horizontal_nodes - 1) && y == (properties.vertical_nodes -1)) 
+                std::cout << "\033[34m";
 
             value = densities[core::access::get_result_index(x, y, properties.horizontal_nodes)];
             if(value >= 0) std::cout << " ";
@@ -173,7 +177,12 @@ void lbm::console::print_simulation_results
     {
         std::cout << "t = " << i << "\n";
         std::cout << "-------------------------------------------------------------------------------- \n";
-        lbm::console::print_velocities(properties, *simulation_results.x_velocities_cpu, *simulation_results.y_velocities_cpu, i);
+        lbm::console::print_velocities(
+            properties, 
+            *simulation_results.x_velocities_cpu, 
+            *simulation_results.y_velocities_cpu, 
+            i
+        );
         std::cout << "\n";
     }
     std::cout << "\n\n";

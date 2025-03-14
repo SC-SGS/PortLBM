@@ -6,7 +6,7 @@
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.6
+ * @version     4.8
  * 
  * @date        March 2025
  * 
@@ -17,7 +17,7 @@
 #ifndef LBM_SIMULATION_HPP
 #define LBM_SIMULATION_HPP
 
-// Includes ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+// INCLUDES ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // LBM exceptions
 #include "../exceptions/exceptions.hpp"
@@ -25,6 +25,7 @@
 // Dependencies on other LBM core features
 #include "access.hpp"
 #include "constants.hpp"
+#include "timer.hpp"
 
 // Standard library
 #include <complex>
@@ -35,9 +36,6 @@
 
 // SYCL
 #include <sycl/sycl.hpp>
-
-// HPX
-#include <hpx/chrono.hpp>
 
 namespace lbm
 {
@@ -190,8 +188,8 @@ namespace lbm
             // The current progress of the targeted algorithm in range [0,1]
             double progress;
 
-            // Pointer to a high resolution HPX timer that measures the time spent for performing one iteration
-            std::unique_ptr<hpx::chrono::high_resolution_timer> timer;
+            // Pointer to a high resolution timer that measures the time spent for performing one iteration
+            std::unique_ptr<Timer> timer;
 
             // The last measured calculation time for one full lattice Boltzmann iteration
             double last_frametime;
@@ -242,7 +240,7 @@ namespace lbm
             { 
                 current_iteration++; 
                 progress = static_cast<double>(current_iteration) / static_cast<double>(max_iterations);
-                last_frametime = timer->elapsed_microseconds() * 0.001;
+                last_frametime = timer->elapsed() * 1e3;
             }
 
             /**
@@ -272,10 +270,7 @@ namespace lbm
 
         /**
          * @brief   This class contains variables describing the simulation domain on which an algorithm operates. The
-         *          algorithms initialize these variables differently, which is solved through inheritance. Each algo-
-         *          rithm has a custom domain class that inherits from `lbm::core::Domain`. The different ways to init-
-         *          ialize the values are implemented through the according constructors. The constructor of this class
-         *          is protected, and it is only meant to define the variables of its child classes.
+         *          algorithms initialize these variables differently, which is solved through initialization methods. 
          */
         class Domain
         {
@@ -302,9 +297,82 @@ namespace lbm
             // The amount of subdomains in horizontal direction
             unsigned int subdomain_count_horizontal;
 
-            protected:
+            /**
+             * @brief   Initializes this domain object according to the specified properties object.
+             * 
+             *          By default, the domain is initialized for use with the linear two-lattice algorithm. The domain 
+             *          is not expanded and has the extents specified in the `lbm::core::Properties` object. There is 
+             *          only one subdomain that has the extents of the entire grid.
+             * 
+             *          If any other algorithm is selected, the values are adjusted.
+             * 
+             * @param[in]   properties  an object specifying the extents of the lattice and the algorithm used
+             */
+            explicit Domain(core::Properties &properties);
 
-            // This constructor is meant to be called by child classes only to pre-initialize their values.
+            private:
+
+            /**
+             * @brief   This structure stores data of a non-buffered and decomposed domain, as it is used by the 
+             *          non-linear two-lattice algorithm. The domain is expanded to match the extents of the work- 
+             *          groups. The decomposition is performed depending on the specified work group size. The new 
+             *          total dimensions, the dimensions of subdomains and their quantity per dimension is calculated 
+             *          based on the input parameters describing what the original domain looks like.
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             */
+            void setup_for_decomposed_two_lattice
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                const size_t work_group_size
+            );
+
+            /**
+             * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the buffered 
+             *          two-lattice algorithm. Unlike for the swap algorithm, buffers are not considered part of any
+             *          subdomain in this case. 
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             */
+            void setup_for_buffered_two_lattice
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                const size_t work_group_size
+            );   
+
+            /**
+             * @brief   The domain is set up to store data of a buffered and decomposed domain, as it is required for 
+             *          the swap algorithm. The semantics of the domain setup process differ from those of the two-
+             *          lattice algorithms. Since interactions with buffers are required, they are considered part of 
+             *          the subdomain during streaming. In turn, the fraction belonging to the actual subdomain is 
+             *          slightly smaller. Notice that inner buffers are part of overlapping subdomains.
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             * 
+             * @throws  lbm::exceptions::json::PropertyArgumentException    if `work_group_size < 6`
+             */
+            void setup_for_swap
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                size_t work_group_size
+            ); 
+
+            // This constructor is meant to be called by the other constructor of this class.
             explicit Domain
             (
                 unsigned int total_node_count,
@@ -314,114 +382,6 @@ namespace lbm
                 unsigned int subdomain_horizontal_nodes,
                 unsigned int subdomain_count_vertical,
                 unsigned int subdomain_count_horizontal
-            );
-        };
-
-        /**
-         * @brief   This structure stores data of a non-buffered and decomposed domain, as it is used by the non-linear
-         *          two-lattice algorithm. The domain is expanded to match the extents of the work groups. The decom-
-         *          position is performed depending on the specified work group size.
-         */
-        class DecomposedTwoLatticeDomain : public Domain
-        {
-            public:
-
-            /**
-             * @brief   Constructs a decomposed domain structure where the new total dimensions, the dimensions of
-             *          subdomains and their quantity per dimension is calculated based on the input parameters 
-             *          describing what the original domain looks like.
-             * 
-             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   work_group_size             the desired work-group size
-             */
-            explicit DecomposedTwoLatticeDomain
-            (
-                const unsigned int unexpanded_horizontal_nodes,
-                const unsigned int unexpanded_vertical_nodes,
-                const size_t work_group_size
-            );
-        };
-
-        /**
-         * @brief   This structure stores data of a non-buffered and non-decomposed domain, as it is used by the linear
-         *          two-lattice algorithm. The domain is not expanded and has the extents specified in the
-         *          `lbm::core::Properties` object.
-         */
-        class NonDecomposedTwoLatticeDomain : public Domain
-        {
-            public:
-
-            /**
-             * @brief   Constructs a non-decomposed domain structure where the new total dimensions correspond to those
-             *          specified in the `lbm::core::Properties` object. There is only one subdomain that has the 
-             *          extents of the entire grid.
-             * 
-             * @param[in]   horizontal_nodes    the amount of horizontal nodes in the original domain including ghost 
-             *                                  nodes
-             * @param[in]   vertical_nodes      the amount of vertical nodes in the original domain including ghost
-             *                                  nodes
-             */
-            explicit NonDecomposedTwoLatticeDomain
-            (
-                const unsigned int horizontal_nodes,
-                const unsigned int vertical_nodes
-            );
-        };
-
-        /**
-         * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the swap algo-
-         *          rithm. The semantics of the domain setup process differ from those of the two-lattice algorithm.
-         *          Since interactions with buffers are required, they are considered part of the subdomain during
-         *          streaming. In turn, the fraction belonging to the actual subdomain is slightly smaller. Notice that
-         *          inner buffers are part of overlapping subdomains.
-         */
-        class SwapDomain : public Domain
-        {
-            public:
-
-            /**
-             * @brief   Constructs a decomposed domain structure for use with the swap algorithm.
-             * 
-             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   work_group_size             the desired work-group size
-             */
-            explicit SwapDomain
-            (
-                const unsigned int unexpanded_horizontal_nodes,
-                const unsigned int unexpanded_vertical_nodes,
-                const size_t work_group_size
-            );
-        };
-
-        /**
-         * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the buffered 
-         *          two-lattice algorithm. Unlike for the swap algorithm, buffers are not considered part of any
-         *          subdomain in this case. 
-         */
-        class BufferedTwoLatticeDomain : public Domain
-        {
-            public:
-
-            /**
-             * @brief   Constructs a decomposed domain structure for use with the buffered two-lattice algorithm.
-             * 
-             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   work_group_size             the desired work-group size
-             */
-            explicit BufferedTwoLatticeDomain
-            (
-                const unsigned int unexpanded_horizontal_nodes,
-                const unsigned int unexpanded_vertical_nodes,
-                const size_t work_group_size
             );
         };
 
@@ -635,6 +595,21 @@ namespace lbm
          * @brief  Returns the inverse direction of that specified. 
          */
         inline constexpr unsigned int invert_direction(const unsigned int dir) { return 8 - dir; }
+
+        /**
+         * @brief   Sets the vertical and horizontal extents of a subdomain according to the specified work group size.
+         * 
+         * @param[in]       work_group_size             the work-group size governs the total amount of nodes per 
+         *                                              subdomain
+         * @param[in, out]  subdomain_vertical_nodes    reference to the value storing the vertical node count
+         * @param[in, out]  subdomain_horizontal_nodes  reference to the value storing the horizontal node count
+         */
+        void power_of_two_handling
+        (
+            const size_t work_group_size,
+            unsigned int &subdomain_vertical_nodes, 
+            unsigned int &subdomain_horizontal_nodes 
+        );
 
         /**
          * @brief   This namespace contains convenience functions for determining which powers of certain bases

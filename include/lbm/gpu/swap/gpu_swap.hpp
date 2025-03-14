@@ -7,11 +7,11 @@
  *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. 
  *              The kernel functions are implemented in `swap_kernels.hpp`.
  * 
- * @version     1.2
+ * @version     1.3
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -49,7 +49,7 @@ namespace lbm
         namespace swap
         {
 
-// Performance swap ///////////////////////////////////////////////////////////////////////////////////////////////////
+// PERFORMANCE SWAP ///////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
              * @brief   Class representation of the SYCL implementation of the swap algorithm.
@@ -73,8 +73,7 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = 
-                                swap::kernels::StreamCollideKernel<A>(
+                            auto kernel = swap::kernels::StreamCollideKernel<A>(
                                     *simulation, 
                                     cgh, 
                                     simulation->properties->work_group_size
@@ -97,29 +96,54 @@ namespace lbm
                         }
                     ).wait();
 
-                    if(!(simulation->control->get_current_iteration() % simulation->properties->frame_update_interval))
+                    if(
+                        !(simulation->control->get_current_iteration() % simulation->properties->frame_update_interval)
+                        || !simulation->control->is_execution_allowed() || simulation->control->is_finished()
+                    )
                     {
-                        queue->copy(
-                            simulation->results->densities_gpu, 
-                            simulation->results->densities_cpu->data(), 
-                            simulation->results->densities_cpu->size()
-                        );
-                        queue->copy(
-                            simulation->results->x_velocities_gpu, 
-                            simulation->results->x_velocities_cpu->data(), 
-                            simulation->results->x_velocities_cpu->size()
-                        );
-                        queue->copy(
-                            simulation->results->y_velocities_gpu, 
-                            simulation->results->y_velocities_cpu->data(), 
-                            simulation->results->y_velocities_cpu->size()
-                        );
-                        queue->copy(
-                            simulation->results->absolute_velocities_gpu, 
-                            simulation->results->absolute_velocities_cpu->data(), 
-                            simulation->results->absolute_velocities_cpu->size()
-                        );
+                        copy_macroscopic_observables_to_cpu();
                     }
+                }
+
+                /**
+                 * @brief   Updates the horizontal buffers by copying adjacent values above and below.
+                 */
+                void update_horizontal_buffers()
+                {
+                    queue->submit
+                    (
+                        [&](sycl::handler &cgh)
+                        {
+                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                            cgh.parallel_for(
+                                sycl::range<2>(
+                                    simulation->domain->subdomain_count_vertical - 1,
+                                    simulation->domain->horizontal_nodes
+                                ), kernel
+                            );
+                        }
+                    ).wait();
+                }
+
+                /**
+                 * @brief   Updates the vertical buffers by copying adjacent values left and right.
+                 * 
+                 */
+                void update_vertical_buffers()
+                {
+                    queue->submit
+                    (
+                        [&](sycl::handler &cgh)
+                        {
+                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                            cgh.parallel_for(
+                                sycl::range<2>(
+                                    simulation->domain->vertical_nodes,
+                                    simulation->domain->subdomain_count_horizontal - 1
+                                ), kernel
+                            );
+                        }
+                    ).wait();
                 }
 
                 /**
@@ -130,41 +154,15 @@ namespace lbm
                 {
                     if(simulation->domain->subdomain_count_vertical > 1)
                     {
-                        auto event1 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->subdomain_count_vertical - 1,
-                                        simulation->domain->horizontal_nodes
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event1.wait();
+                        update_horizontal_buffers();
                     }
 
                     if(simulation->domain->subdomain_count_horizontal > 1)
                     {
-                        auto event2 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->vertical_nodes,
-                                        simulation->domain->subdomain_count_horizontal - 1
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event2.wait();
+                        update_vertical_buffers();
                     }
 
-                    auto event3 = queue->submit
+                    queue->submit
                     (
                         [&](sycl::handler &cgh)
                         {
@@ -184,8 +182,7 @@ namespace lbm
                                 ), kernel
                             );
                         }
-                    );
-                    event3.wait();
+                    ).wait();
                 }
 
                 /**
@@ -205,49 +202,22 @@ namespace lbm
 
                     if(simulation->domain->subdomain_count_vertical > 1)
                     {
-                        auto event1 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->subdomain_count_vertical - 1,
-                                        simulation->domain->horizontal_nodes
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event1.wait();
+                        update_horizontal_buffers();
                     }
 
                     if(simulation->domain->subdomain_count_horizontal > 1)
                     {
-                        auto event2 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->vertical_nodes,
-                                        simulation->domain->subdomain_count_horizontal - 1
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event2.wait();
+                        update_vertical_buffers();
                     }
 
-                    auto outlet_event = queue->submit
+                    queue->submit
                     (
                         [&](sycl::handler &cgh)
                         {
                             auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
                             cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes), kernel); 
                         }
-                    );
-                    outlet_event.wait();
+                    ).wait();
                 }
 
                 public:
@@ -257,7 +227,7 @@ namespace lbm
                  */
                 inline void execute() override
                 {
-                    future = hpx::async
+                    future = std::async
                     (
                         [&]
                         {
@@ -295,7 +265,7 @@ namespace lbm
                 }; 
             };
 
-// Debug swap /////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DEBUG SWAP /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
              * @brief Class representation of the SYCL debug implementation of the swap algorithm.
@@ -319,6 +289,48 @@ namespace lbm
                 unsigned int current_iteration;
 
                 /**
+                 * @brief   Updates the horizontal buffers by copying adjacent values above and below.
+                 */
+                void update_horizontal_buffers()
+                {
+                    queue->submit
+                    (
+                        [&](sycl::handler &cgh)
+                        {
+                            auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                            cgh.parallel_for(
+                                sycl::range<2>(
+                                    simulation->domain->subdomain_count_vertical - 1,
+                                    simulation->domain->horizontal_nodes
+                                ), kernel
+                            );
+                        }
+                    ).wait();
+                }
+
+                /**
+                 * @brief   Updates the vertical buffers by copying adjacent values left and right.
+                 * 
+                 */
+                void update_vertical_buffers()
+                {
+                    queue->submit
+                    (
+                        [&](sycl::handler &cgh)
+                        {
+                            auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                            cgh.parallel_for(
+                                sycl::range<2>(
+                                    simulation->domain->vertical_nodes,
+                                    simulation->domain->subdomain_count_horizontal - 1
+                                ), kernel
+                            );
+                        }
+                    ).wait();
+                }
+
+
+                /**
                  * @brief   Performs the streaming and collision step of the swap algorithm and updates the macroscopic
                  *          observables in the process.
                  */
@@ -328,7 +340,12 @@ namespace lbm
                     (
                         [&](sycl::handler &cgh)
                         {
-                            auto kernel = swap::kernels::StreamCollideKernel<A>(*simulation, cgh, 16);
+                            auto kernel = swap::kernels::StreamCollideKernel<A>(
+                                *simulation, 
+                                cgh, 
+                                simulation->properties->work_group_size
+                            );
+
                             cgh.parallel_for(
                                 sycl::nd_range<2>(
                                     sycl::range<2>(
@@ -346,26 +363,8 @@ namespace lbm
                         }
                     ).wait();
 
-                    queue->copy(
-                        simulation->results->densities_gpu, 
-                        simulation->results->densities_cpu->data(), 
-                        simulation->results->densities_cpu->size()
-                    ).wait();
-                    queue->copy(
-                        simulation->results->x_velocities_gpu, 
-                        simulation->results->x_velocities_cpu->data(), 
-                        simulation->results->x_velocities_cpu->size()
-                    ).wait();
-                    queue->copy(
-                        simulation->results->y_velocities_gpu, 
-                        simulation->results->y_velocities_cpu->data(), 
-                        simulation->results->y_velocities_cpu->size()
-                    ).wait();
-                    queue->copy(
-                        simulation->results->absolute_velocities_gpu, 
-                        simulation->results->absolute_velocities_cpu->data(), 
-                        simulation->results->absolute_velocities_cpu->size()
-                    ).wait();
+                    copy_macroscopic_observables_to_cpu();
+
                     queue->copy(
                         simulation->data->distribution_values_0, 
                         distribution_values->data(), 
@@ -376,11 +375,7 @@ namespace lbm
                     << "\033[36mLattice after combined stream and collide: \n"
                     << "-------------------------------------------------------------------------------\n\033[0m";
                     
-                    console::print_distribution_values<A>(
-                        *distribution_values, 
-                        *phase_information,
-                        *simulation
-                    );
+                    console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
 
                     std::cout 
                     << "Velocities: \n"
@@ -409,38 +404,12 @@ namespace lbm
                 {
                     if(simulation->domain->subdomain_count_vertical > 1)
                     {
-                        auto event1 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->subdomain_count_vertical - 1,
-                                        simulation->domain->horizontal_nodes
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event1.wait();
+                        update_horizontal_buffers();
                     }
 
                     if(simulation->domain->subdomain_count_horizontal > 1)
                     {
-                        auto event2 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->vertical_nodes,
-                                        simulation->domain->subdomain_count_horizontal - 1
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event2.wait();
+                        update_vertical_buffers();
                     }
 
                     queue->copy(
@@ -453,13 +422,9 @@ namespace lbm
                     << "\033[36mLattice after performing copy to buffers: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    console::print_distribution_values<A>(
-                        *distribution_values, 
-                        *phase_information,
-                        *simulation
-                    );
+                    console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
 
-                    auto event3 = queue->submit
+                    queue->submit
                     (
                         [&](sycl::handler &cgh)
                         {
@@ -479,8 +444,7 @@ namespace lbm
                                 ), kernel
                             );
                         }
-                    );
-                    event3.wait();
+                    ).wait();
 
                     queue->copy(
                         simulation->data->distribution_values_0, 
@@ -492,46 +456,16 @@ namespace lbm
                     << "\033[36mLattice after emplacing bounce-back values: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    console::print_distribution_values<A>(
-                        *distribution_values, 
-                        *phase_information,
-                        *simulation
-                    );
+                    console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
 
                     if(simulation->domain->subdomain_count_vertical > 1)
                     {
-                        auto event1 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->subdomain_count_vertical - 1,
-                                        simulation->domain->horizontal_nodes
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event1.wait();
+                        update_horizontal_buffers();
                     }
 
                     if(simulation->domain->subdomain_count_horizontal > 1)
                     {
-                        auto event2 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->vertical_nodes,
-                                        simulation->domain->subdomain_count_horizontal - 1
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event2.wait();
+                        update_vertical_buffers();
                     }
 
                     queue->copy(
@@ -544,11 +478,7 @@ namespace lbm
                     << "\033[36mLattice after performing copy to buffers: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    console::print_distribution_values<A>(
-                        *distribution_values, 
-                        *phase_information,
-                        *simulation
-                    );
+                    console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
                 }
 
                 /**
@@ -569,38 +499,12 @@ namespace lbm
 
                     if(simulation->domain->subdomain_count_vertical > 1)
                     {
-                        auto event1 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->subdomain_count_vertical - 1,
-                                        simulation->domain->horizontal_nodes
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event1.wait();
+                        update_horizontal_buffers();
                     }
 
                     if(simulation->domain->subdomain_count_horizontal > 1)
                     {
-                        auto event2 = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<2>(
-                                        simulation->domain->vertical_nodes,
-                                        simulation->domain->subdomain_count_horizontal - 1
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event2.wait();
+                        update_vertical_buffers();
                     }
 
                     auto outlet_event = queue->submit
@@ -623,11 +527,7 @@ namespace lbm
                     << "\033[36mDestination lattice after updating inlets and outlets: \n"
                     << "-------------------------------------------------------------------------------\033[0m\n";
 
-                    console::print_distribution_values<A>(
-                        *distribution_values, 
-                        *phase_information,
-                        *simulation
-                    );
+                    console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
                 }
 
                 public:
@@ -637,69 +537,58 @@ namespace lbm
                  *          iteration. 
                  */
                 inline void execute() override 
-                { 
-                    console::print_ansi_color_message();
-                    console::print_color_legend();
+                {
+                    if(current_iteration == 0)
+                    { 
+                        console::print_ansi_color_message();
+                        console::print_color_legend();
 
-                    auto event1 = queue->copy(
-                        simulation->data->distribution_values_0, 
-                        distribution_values->data(), 
-                        9 * simulation->domain->total_node_count
-                    );
+                        queue->copy(
+                            simulation->data->distribution_values_0, 
+                            distribution_values->data(), 
+                            9 * simulation->properties->total_unexpanded_node_count
+                        ).wait();
 
-                    auto event2 = queue->copy(
-                        simulation->data->phase_information, 
-                        phase_information->data(), 
-                        simulation->domain->total_node_count
-                    );
+                        queue->copy(
+                            simulation->data->phase_information, 
+                            phase_information->data(), 
+                            simulation->properties->total_unexpanded_node_count
+                        ).wait();
 
-                    event2.wait();
-                    event1.wait();
+                        std::cout << "Initial distribution values: \n";
+                        std::cout << "-------------------------------------------------------------------------------\n";
 
-                    console::print_distribution_values<A>(
-                        *distribution_values, 
-                        *phase_information,
-                        *simulation
-                    );
+                        console::print_distribution_values<A>(
+                            *distribution_values, 
+                            *phase_information,
+                            *simulation
+                        );
 
-                    console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
+                        std::cout << "Phase information: \n";
+                        std::cout << "-------------------------------------------------------------------------------\n";
 
-                    std::cout 
-                    << "\033[36mNow running GPU swap for " 
-                    << simulation->properties->time_steps 
-                    << " iterations.\033[0m\n\n";
+                        console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
 
-                    std::cout 
-                    << "Running on " 
-                    << queue->get_device().get_info<sycl::info::device::name>() 
-                    << "\n\n";
+                        std::cout 
+                        << "\033[36mNow running GPU swap for " 
+                        << simulation->properties->time_steps 
+                        << " iterations.\033[0m\n\n";
 
-                    fmt::print
-                    (
-                        "Simulation properties:\n"
-                        "-------------------------------------------------------------------------------\n"
-                    );
+                        std::cout 
+                        << "Running on " 
+                        << queue->get_device().get_info<sycl::info::device::name>() 
+                        << "\n\n";
 
-                    fmt::print(fmt::runtime(simulation->properties->to_string()));   
-
-                    std::cout << "\n";
-                    std::cout << "Buffered domain:\n";
-                    std::cout 
-                    << "------------------------------------------------------------------------------------\n";
-                    std::cout << "\texpanded_node_count = " << simulation->domain->total_node_count << "\n";
-                    std::cout << "\texpanded_horizontal_nodes = " << simulation->domain->horizontal_nodes << "\n";
-                    std::cout << "\texpanded_vertical_nodes = " << simulation->domain->vertical_nodes << "\n";
-
-                    std::cout << "\tsubdomain_width = " << simulation->domain->subdomain_horizontal_nodes << "\n";
-                    std::cout << "\tsubdomain_height = " << simulation->domain->subdomain_vertical_nodes << "\n";
-
-                    std::cout 
-                    << "\tsubdomain_count_vertical = " << simulation->domain->subdomain_count_vertical << "\n";
-                    std::cout 
-                    << "\tsubdomain_count_horizontal = " << simulation->domain->subdomain_count_horizontal << "\n";
-                    std::cout << "\n";
-
-                    future = hpx::async
+                        fmt::print
+                        (
+                            "Simulation properties:\n"
+                            "-------------------------------------------------------------------------------\n"
+                        );
+    
+                        fmt::print(fmt::runtime(simulation->properties->to_string()));   
+                    }
+                    
+                    future = std::async
                     (
                         [&]
                         { 
@@ -790,7 +679,8 @@ namespace lbm
                 distribution_values(
                     std::make_unique<std::vector<real_type>>(9 * simulation->domain->total_node_count, 0)
                 ),
-                temp_macroscopic_observables(std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
+                temp_macroscopic_observables(
+                    std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
                 phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
                 current_iteration(0)
                 {

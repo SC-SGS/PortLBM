@@ -5,11 +5,11 @@
  * 
  * @brief       This namespace contains kernels that can be used in multiple buffered lattice Boltzmann implementations.        
  * 
- * @version     1.1
+ * @version     1.2
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2025
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -91,13 +91,13 @@ namespace lbm
                         unsigned int neighbor_bottom = 
                             lbm::core::access::get_neighbor(linear_index, 1, horizontal_nodes);
 
-                        for (const auto& direction : {0, 1, 2})
+                        for (int direction  = 0; direction < 3; ++direction)
                         {
                             distribution_values[A::at(linear_index, direction, horizontal_nodes * vertical_nodes)] = 
                             distribution_values[A::at(neighbor_top, direction, horizontal_nodes * vertical_nodes)];
                         }
 
-                        for (const auto& direction : {6, 7, 8})
+                        for (int direction  = 6; direction < 9; ++direction)
                         {
                             distribution_values[A::at(linear_index, direction, horizontal_nodes * vertical_nodes)] =
                             distribution_values[A::at(neighbor_bottom, direction, horizontal_nodes * vertical_nodes)];
@@ -154,13 +154,13 @@ namespace lbm
                         unsigned int neighbor_right = 
                             lbm::core::access::get_neighbor(linear_index, 5, horizontal_nodes);
 
-                        for (const auto& direction : {2, 5, 8})
+                        for (int direction = 2; direction < 9; direction += 3) //(const auto& direction : {2, 5, 8})
                         {
                             distribution_values[A::at(linear_index, direction, horizontal_nodes * vertical_nodes)] =
                             distribution_values[A::at(neighbor_left, direction, horizontal_nodes * vertical_nodes)];
                         }
 
-                        for (const auto& direction : {0, 3, 6})
+                        for (int direction = 0; direction < 9; direction += 3) //(const auto& direction : {0, 3, 6})
                         {
                             distribution_values[A::at(linear_index, direction, horizontal_nodes * vertical_nodes)] =
                             distribution_values[A::at(neighbor_right, direction, horizontal_nodes * vertical_nodes)];

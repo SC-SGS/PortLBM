@@ -6,11 +6,11 @@
  * @brief       This header file contains the declarations and definitions of kernels for the two-lattice algorithm
  *              with linear work item evaluation.
  * 
- * @version     1.3
+ * @version     1.4
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -24,6 +24,8 @@
 
 // SYCL
 #include <sycl/sycl.hpp>
+
+// Standard library
 #include <limits>
 
 namespace lbm
@@ -44,15 +46,15 @@ namespace lbm
             {
 
                 /**
-                 * @brief This namespace contains all kernels for the two-lattice algorithm.
+                 * @brief This namespace contains all kernels for the linear two-lattice algorithm.
                  */
                 namespace kernels
                 {
 
-// Separate debug kernels /////////////////////////////////////////////////////////////////////////////////////////////
+// SEPARATE DEBUG KERNELS /////////////////////////////////////////////////////////////////////////////////////////////
 
                     /**
-                     * @brief   This kernel performs the streaming step of a two-lattice iteration.
+                     * @brief   This kernel performs the streaming step of the linear two-lattice iteration.
                      * 
                      * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                      */
@@ -72,8 +74,8 @@ namespace lbm
                         public:
 
                         /**
-                         * @brief   Constructor for a new `StreamKernel` object.
-                         *          Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+                         * @brief   Constructor for a new `StreamKernel` object. Create an instance of this kernel and 
+                         *          pass it to `cgh.parallel_for(...)`.
                          * 
                          * @param[in]   simulation  the structure containing all simulation data
                          */
@@ -86,7 +88,8 @@ namespace lbm
                         {}
 
                         /**
-                         * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+                         * @brief   This overloaded operator is implicitly called to launch the kernel for various work 
+                         *          items.
                          * 
                          * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
                          */
@@ -94,7 +97,7 @@ namespace lbm
                         {
                             if(!phase_information[id])
                             {
-                                for (const auto& direction : core::constants::all_directions)
+                                for (int direction = 0; direction < 9; ++direction)
                                 {
                                     destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] =
                                         source[
@@ -133,8 +136,8 @@ namespace lbm
                         public:
 
                         /**
-                         * @brief   Constructor for a new `MacroscopicObservablesKernel` object.
-                         *          Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+                         * @brief   Constructor for a new `MacroscopicObservablesKernel` object. Create an instance of
+                         *          this kernel and pass it to `cgh.parallel_for(...)`.
                          * 
                          * @param[in]   simulation  the structure containing all simulation data
                          */
@@ -150,7 +153,8 @@ namespace lbm
                         {}
 
                         /**
-                         * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+                         * @brief   This overloaded operator is implicitly called to launch the kernel for various work 
+                         *          items.
                          * 
                          * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
                          */
@@ -168,13 +172,14 @@ namespace lbm
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
 
-                                for (const auto& direction : core::constants::all_directions)
+                                for (int direction = 0; direction < 9; ++direction)
                                 {
-                                    dist_vals[direction] = destination[A::at(id, direction, horizontal_nodes * vertical_nodes)];
+                                    dist_vals[direction] = 
+                                        destination[A::at(id, direction, horizontal_nodes * vertical_nodes)];
                                     
                                 }
                                 
-                                for(const auto& i : core::constants::all_directions)
+                                for (int i = 0; i < 9; ++i)
                                 {
                                     density += dist_vals[i];
                                     velocity_x_component = i % 3 - 1; 
@@ -183,7 +188,8 @@ namespace lbm
                                     flow_velocity[1] += dist_vals[i] * velocity_y_component;
                                 }
 
-                                absolute_velocity = sycl::sqrt(flow_velocity[0] * flow_velocity[0] + flow_velocity[1] * flow_velocity[1]);
+                                absolute_velocity = 
+                                sycl::sqrt(flow_velocity[0] * flow_velocity[0] + flow_velocity[1] * flow_velocity[1]);
 
                                 #ifdef WITH_NAN_PROTECTION 
 
@@ -207,7 +213,7 @@ namespace lbm
                     };
 
                     /**
-                     * @brief   This kernel performs the collision step of a two-lattice iteration.
+                     * @brief   This kernel performs the collision step of a linear two-lattice iteration.
                      * 
                      * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                      */
@@ -232,8 +238,8 @@ namespace lbm
                         public:
 
                         /**
-                         * @brief Constructor for a new `CollideKernel` object.
-                         *        Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+                         * @brief   Constructor for a new `CollideKernel` object. Create an instance of this kernel and 
+                         *          pass it to `cgh.parallel_for(...)`.
                          * 
                          * @param[in]   simulation  the structure containing all simulation data
                          */
@@ -249,7 +255,8 @@ namespace lbm
                         {}
 
                         /**
-                         * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+                         * @brief   This overloaded operator is implicitly called to launch the kernel for various work
+                         *          items.
                          * 
                          * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
                          */
@@ -270,7 +277,7 @@ namespace lbm
                                 real_type value;
                                 real_type result;
 
-                                for (const auto& direction : core::constants::all_directions)
+                                for (int direction = 0; direction < 9; ++direction)
                                 {
                                     value = destination[A::at(id, direction, horizontal_nodes * vertical_nodes)];
 
@@ -279,7 +286,9 @@ namespace lbm
 
                                     result = core::constants::weights[direction] *
                                         (
-                                            density + 3 * (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
+                                            density + 
+                                            3 * 
+                                            (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
                                             + 9.0/2 *
                                             (velocity_x_component * x_velocity + velocity_y_component * y_velocity) *
                                             (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
@@ -293,11 +302,11 @@ namespace lbm
                         }
                     };
 
-// Performance kernels ////////////////////////////////////////////////////////////////////////////////////////////////
+// PERFORMANCE KERNELS ////////////////////////////////////////////////////////////////////////////////////////////////
 
                     /**
                      * @brief   This kernel performs the streaming step, the update of the macroscopic observables and 
-                     *          collision step of a two-lattice iteration.
+                     *          collision step of a linear two-lattice iteration.
                      * 
                      * @tparam  A any `core::access::AccessorConcept` from access.hpp 
                      */          
@@ -322,8 +331,8 @@ namespace lbm
                         public:
 
                         /**
-                         * @brief Constructor for a new `StreamCollideKernel` object.
-                         *        Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+                         * @brief   Constructor for a new `StreamCollideKernel` object. Create an instance of this
+                         *          kernel and pass it to `cgh.parallel_for(...)`.
                          * 
                          * @param[in]   simulation  the structure containing all simulation data
                          */
@@ -341,7 +350,8 @@ namespace lbm
                         {}
 
                         /**
-                         * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+                         * @brief   This overloaded operator is implicitly called to launch the kernel for various work 
+                         *          items.
                          * 
                          * @param[in]   id  a one-dimensional ID of a SYCL work item processing this kernel
                          */
@@ -354,6 +364,7 @@ namespace lbm
 
                                 real_type distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
                                 real_type result = 0;
+                                real_type result_buf = 0;
                                 real_type density = 0;
                                 int velocity_x_component = 0; 
                                 int velocity_y_component = 0; 
@@ -362,7 +373,7 @@ namespace lbm
                                 real_type absolute_velocity = 0;
 
                                 // Loading distribution values and macroscopic observables
-                                for (const auto& direction : core::constants::all_directions)
+                                for (int direction = 0; direction < 9; ++direction)
                                 {
                                     // Loading distribution values
                                     distribution_values[direction] = 
@@ -376,7 +387,7 @@ namespace lbm
                                 }
 
                                 // Macroscopic observables
-                                for (const auto& direction : core::constants::all_directions)
+                                for (int direction = 0; direction < 9; ++direction)
                                 {   
                                     density += distribution_values[direction];
                                     velocity_x_component = direction % 3 - 1; 
@@ -385,28 +396,31 @@ namespace lbm
                                     flow_velocity_y += distribution_values[direction] * velocity_y_component;
                                 }
 
-                                absolute_velocity = sycl::sqrt(flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y);
+                                absolute_velocity = 
+                                flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
 
                                 // Streaming and collision
-                                for (const auto& direction : core::constants::all_directions)
+                                for (int direction = 0; direction < 9; ++direction)
                                 {
                                     velocity_x_component = (direction % 3) - 1; 
                                     velocity_y_component = (direction / 3) - 1; 
 
+                                    result_buf = 
+                                    velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y;
+
                                     result = core::constants::weights[direction] *
                                         (
-                                            density + 3 * (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
-                                            + 9.0/2 *
-                                            (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)*
-                                            (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
-                                            - 3.0/2 * (flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y)
+                                            density + 3 * result_buf + 9.0/2 * result_buf * result_buf - 3.0/2 * 
+                                            absolute_velocity
                                         );
 
-                                    result =    -relaxation_time_inverse * (distribution_values[direction] - result) 
-                                                + distribution_values[direction];
+                                    result = -relaxation_time_inverse * (distribution_values[direction] - result) 
+                                        + distribution_values[direction];
 
                                     destination[A::at(id, direction, horizontal_nodes * vertical_nodes)] = result;
                                 }
+
+                                absolute_velocity = sycl::sqrt(absolute_velocity);
 
                                 #ifdef WITH_NAN_PROTECTION 
 
@@ -469,7 +483,19 @@ namespace lbm
                         {
                             if(phase_information[id] == 1)
                             {
-                                for(const auto& dir : core::constants::streaming_directions)
+                                for(int dir = 0; dir < 4; ++dir)
+                                {
+                                    destination[A::at(id, dir, total_nodes)] =
+                                    destination[
+                                        A::at(
+                                            core::access::get_neighbor(id, dir, horizontal_nodes), 
+                                            8 - dir, 
+                                            total_nodes
+                                        )
+                                    ];           
+                                }
+
+                                for(int dir = 5; dir < 9; ++dir)
                                 {
                                     destination[A::at(id, dir, total_nodes)] =
                                     destination[

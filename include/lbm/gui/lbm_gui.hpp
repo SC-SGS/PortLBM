@@ -3,14 +3,14 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       This header file contains all declarations and some implementations of the GUI
- *              for the lattice Boltzmann simulation developed in my Bachelor thesis.
+ * @brief       This header file contains all declarations and some implementations of the GUI for the lattice 
+ *              Boltzmann simulation developed in my Bachelor thesis.
  * 
- * @version     2.4
+ * @version     2.5
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -20,11 +20,16 @@
 // INCLUDES /////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 
 // LBM
-#include "simple_timer.hpp"
+
 #include "gui_constants.hpp"
+
 #include "../file_interaction/file_interaction.hpp"
+
 #include "../execution/algorithm_handler.hpp"
+
+#include "../core/timer.hpp"
 #include "../core/simulation.hpp"
+
 #include "../exceptions/exceptions.hpp"
 
 // Standard library
@@ -61,7 +66,7 @@ namespace lbm
     {
 
         /**
-        * @brief Helper function displaying an error callback message on the console.
+        * @brief    Helper function displaying an error callback message on the console.
         * 
         * @param[in]    error       the integer error id
         * @param[in]    description char array containing an error message
@@ -72,17 +77,17 @@ namespace lbm
         }
 
         /**
-         * @brief This struct contains information regarding the windows of the GUI:
+         * @brief   This struct contains information regarding the windows of the GUI:
          *        
-         *        - Which windows should be displayed
+         *          - Which windows should be displayed
          * 
-         *        - Whether or not the live visualization should be displayed
+         *          - Whether or not the live visualization should be displayed
          * 
-         *        - Whether or not the velocity quiver is to be displayed 
-         *          (as the velocity heatmap can be plotted individually)
+         *          - Whether or not the velocity quiver is to be displayed 
+         *            (as the velocity heatmap can be plotted individually)
          * 
-         *        - The size of the menu bar for window sizing and placement purposes 
-         */
+         *          - The size of the menu bar for window sizing and placement purposes 
+         */ 
         struct Windows
         {
             explicit Windows(bool debug);
@@ -101,7 +106,7 @@ namespace lbm
         };
 
         /**
-         * @brief This struct contains information regarding the control of the simulation.
+         * @brief   This struct contains information regarding the control of the simulation.
          */
         struct SimulationControl
         {
@@ -114,7 +119,7 @@ namespace lbm
         };
 
         /**
-         * @brief This struct keeps track of the progress of the simulation and the framerate.
+         * @brief   This struct keeps track of the progress of the simulation and the framerate.
          */
         struct Progress
         {
@@ -128,7 +133,7 @@ namespace lbm
         };
 
         /**
-         * @brief This struct contains information on the primary monitor and the viewport.
+         * @brief   This struct contains information on the primary monitor and the viewport.
          */
         struct Monitor
         {
@@ -147,9 +152,9 @@ namespace lbm
             std::unique_ptr<ImGuiViewport> viewport;
 
             /**
-             * @brief   Constructs a Monitor object. Notice that upon first initialization, `primary_monitor` and `video_mode` are
-             *          potentially initialized to `nullptr` because setting them up with proper values requires an existing
-             *          GLFW context.
+             * @brief   Constructs a Monitor object. Notice that upon first initialization, `primary_monitor` and 
+             *          `video_mode` are potentially initialized to `nullptr` because setting them up with proper 
+             *          values requires an existing GLFW context.
              */
             inline explicit Monitor()
             :
@@ -164,7 +169,7 @@ namespace lbm
         };
 
         /**
-         * @brief This struct contains information on the colormaps used in the density and velocity plot.
+         * @brief    This struct contains information on the colormaps used in the density and velocity plot.
          */
         struct Colormaps
         {
@@ -179,7 +184,7 @@ namespace lbm
         };
 
         /**
-         * @brief This struct contains the x and y values of the velocity quiver.
+         * @brief   This struct contains the x and y values of the velocity quiver.
          */
         struct VelocityQuiverData
         {
@@ -189,6 +194,10 @@ namespace lbm
             std::unique_ptr<std::vector<real_type>> y_values;
         };
 
+        /**
+         * @brief   This structure models a buffer for tracking the backend FPS of the simulation.
+         * 
+         */
         struct FPSBuffer 
         {
             int max_size;
@@ -196,16 +205,21 @@ namespace lbm
             ImVector<ImVec2> data;
             float current_time;
 
-            explicit FPSBuffer(const int size)
-            :
-            max_size(size),
-            offset(0),
-            current_time(0)
-            {
-                data.reserve(max_size);
-            }
+            /**
+             * @brief   Constructs an `FPSBuffer` object with space for the specified number of data points.
+             * 
+             * @param[in]   size    the size of this FPS buffer 
+             */
+            explicit FPSBuffer(const int size): max_size(size), offset(0), current_time(0)
+            { data.reserve(max_size); }
 
-            inline void add(const real_type x, const float y) 
+            /**
+             * @brief   Adds a data point to this buffer.
+             * 
+             * @param[in]   x   point in time
+             * @param[in]   y   FPS count
+             */
+            inline void add(const float x, const float y) 
             {
                 if (data.size() < max_size) { data.push_back(ImVec2(x,y)); }
                 else 
@@ -214,6 +228,10 @@ namespace lbm
                     offset =  (offset + 1) % max_size;
                 }
             }
+
+            /**
+             * @brief   Shrinks the size of this buffer object to zero.
+             */
             inline void shrink_to_zero() 
             {
                 if (data.size() > 0) 
@@ -256,7 +274,7 @@ namespace lbm
 
 // STYLES /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            /** @brief Sets the style of ImGui and ImPlot to light colors. */
+            /** @brief  Sets the style of ImGui and ImPlot to light colors. */
             inline void set_light_style()
             {
                 ImGui::StyleColorsLight();
@@ -272,7 +290,7 @@ namespace lbm
                 ImPlot::StyleColorsLight();
             }
 
-            /** @brief Sets the style of ImGui and ImPlot to dark colors. */
+            /** @brief  Sets the style of ImGui and ImPlot to dark colors. */
             inline void set_dark_style()
             {
                 ImGui::StyleColorsDark();
@@ -288,7 +306,7 @@ namespace lbm
                 ImPlot::StyleColorsDark();
             }
 
-            /** @brief Sets the style of ImGui and ImPlot to the classical ImGui style. */
+            /** @brief  Sets the style of ImGui and ImPlot to the classical ImGui style. */
             inline void set_classic_style()
             {
                 ImGui::StyleColorsClassic();
@@ -307,16 +325,16 @@ namespace lbm
 // BUTTONS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
-             * @brief Creates a run button that is capable of launching a new simulation or resuming a paused simulation.
-             *        Simulation values are initialized with placeholder values.
+             * @brief   Creates a run button that is capable of launching a new simulation or resuming a paused 
+             *          simulation. Simulation values are initialized with placeholder values.
              *        
-             *        Pressing this button when no simulation is active, i.e., after the start of the program, 
-             *        after a completed simulation or after the abortion of a simulation run enacts the launch of a new 
-             *        simulation run.
+             *          Pressing this button when no simulation is active, i.e., after the start of the program, after
+             *          a completed simulation or after the abortion of a simulation run enacts the launch of a new 
+             *          simulation run.
              *       
-             *        Pressing this button when a simulation is active but paused resumes work on it.
+             *          Pressing this button when a simulation is active but paused resumes work on it.
              * 
-             *        Pressing this button when a simulation is active and not paused has no effect.
+             *          Pressing this button when a simulation is active and not paused has no effect.
              * 
              */
             inline void run_button()
@@ -335,16 +353,27 @@ namespace lbm
                     {
                         simulation_control->is_simulation_active = true;
                         file_interaction::properties_to_json(*properties_gui);
+
                         properties_gui.reset();
-                        properties_gui = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
+
+                        properties_gui = 
+                            std::make_unique<core::Properties>(
+                                file_interaction::json_to_properties("../settings/settings.json", -2)
+                            );
+
                         properties_changed = false;
                         algorithm_handler->pause();
                         algorithm_handler->initialize();
 
                         colormaps->density_colormap_lower_scale = 
-                            std::min({algorithm_handler->get_inlet_density(), algorithm_handler->get_outlet_density()});
+                            std::min(
+                                {algorithm_handler->get_inlet_density(), algorithm_handler->get_outlet_density()}
+                            );
+
                         colormaps->density_colormap_upper_scale = 
-                            std::max({algorithm_handler->get_inlet_density(), algorithm_handler->get_outlet_density()});
+                            std::max(
+                                {algorithm_handler->get_inlet_density(), algorithm_handler->get_outlet_density()}
+                            );
                     }
 
                     algorithm_handler->start();
@@ -355,14 +384,14 @@ namespace lbm
             }
 
             /**
-             * @brief Creates a pause button that is capable of pausing an active simulation.
+             * @brief   Creates a pause button that is capable of pausing an active simulation.
              *        
-             *        Pressing this button when no simulation is active, i.e., after the start of the program, 
-             *        after a completed simulation or after the abortion of a simulation run has no effect.
+             *          Pressing this button when no simulation is active, i.e., after the start of the program, 
+             *          after a completed simulation or after the abortion of a simulation run has no effect.
              *       
-             *        Pressing this button when a simulation is active but already paused has no effect.
+             *          Pressing this button when a simulation is active but already paused has no effect.
              * 
-             *        Pressing this button when a simulation is active and not already paused pauses it.
+             *          Pressing this button when a simulation is active and not already paused pauses it.
              * 
              */
             inline void pause_button()
@@ -381,14 +410,15 @@ namespace lbm
             }
 
             /**
-             * @brief Creates an abort button that is capable of aborting an active simulation.
-             *        All progess counters are reset to zero.
-             *        Values are not re-initialized such that the last progress remains visible unless the user performs any changes.
+             * @brief   Creates an abort button that is capable of aborting an active simulation. All progess counters 
+             *          are reset to zero. Values are not re-initialized such that the last progress remains visible 
+             *          unless the user performs any changes.
              *        
-             *        Pressing this button when no simulation is active, i.e., after the start of the program, 
-             *        after a completed simulation or after the abortion of a simulation run has no effect.
+             *          Pressing this button when no simulation is active, i.e., after the start of the program, after
+             *          a completed simulation or after the abortion of a simulation run has no effect.
              *       
-             *        Pressing this button when a simulation is active aborts it and resets all progress but keeps the last result.
+             *          Pressing this button when a simulation is active aborts it and resets all progress but keeps 
+             *          the last result.
              */
             inline void abort_button()
             {
@@ -396,7 +426,10 @@ namespace lbm
                 ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.00f, 0.5f, 0.6f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.0f, 0.75f, 0.75f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.0f, 0.9f, 0.9f));
-                if (ImGui::Button("abort", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)) && simulation_control->is_simulation_active)                           
+                if (
+                    ImGui::Button("abort", ImVec2(1.0/4 * ImGui::GetWindowSize().x*0.5f, 0.0f)) 
+                    && simulation_control->is_simulation_active
+                )                           
                 {
                     simulation_control->is_paused = false;
                     simulation_control->is_simulation_active = false;
@@ -411,7 +444,7 @@ namespace lbm
                 ImGui::PopID();
             }
 
-            /** @brief Creates the menu bar of the GUI. Its height is stored in the specified Windows object. */
+            /** @brief  Creates the menu bar of the GUI. Its height is stored in the specified Windows object. */
             inline void menu_bar()
             {
                 if (ImGui::BeginMainMenuBar()) 
@@ -472,7 +505,9 @@ namespace lbm
 
 // SELECTION FIELDS ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-            /** @brief Creates an ImGui Combo for the selection of the algorithm. */
+            /** 
+             * @brief   Creates an ImGui Combo for the selection of the algorithm. 
+             */
             inline void algorithm_selection()
             {
                 ImGui::SeparatorText("Algorithmic");
@@ -495,7 +530,10 @@ namespace lbm
                 }
             }
 
-            /** @brief Creates an ImGui Combo for the selection of the data layout (and the corresponding access pattern). */
+            /** 
+             * @brief   Creates an ImGui Combo for the selection of the data layout (and the corresponding access 
+             *          pattern). 
+             */
             inline void data_layout_selection()
             {
                 if (ImGui::BeginCombo("Data layout",  properties_gui->data_layout.c_str())) 
@@ -514,7 +552,10 @@ namespace lbm
                 }
             }
 
-            /** @brief Creates an ImGui Combo for the selection of the data layout (and the corresponding access pattern). */
+            /** 
+             * @brief   Creates an ImGui Combo for the selection of the data layout (and the corresponding access 
+             *          pattern). 
+             */
             inline void scenario_selection()
             {
                 if (ImGui::BeginCombo("Scenario", properties_gui->scenario.c_str())) 
@@ -534,30 +575,9 @@ namespace lbm
             }
 
             /**
-             * @brief Creates a checkbox governing whether or not simulation results should be stored in a csv file
-             *        and a text input field where the filename is specified.
-             *        Up to 200 characters are allowed.
-             */
-            inline void save_results_selection()
-            {
-                if(ImGui::Checkbox("Save results", &simulation_control->results_to_csv))
-                {
-                    //results_to_csv = simulation_control->results_to_csv;
-                }
-
-                ImGui::SameLine();
-                ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
-                ImGui::SameLine();
-
-                ImGui::InputTextWithHint(
-                    "File name", "enter_name.csv", simulation_control->result_file_name, IM_ARRAYSIZE(simulation_control->result_file_name)
-                );
-            }
-
-            /**
-             * @brief Creates various input fields for properties regarding the simulation and its domain.
-             *        The density and velocity plots are automatically adapting to new domain extents.
-             *        Notice that any previous simulation results are replaced by fedault values when resizing.
+             * @brief   Creates various input fields for properties regarding the simulation and its domain. The 
+             *          density and velocity plots are automatically adapting to new domain extents. Notice that any
+             *          previous simulation results are replaced by fedault values when resizing.
              */
             inline void properties_simulation_and_domain()
             {
@@ -572,7 +592,7 @@ namespace lbm
                 { properties_changed = true;}
             }
 
-            /** @brief Creates input fields for various values related to general fluid properties. */
+            /** @brief  Creates input fields for various values related to general fluid properties. */
             inline void properties_fluid()
             {
                 ImGui::SeparatorText("Fluid properties");
@@ -596,10 +616,34 @@ namespace lbm
                 { properties_changed = true; }
             }
 
+            /**
+             * @brief   Adds the option to adjust the work-group size to the properties window.
+             */
+            inline void property_work_group_size()
+            {
+                if
+                (
+                    ImGui::InputUnsignedInt("Work group size", &(properties_gui->work_group_size), 1, 10)
+                )
+                { 
+                    properties_changed = true;
+                    if(properties_gui->work_group_size > algorithm_handler->processing_element_constraint)
+                    {
+                        properties_gui->work_group_size = algorithm_handler->processing_element_constraint;
+                    }
+                }
+                std::string m = "The maximum work group size of the target device is " 
+                    + std::to_string(algorithm_handler->processing_element_constraint);
+
+                ImGui::SameLine();
+                help_marker(m.c_str());
+            }
+
 // SIMULATION STATUS //////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
-             * @brief Provides information on the simulation status and displays the current progress using a progress bar.
+             * @brief   Provides information on the simulation status and displays the current progress using a
+             *          progress bar.
              */
             inline void show_simulation_status()
             {
@@ -623,10 +667,10 @@ namespace lbm
 // COLORMAPS //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
-             * @brief Creates an ImGui Combo for the selection of a colormap for the plot with the specified title.
+             * @brief   Creates an ImGui Combo for the selection of a colormap for the plot with the specified title.
              * 
-             * @param colormap a reference to the currently selected colormap
-             * @param plot_title the title of the plot for which the colormap is chosen
+             * @param[in]   colormap    a reference to the currently selected colormap
+             * @param[in]   plot_title  the title of the plot for which the colormap is chosen
              */
             inline void colormap_picker(ImPlotColormap &colormap, const char *plot_title)
             {
@@ -653,9 +697,9 @@ namespace lbm
             }
 
             /**
-            * @brief Adds the colormap used to distinguish solid and fluid nodes.
-            *        It is meant to be used in a heatmap on top of another displaying the densities and velocities.
-            *        Solid nodes are black regardless of the chosen color theme.
+            * @brief    Adds the colormap used to distinguish solid and fluid nodes. It is meant to be used in a 
+            *           heatmap on top of another displaying the densities and velocities. Solid nodes are black 
+            *           regardless of the chosen color theme.
             */
             inline void add_solid_colormap()
             {
@@ -667,7 +711,7 @@ namespace lbm
 
 // RENDERING //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            /** @brief Creates the contexts for ImGui and ImPlot. */
+            /** @brief  Creates the contexts for ImGui and ImPlot. */
             inline void create_contexts()
             {
                 IMGUI_CHECKVERSION();
@@ -676,9 +720,9 @@ namespace lbm
             }
 
             /**
-             * @brief Destroys the contexts of ImGui and ImPlot and prepares a graceful termination of the program.
+             * @brief   Destroys the contexts of ImGui and ImPlot and prepares a graceful termination of the program.
              * 
-             * @param window a pointer to the GLFW window that will be destroyed
+             * @param[in]   window  a pointer to the GLFW window that will be destroyed
              */
             inline void destroy()
             {
@@ -691,9 +735,9 @@ namespace lbm
             }
 
             /**
-            * @brief Renders the contents of the specified window.
+            * @brief    Renders the contents of the specified window.
             * 
-            * @param window the window whose contents are drawn
+            * @param[in]    window  the window whose contents are drawn
             */
             inline void render()
             {
@@ -707,11 +751,11 @@ namespace lbm
 // WINDOWS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
-             * @brief Creates a window showing status information and means to control simulations.
-             *        The window contains the following buttons from the buttons namespace: run, pause, and abort.
-             *        Furthermore, it informs the user about whether a simulation is currently active and what its status is.
-             *        It also shows the framerate at which new density and velocity plots are created. 
-             *        The window can intentionally not be relocated.
+             * @brief   Creates a window showing status information and means to control simulations. The window 
+             *          contains the following buttons from the buttons namespace: run, pause, and abort. Furthermore, 
+             *          it informs the user about whether a simulation is currently active and what its status is. It 
+             *          also shows the framerate at which new density and velocity plots are created. The window can 
+             *          intentionally not be relocated.
              */
             inline void simulation_status_window()
             {
@@ -747,6 +791,11 @@ namespace lbm
                 }
             }
 
+            /**
+             * @brief   Creates the window that tracks the framerate of the frontend and the backend. The backend
+             *          framerate is tracked for an interval of 10 seconds. The FPS count is also illustrated.
+             * 
+             */
             inline void framerate_window()
             {
                 if(windows->show_framerate)
@@ -769,20 +818,48 @@ namespace lbm
 
                     if(ImGui::Begin("Framerate", &windows->show_simulation_status, ImGuiWindowFlags_NoResize))
                     {
-                        ImGui::Text("Backend: %.1f FPS, %.3f ms/frame ", progress->framerate_backend, progress->frametime_backend);
+                        ImGui::Text(
+                            "Backend: %.1f FPS, %.3f ms/frame ", 
+                            progress->framerate_backend, progress->frametime_backend
+                        );
 
-                        ImGui::Text("Frontend: %.1f FPS, %.3f ms/frame ", progress->framerate_frontend, progress->frametime_frontend);
+                        ImGui::Text(
+                            "Frontend: %.1f FPS, %.3f ms/frame ", 
+                            progress->framerate_frontend, progress->frametime_frontend
+                        );
 
                         ImGui::SeparatorText("Backend framerate");
                         fps_buffer->current_time += ImGui::GetIO().DeltaTime;
                         fps_buffer->add(fps_buffer->current_time, progress->framerate_backend);
 
-                        if (ImPlot::BeginPlot("##Scrolling", ImVec2(-1, ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y), ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText)) 
+                        if (
+                            ImPlot::BeginPlot(
+                                "##Scrolling", 
+                                ImVec2(-1, ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y), 
+                                ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText
+                            )
+                        ) 
                         {
                             ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoTickLabels, 0);
-                            ImPlot::SetupAxisLimits(ImAxis_X1, fps_buffer->current_time - 10, fps_buffer->current_time, ImGuiCond_Always);
+
+                            ImPlot::SetupAxisLimits(
+                                ImAxis_X1, 
+                                fps_buffer->current_time - 10, 
+                                fps_buffer->current_time, 
+                                ImGuiCond_Always
+                            );
+
                             ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 1000);
-                            ImPlot::PlotLine("fps", &fps_buffer->data[0].x, &fps_buffer->data[0].y, fps_buffer->data.size(), 0, fps_buffer->offset, 2*sizeof(float));
+
+                            ImPlot::PlotLine(
+                                "fps", 
+                                &fps_buffer->data[0].x, 
+                                &fps_buffer->data[0].y, 
+                                fps_buffer->data.size(), 
+                                0, 
+                                fps_buffer->offset, 2 * sizeof(float)
+                            );
+
                             ImPlot::EndPlot();
                         }
                     }                        
@@ -791,8 +868,8 @@ namespace lbm
             }
 
             /**
-            * @brief Creates a window allowing to set various properties of the algorithm and the domain used in a simulation.
-            *        The window can intentionally not be relocated.
+            * @brief    Creates a window allowing to set various properties of the algorithm and the domain used in a 
+            *           simulation. The window can intentionally not be relocated.
             */
             inline void properties_window()
             {
@@ -825,23 +902,16 @@ namespace lbm
                         scenario_selection();
                         if
                         (
-                            ImGui::InputUnsignedInt("Frame update interval", &(properties_gui->frame_update_interval), 1, 10)
+                            ImGui::InputUnsignedInt(
+                                "Frame update interval", 
+                                &(properties_gui->frame_update_interval), 
+                                1, 
+                                10
+                            )
                         )
                         { properties_changed = true;}
-                        if
-                        (
-                            ImGui::InputUnsignedInt("Work group size", &(properties_gui->work_group_size), 1, 10)
-                        )
-                        { 
-                            properties_changed = true;
-                            if(properties_gui->work_group_size > algorithm_handler->processing_element_constraint)
-                            {
-                                properties_gui->work_group_size = algorithm_handler->processing_element_constraint;
-                            }
-                        }
-                        std::string m = "The maximum work group size of the target device is " + std::to_string(algorithm_handler->processing_element_constraint);
-                        ImGui::SameLine();
-                        help_marker(m.c_str());
+                        
+                        property_work_group_size();
                         properties_simulation_and_domain();
                         properties_fluid();
             
@@ -851,7 +921,10 @@ namespace lbm
                         if (ImGui::Button("Undo changes", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
                         {
                             properties_gui.reset();
-                            properties_gui = std::make_unique<core::Properties>(file_interaction::json_to_properties("../settings/settings.json", -2));
+                            properties_gui = 
+                                std::make_unique<core::Properties>(
+                                    file_interaction::json_to_properties("../settings/settings.json", -2)
+                                );
                             properties_changed = false;
                         }
                         ImGui::EndDisabled();  
@@ -868,25 +941,10 @@ namespace lbm
             }
 
             /**
-            * @brief Work in progress: Creates the window showing control options for simulation data read from a csv file.
-            */
-            void read_from_file_window()
-            {
-                if(windows->show_read_from_file_window)
-                {
-                    if(ImGui::Begin("Read from file", &windows->show_read_from_file_window))
-                    {
-                        ImGui::Text("This feature may be available in the future.");
-                        ImGui::PushItemWidth(ImGui::GetWindowWidth() / 2);
-                        if (ImGui::Button("Load", ImVec2(ImGui::GetWindowSize().x * 0.5f, 0)))
-                        {
-
-                        }
-                    }     
-                    ImGui::End();
-                }    
-            }
-
+             * @brief   Prints the debug message informing the user about the proper use of the GUI-aided debug mode.
+             *          It is possible to remain in debug mode or to disable it. Notice that debug mode can only be
+             *          enabled from outside the program, that is, by explicitly specifying it in the `settings.json`.
+             */
             void debug_message()
             {
                 if(properties_gui->debug_mode && windows->show_debug_window)
@@ -907,7 +965,13 @@ namespace lbm
                         }
                     );
                     
-                    if(ImGui::Begin("Debug message", &windows->show_debug_window, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+                    if(
+                        ImGui::Begin(
+                            "Debug message", 
+                            &windows->show_debug_window, 
+                            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+                        )
+                    )
                     {
                         ImGui::TextColored({255, 0, 0, 1}, "Debug mode detected.");
                         ImGui::TextWrapped(
@@ -946,15 +1010,78 @@ namespace lbm
             }
 
             /**
-            * @brief Creates the window visualizing the density of the fluid.
-            *        The main component is a heatmap plot with an adjustable colormap.
-            *        When hovering over the plot, the precise coordinates and the corresponding 
-            *        density value are shown in a tooltip.
-            * 
-            *        The window can be resized and moved freely.
-            * 
-            *        Closing this window yields minor to medium performance improvements.
-            * 
+             * @brief   If enabled, calculates the velocity quiver data.
+             */
+            inline void calculate_velocity_quiver()
+            {
+                if (windows->enable_velocity_quiver)
+                {
+                    unsigned int inner_node_index = 0;
+                    unsigned int node_index = 0;
+                    unsigned int velocity_value_index = 0;
+                    real_type base_x = 0;
+                    real_type base_y = 0;
+                    real_type offset_x = 0;
+                    real_type offset_y = 0;
+
+                    velocity_quiver_data->x_values->assign(
+                        2 * algorithm_handler->get_horizontal_nodes() *
+                            algorithm_handler->get_vertical_nodes(),
+                        0);
+
+                    velocity_quiver_data->y_values->assign(
+                        2 * algorithm_handler->get_horizontal_nodes() *
+                            algorithm_handler->get_vertical_nodes(),
+                        0);
+
+                    for (int y = 1; y < algorithm_handler->get_vertical_nodes() - 1; ++y)
+                    {
+                        for (int x = 1; x < algorithm_handler->get_horizontal_nodes() - 1; ++x)
+                        {
+                            inner_node_index =
+                                core::access::get_node_index(
+                                    x - 1,
+                                    y - 1,
+                                    algorithm_handler->get_horizontal_nodes() - 2);
+
+                            node_index =
+                                core::access::get_node_index(x, y, algorithm_handler->get_horizontal_nodes());
+
+                            velocity_value_index =
+                                core::access::get_result_index(
+                                    core::access::get_node_index(
+                                        x, y, algorithm_handler->get_horizontal_nodes()),
+                                    algorithm_handler->get_horizontal_nodes());
+
+                            if (algorithm_handler->get_absolute_velocities().at(velocity_value_index) > 1e-15)
+                            {
+                                base_x = 0.5 + x - 1;
+                                base_y = 0.5 + y - 1;
+
+                                (*velocity_quiver_data->x_values)[2 * inner_node_index] = base_x;
+                                (*velocity_quiver_data->y_values)[2 * inner_node_index] = base_y;
+
+                                offset_x = base_x + 0.5 *
+                                (1.0 / algorithm_handler->get_absolute_velocities().at(velocity_value_index)) 
+                                * algorithm_handler->get_x_velocities().at(velocity_value_index);
+
+                                offset_y = base_y + 0.5 *
+                                (1.0 / algorithm_handler->get_absolute_velocities().at(velocity_value_index)) 
+                                * algorithm_handler->get_y_velocities().at(velocity_value_index);
+
+                                (*velocity_quiver_data->x_values)[2 * inner_node_index + 1] = offset_x;
+                                (*velocity_quiver_data->y_values)[2 * inner_node_index + 1] = offset_y;
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            /**
+            * @brief    Creates the window visualizing the density of the fluid. The main component is a heatmap plot 
+            *           with an adjustable colormap. When hovering over the plot, the precise coordinates and the 
+            *           corresponding density value are shown in a tooltip. The window can be resized and moved freely.
             */
             void density_window()
             {
@@ -1013,7 +1140,8 @@ namespace lbm
                                 "Density",
                                 ImVec2
                                 (
-                                    ImGui::GetContentRegionAvail().x - monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
+                                    ImGui::GetContentRegionAvail().x - 
+                                    monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
                                     ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                                 ),
                                 ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs|ImPlotFlags_NoTitle
@@ -1037,7 +1165,10 @@ namespace lbm
                                 colormaps->density_colormap_upper_scale,
                                 windows->node_content,
                                 ImPlotPoint(0,0),
-                                ImPlotPoint(algorithm_handler->get_horizontal_nodes() - 2, algorithm_handler->get_vertical_nodes() - 2)
+                                ImPlotPoint(
+                                    algorithm_handler->get_horizontal_nodes() - 2, 
+                                    algorithm_handler->get_vertical_nodes() - 2
+                                )
                             );
 
                             ImPlot::PushColormap("SOLID_MASK");
@@ -1051,7 +1182,10 @@ namespace lbm
                                 1, 
                                 nullptr, 
                                 ImPlotPoint(0,0),
-                                ImPlotPoint(algorithm_handler->get_horizontal_nodes() - 2, algorithm_handler->get_vertical_nodes() - 2)
+                                ImPlotPoint(
+                                    algorithm_handler->get_horizontal_nodes() - 2, 
+                                    algorithm_handler->get_vertical_nodes() - 2
+                                )
                             );
 
                             if (ImPlot::IsPlotHovered()) 
@@ -1066,7 +1200,8 @@ namespace lbm
                                     ImGui::BeginTooltip();
                                     ImGui::Text("Coordinates: %.2f, %.2f", mouse.x, mouse.y);
                                     real_type value = 
-                                        algorithm_handler->get_densities().at((algorithm_handler->get_horizontal_nodes() - 2) * 
+                                        algorithm_handler->get_densities().at(
+                                            (algorithm_handler->get_horizontal_nodes() - 2) * 
                                         ((int)floor(mouse.y)) + (int)floor(mouse.x));
 
                                     if(value != -1) { ImGui::Text("Density: %f", value); }
@@ -1097,18 +1232,12 @@ namespace lbm
             }
 
             /**
-            * @brief Creates the window visualizing the velocity of the fluid.
-            *        The main component is a heatmap plot with an adjustable colormap.
-            *        When hovering over the plot, the precise coordinates and the corresponding 
-            *        velocity values in x and y direction are shown in a tooltip.
-            *        In addition to the heatmap plot, a quiver plot indicating the direction of the fluid velocity
-            *        can be added. Enabling the quiver plot is recommended for small simulation domains or a zoomed
-            *        section of larger domains.
-            * 
-            *        The window can be resized and moved freely.
-            * 
-            *        Closing this window yields medium to major performance improvements.
-            * 
+            * @brief    Creates the window visualizing the velocity of the fluid. The main component is a heatmap plot 
+            *           with an adjustable colormap. When hovering over the plot, the precise coordinates and the 
+            *           corresponding velocity values in x and y direction are shown in a tooltip. In addition to the 
+            *           heatmap plot, a quiver plot indicating the direction of the fluid velocity can be added. 
+            *           Enabling the quiver plot is recommended for small simulation domains or a zoomed section of 
+            *           larger domains. The window can be resized and moved freely.
             */
             void velocity_window()
             {
@@ -1173,7 +1302,8 @@ namespace lbm
                                 "Velocity",
                                 ImVec2
                                 (
-                                    ImGui::GetContentRegionAvail().x - monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
+                                    ImGui::GetContentRegionAvail().x - 
+                                    monitor->monitor_x_scale * 100 - ImGui::GetStyle().ItemSpacing.x,
                                     ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ItemSpacing.y
                                 ),
                                 ImPlotFlags_NoLegend|ImPlotFlags_NoMouseText|ImPlotFlags_Crosshairs|ImPlotFlags_NoTitle
@@ -1198,7 +1328,10 @@ namespace lbm
                                 colormaps->velocity_colormap_upper_scale, 
                                 windows->node_content,
                                 ImPlotPoint(0,0),
-                                ImPlotPoint(algorithm_handler->get_horizontal_nodes() - 2, algorithm_handler->get_vertical_nodes() - 2)
+                                ImPlotPoint(
+                                    algorithm_handler->get_horizontal_nodes() - 2, 
+                                    algorithm_handler->get_vertical_nodes() - 2
+                                )
                             );
 
                             ImPlot::PopColormap(1);
@@ -1214,7 +1347,10 @@ namespace lbm
                                 1, 
                                 nullptr,
                                 ImPlotPoint(0,0),
-                                ImPlotPoint(algorithm_handler->get_horizontal_nodes() - 2, algorithm_handler->get_vertical_nodes() - 2)
+                                ImPlotPoint(
+                                    algorithm_handler->get_horizontal_nodes() - 2, 
+                                    algorithm_handler->get_vertical_nodes() - 2
+                                )
                             );
 
                             ImPlot::PopColormap(1);
@@ -1248,19 +1384,22 @@ namespace lbm
 
                                     if
                                     (
-                                        algorithm_handler->get_densities().at((algorithm_handler->get_horizontal_nodes() - 2) 
+                                        algorithm_handler->get_densities().at(
+                                            (algorithm_handler->get_horizontal_nodes() - 2) 
                                         * (int)floor(mouse.y) + (int)floor(mouse.x)) 
                                         != -1
                                     )
                                     {
                                         ImGui::Text(
                                             "x velocity: %.6f", 
-                                            algorithm_handler->get_x_velocities().at((algorithm_handler->get_horizontal_nodes() - 2) * 
+                                            algorithm_handler->get_x_velocities().at(
+                                                (algorithm_handler->get_horizontal_nodes() - 2) * 
                                             ((int)floor(mouse.y)) + (int)floor(mouse.x))
                                         );
                                         ImGui::Text(
                                             "y velocity: %.6f", 
-                                            algorithm_handler->get_y_velocities().at((algorithm_handler->get_horizontal_nodes() - 2) * 
+                                            algorithm_handler->get_y_velocities().at(
+                                                (algorithm_handler->get_horizontal_nodes() - 2) * 
                                             ((int)floor(mouse.y)) + (int)floor(mouse.x)));
                                     }
                                     else { ImGui::Text("Solid node");}
@@ -1290,7 +1429,6 @@ namespace lbm
                 }
             }
 
-
 // PUBLIC API /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             public:
@@ -1300,7 +1438,11 @@ namespace lbm
             simulation_control(std::make_unique<SimulationControl>()),
             progress(std::make_unique<Progress>()),
             colormaps(std::make_unique<Colormaps>()),
-            properties_gui(std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties("../settings/settings.json", -2))),
+            properties_gui(
+                std::make_unique<core::Properties>(
+                    lbm::file_interaction::json_to_properties("../settings/settings.json", -2)
+                )
+            ),
             windows(std::make_unique<Windows>(properties_gui->debug_mode)),
             velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_gui->domain_node_count)),
             window_title(std::make_unique<std::string>(window_title)),
@@ -1320,11 +1462,24 @@ namespace lbm
 
                 monitor = std::make_unique<Monitor>();
 
-                glfw_window = glfwCreateWindow(monitor->video_mode->width, monitor->video_mode->height, window_title.c_str(), nullptr, nullptr);
+                glfw_window = glfwCreateWindow(
+                    monitor->video_mode->width, 
+                    monitor->video_mode->height, 
+                    window_title.c_str(), 
+                    nullptr, 
+                    nullptr
+                );
+
                 if (glfw_window == nullptr) {throw exceptions::Exception("Failed to create GLFW window.");}
 
                 glfwMakeContextCurrent(glfw_window);
-                glfwGetMonitorContentScale(monitor->primary_monitor, &(monitor->monitor_x_scale), &(monitor->monitor_x_scale));
+
+                glfwGetMonitorContentScale(
+                    monitor->primary_monitor, 
+                    &(monitor->monitor_x_scale), 
+                    &(monitor->monitor_x_scale)
+                );
+
                 glfwGetFramebufferSize(glfw_window, &(monitor->display_width), &(monitor->display_height));
 
                 // Setup Platform/Renderer backends
@@ -1337,7 +1492,8 @@ namespace lbm
                 // IO
                 ImGuiIO& io = ImGui::GetIO();
                 io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-                io.Fonts->AddFontFromFileTTF("../fonts/DroidSans.ttf", 2 * sqrt(monitor->monitor_x_scale * monitor->monitor_x_scale) * 9.0f);
+                io.Fonts->AddFontFromFileTTF(
+                    "../fonts/DroidSans.ttf", 2 * sqrt(monitor->monitor_x_scale * monitor->monitor_x_scale) * 9.0f);
 
                 // ImPlot style
                 ImPlotStyle& implot_style = ImPlot::GetStyle();
@@ -1347,11 +1503,15 @@ namespace lbm
                 add_solid_colormap();
             };
 
+            /**
+             * @brief   Runs the GUI. Following the IMGUI principle, it is created by running a loop until the window
+             *          is closed. 
+             */
             void run()
             {
                 // Timer initializations
-                SimpleTimer timer;
-                SimpleTimer timer_framerate;
+                core::Timer timer;
+                core::Timer timer_framerate;
 
                 // Eternal loop of imaging magic
                 while (!glfwWindowShouldClose(glfw_window))
@@ -1387,52 +1547,7 @@ namespace lbm
 
                     if(simulation_control->is_simulation_active && !simulation_control->is_paused)
                     {
-                        if(windows->enable_velocity_quiver)
-                        {
-                            unsigned int dnode_index = 0;
-                            unsigned int node_index = 0;
-                            unsigned int velocity_value_index = 0;
-                            real_type base_x = 0;
-                            real_type base_y = 0;
-                            real_type offset_x = 0;
-                            real_type offset_y = 0;
-
-                            velocity_quiver_data->x_values->assign(2 * algorithm_handler->get_horizontal_nodes() * algorithm_handler->get_vertical_nodes(), 0);
-                            velocity_quiver_data->y_values->assign(2 * algorithm_handler->get_horizontal_nodes() * algorithm_handler->get_vertical_nodes(), 0);
-
-                            for(int y = 1; y < algorithm_handler->get_vertical_nodes() - 1; ++y)
-                            {
-                                for(int x = 1; x < algorithm_handler->get_horizontal_nodes() - 1; ++x)
-                                {
-                                    dnode_index = core::access::get_node_index(x-1, y-1, algorithm_handler->get_horizontal_nodes()-2);
-                                    node_index = core::access::get_node_index(x, y, algorithm_handler->get_horizontal_nodes());
-
-                                    velocity_value_index = 
-                                        core::access::get_result_index(
-                                            core::access::get_node_index(x, y, algorithm_handler->get_horizontal_nodes()), 
-                                            algorithm_handler->get_horizontal_nodes()
-                                        );
-
-                                    if(algorithm_handler->get_absolute_velocities().at(velocity_value_index) > 1e-15)
-                                    {
-                                        base_x = 0.5 + x - 1;
-                                        base_y = 0.5 + y - 1;
-                                        
-                                        (*velocity_quiver_data->x_values)[2 * dnode_index] = base_x;
-                                        (*velocity_quiver_data->y_values)[2 * dnode_index] = base_y;
-
-                                        offset_x = base_x + 0.5 * (1.0 / algorithm_handler->get_absolute_velocities().at(velocity_value_index)) 
-                                                                * algorithm_handler->get_x_velocities().at(velocity_value_index);
-
-                                        offset_y = base_y + 0.5 * (1.0 / algorithm_handler->get_absolute_velocities().at(velocity_value_index)) 
-                                                                * algorithm_handler->get_y_velocities().at(velocity_value_index);
-
-                                        (*velocity_quiver_data->x_values)[2 * dnode_index + 1] = offset_x;
-                                        (*velocity_quiver_data->y_values)[2 * dnode_index + 1] = offset_y;
-                                    }
-                                }  
-                            }
-                        }
+                        calculate_velocity_quiver();
 
                         // Check if simulation is finished
                         if(algorithm_handler->is_finished())

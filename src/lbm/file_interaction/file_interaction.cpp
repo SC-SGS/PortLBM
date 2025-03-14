@@ -6,11 +6,11 @@
  * @brief       This source file contains the definitions of two functions for retrieving the properties of a 
  *              simulation from a JSON file and for storing properties to a JSON file.
  * 
- * @version     1.4
+ * @version     1.5
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  */
 
 

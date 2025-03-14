@@ -7,18 +7,16 @@
  *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The
  *              kernel functions are implemented in `linear_two_lattice_kernels.hpp`.
  * 
- * @version     4.3
+ * @version     4.4
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
 #ifndef LINEAR_GPU_TWO_LATTICE_HPP
 #define LINEAR_GPU_TWO_LATTICE_HPP
-
-// Includes ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Console output
 #include "../../../console/console_output.hpp"
@@ -36,8 +34,6 @@
 #include "../../general/non_buffered.hpp"
 #include "linear_two_lattice_kernels.hpp"
 
-// Linear two-lattice /////////////////////////////////////////////////////////////////////////////////////////////////
-
 namespace lbm
 {
 
@@ -48,7 +44,7 @@ namespace lbm
     {
 
         /**
-         * @brief This namespace contains the GPU implementation of the two-lattice algorithm.
+         * @brief This namespace contains the GPU implementations of the two-lattice algorithm.
          */
         namespace two_lattice
         {
@@ -59,7 +55,7 @@ namespace lbm
             namespace linear
             {
 
-// Performance linear two-lattice /////////////////////////////////////////////////////////////////////////////////////
+// PERFORMANCE LINEAR TWO-LATTICE /////////////////////////////////////////////////////////////////////////////////////
 
                 /**
                  * @brief   Class representation of the linear SYCL implementation of the two-lattice algorithm.
@@ -95,29 +91,11 @@ namespace lbm
 
                         if(
                             !(simulation->control->get_current_iteration() % 
-                                simulation->properties->frame_update_interval)
+                            simulation->properties->frame_update_interval)
+                            || !simulation->control->is_execution_allowed() || simulation->control->is_finished()
                         )
                         {
-                            queue->copy(
-                                simulation->results->densities_gpu, 
-                                simulation->results->densities_cpu->data(), 
-                                simulation->results->densities_cpu->size()
-                            );
-                            queue->copy(
-                                simulation->results->x_velocities_gpu, 
-                                simulation->results->x_velocities_cpu->data(), 
-                                simulation->results->x_velocities_cpu->size()
-                            );
-                            queue->copy(
-                                simulation->results->y_velocities_gpu, 
-                                simulation->results->y_velocities_cpu->data(), 
-                                simulation->results->y_velocities_cpu->size()
-                            );
-                            queue->copy(
-                                simulation->results->absolute_velocities_gpu, 
-                                simulation->results->absolute_velocities_cpu->data(), 
-                                simulation->results->absolute_velocities_cpu->size()
-                            );
+                            copy_macroscopic_observables_to_cpu();
                         }
                     }
 
@@ -167,7 +145,7 @@ namespace lbm
                      */
                     inline void execute() override
                     {
-                        future = hpx::async
+                        future = std::async
                         (
                             [&]
                             {
@@ -202,7 +180,7 @@ namespace lbm
                     }; 
                 };
 
-// Debug linear two-lattice ///////////////////////////////////////////////////////////////////////////////////////////
+// DEBUG LINEAR TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////////////
 
                 /**
                  * @brief Class representation of the linear SYCL debug implementation of the two-lattice algorithm.
@@ -310,32 +288,8 @@ namespace lbm
                         );
                     
                         update_macroscopic_observables();
-
-                        auto event_x_velocities_copy = queue->copy(
-                            simulation->results->x_velocities_gpu, 
-                            simulation->results->x_velocities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        );
-
-                        auto event_y_velocities_copy = queue->copy(
-                            simulation->results->y_velocities_gpu, 
-                            simulation->results->y_velocities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        );
-
-                        auto event_densities_copy = queue->copy(
-                            simulation->results->densities_gpu, 
-                            simulation->results->densities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        );
-
-                        queue->copy(
-                            simulation->results->absolute_velocities_gpu, 
-                            simulation->results->absolute_velocities_cpu->data(), 
-                            simulation->properties->domain_node_count
-                        ).wait();
-
-                        event_x_velocities_copy.wait();
+                        
+                        copy_macroscopic_observables_to_cpu();
 
                         all_x_velocities->insert(
                             all_x_velocities->end(), 
@@ -343,15 +297,11 @@ namespace lbm
                             simulation->results->x_velocities_cpu->end()
                         );
 
-                        event_y_velocities_copy.wait();
-
                         all_y_velocities->insert(
                             all_y_velocities->end(), 
                             simulation->results->y_velocities_cpu->begin(), 
                             simulation->results->y_velocities_cpu->end()
                         );
-
-                        event_densities_copy.wait();
 
                         all_densities->insert(
                             all_densities->end(), 
@@ -476,23 +426,20 @@ namespace lbm
                             console::print_ansi_color_message();
                             console::print_color_legend();
 
-
-                            auto event_distribution_values_copy = queue->copy(
+                            queue->copy(
                                 simulation->data->distribution_values_0, 
                                 distribution_values->data(), 
                                 9 * simulation->properties->total_unexpanded_node_count
-                            );
+                            ).wait();
 
-                            auto event_phase_information_copy = queue->copy(
+                            queue->copy(
                                 simulation->data->phase_information, 
                                 phase_information->data(), 
                                 simulation->properties->total_unexpanded_node_count
-                            );
+                            ).wait();
 
                             std::cout << "Initial distribution values: \n";
                             std::cout << "-------------------------------------------------------------------------------\n";
-
-                            event_distribution_values_copy.wait();
 
                             console::print_distribution_values<A>(
                                 *distribution_values, 
@@ -503,12 +450,10 @@ namespace lbm
                             std::cout << "Phase information: \n";
                             std::cout << "-------------------------------------------------------------------------------\n";
 
-                            event_phase_information_copy.wait();
-
                             console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
 
                             std::cout 
-                            << "\033[36mNow running GPU two-lattice for " 
+                            << "\033[36mNow running linear GPU two-lattice for " 
                             << simulation->properties->time_steps 
                             << " iterations.\033[0m\n\n";
 
@@ -526,7 +471,7 @@ namespace lbm
                             fmt::print(fmt::runtime(simulation->properties->to_string())); 
                         } 
 
-                        future = hpx::async
+                        future = std::async
                         (
                             [&]
                             { 

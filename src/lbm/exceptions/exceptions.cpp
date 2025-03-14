@@ -5,15 +5,16 @@
  * 
  * @brief       This source file contains the definitions of the LBM exceptions.
  * 
- * @version     1.1
+ * @version     1.2
  * 
- * @date        December 2024
+ * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
 #include "../../../include/lbm/exceptions/exceptions.hpp"
+
 
 lbm::exceptions::Exception::Exception
 (
@@ -26,6 +27,7 @@ std::runtime_error(message),
 exception_name(exception_name),
 source_location(source_location)
 {};
+
 
 std::string lbm::exceptions::Exception::to_string() const
 {
@@ -45,6 +47,7 @@ std::string lbm::exceptions::Exception::to_string() const
     );
 }
 
+
 lbm::exceptions::json::PropertyArgumentException::PropertyArgumentException
 (
     const std::string &message, 
@@ -53,6 +56,7 @@ lbm::exceptions::json::PropertyArgumentException::PropertyArgumentException
 :
 lbm::exceptions::Exception(message, "JSON Property Argument Exception", source_location)
 {};
+
 
 lbm::exceptions::json::MissingPropertyException::MissingPropertyException
 (
@@ -63,6 +67,7 @@ lbm::exceptions::json::MissingPropertyException::MissingPropertyException
 lbm::exceptions::Exception(message, "JSON Missing Property Exception", source_location)
 {};
 
+
 lbm::exceptions::json::UnknownPropertyException::UnknownPropertyException
 (
     const std::string &message,
@@ -71,6 +76,7 @@ lbm::exceptions::json::UnknownPropertyException::UnknownPropertyException
 :
 lbm::exceptions::Exception(message, "JSON Unknown Property Exception", source_location)
 {};
+
 
 lbm::exceptions::observables::OutOfBoundsException::OutOfBoundsException
 (
@@ -81,6 +87,7 @@ lbm::exceptions::observables::OutOfBoundsException::OutOfBoundsException
 lbm::exceptions::Exception(message, "Observables Out Of Bounds Exception", source_location)
 {};
 
+
 lbm::exceptions::domain::OutOfDomainException::OutOfDomainException
 (
     const std::string &message,
@@ -89,6 +96,7 @@ lbm::exceptions::domain::OutOfDomainException::OutOfDomainException
 :
 lbm::exceptions::Exception(message, "Out Of Domain Exception", source_location)
 {};
+
 
 lbm::exceptions::algorithm::WaitException::WaitException
 (

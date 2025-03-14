@@ -5,7 +5,7 @@
 #
 # Copyright:      (c) Marcel Graf
 #
-# Last modified:  March 13, 2025
+# Last modified:  March 15, 2025
 
 cmake_minimum_required(VERSION 3.18.2)
 
@@ -22,13 +22,15 @@ if(NOT CMAKE_BUILD_TYPE)
   
 endif(NOT CMAKE_BUILD_TYPE)
 
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
+
 # Options
 option(WITH_VISUALIZATION "Build with the visualization framework" OFF)
 option(WITH_NAN_PROTECTION "Build with security against NANs" ON)
 option(USE_FLOAT "If enabled, the project is build using float instead of double as the real type" OFF)
+option(FORCE_USE_CPU "If enabled, the project is build in a version that only uses the host" OFF)
 
-# Find crucial packages
-find_package(HPX REQUIRED)
+# Find packages
 find_package(AdaptiveCpp CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt REQUIRED)
@@ -40,7 +42,7 @@ add_executable(${PROJECT_NAME} src/main_gpu.cpp)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC HPX::hpx HPX::wrap_main nlohmann_json::nlohmann_json fmt::fmt)
+target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json fmt::fmt)
 
 # If the option for live visualization is set, find the necessary packages and add definition
 if(WITH_VISUALIZATION)
@@ -61,6 +63,11 @@ endif(WITH_NAN_PROTECTION)
 if(USE_FLOAT)
   add_definitions(-DUSE_FLOAT)
 endif(USE_FLOAT)
+
+# If the option for enforcing the usage of the CPU is enabled, add the respective definition
+if(FORCE_USE_CPU)
+  add_definitions(-DFORCE_USE_CPU)
+endif(FORCE_USE_CPU)
 
 # SYCL
 target_compile_options(${PROJECT_NAME} PUBLIC ${SYCL_FLAGS})

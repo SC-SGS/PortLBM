@@ -6,7 +6,7 @@
  * @brief       In this header file, an abstract class for algorithms is defined.
  *              All algorithms inherit from this this base class and implement the execute methods.
  * 
- * @version     1.1
+ * @version     1.2
  * 
  * @date        March 2025
  * 
@@ -22,9 +22,6 @@
 
 // LBM exceptions
 #include "../exceptions/exceptions.hpp"
-
-// HPX
-#include <hpx/future.hpp>
 
 // SYCL
 #include <sycl/sycl.hpp>
@@ -47,7 +44,7 @@ namespace lbm
             /**
              * @brief   This future is used to launch the algorithm.
              */
-            hpx::future<void> future;
+            std::future<void> future;
 
             /**
              * @brief   Shared pointer to the queue that is used for communication with the GPU.
@@ -55,13 +52,13 @@ namespace lbm
             std::shared_ptr<sycl::queue> queue;
 
             /**
-             * @brief   The constructor of a SYCLAlgorithm object initializes the HPX future with a dummy value.
+             * @brief   The constructor of a SYCLAlgorithm object initializes the future with a dummy value.
              * 
              * @param[in]   queue   This queue is used for communication with the GPU.
              */
             explicit SYCLAlgorithm(sycl::queue &queue)
             : 
-            future(hpx::async([]{})), 
+            future(std::async([]{})), 
             queue(std::make_shared<sycl::queue>(queue)), 
             simulation(std::make_unique<core::Simulation>(queue))
             {};
@@ -72,11 +69,6 @@ namespace lbm
              * @brief   Unique pointer to the simulation object on which this algorithm operates.
              */
             std::unique_ptr<core::Simulation> simulation;
-  
-            /**
-             * @brief   Returns whether the algorithm is currently within an iteration (`true`) or not (`false`).
-             */
-            inline bool is_ready() const { return future.is_ready(); }
 
             /**
              * @brief   Blocks the thread on which this method is accessed until the algorithm is paused or reaches its
@@ -92,6 +84,30 @@ namespace lbm
                         "launched."
                     ); 
                 }
+            }
+
+            inline void copy_macroscopic_observables_to_cpu()
+            {
+                queue->copy(
+                    simulation->results->densities_gpu, 
+                    simulation->results->densities_cpu->data(), 
+                    simulation->results->densities_cpu->size()
+                );
+                queue->copy(
+                    simulation->results->x_velocities_gpu, 
+                    simulation->results->x_velocities_cpu->data(), 
+                    simulation->results->x_velocities_cpu->size()
+                );
+                queue->copy(
+                    simulation->results->y_velocities_gpu, 
+                    simulation->results->y_velocities_cpu->data(), 
+                    simulation->results->y_velocities_cpu->size()
+                );
+                queue->copy(
+                    simulation->results->absolute_velocities_gpu, 
+                    simulation->results->absolute_velocities_cpu->data(), 
+                    simulation->results->absolute_velocities_cpu->size()
+                );
             }
 
             /**

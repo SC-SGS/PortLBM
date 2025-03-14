@@ -26,7 +26,7 @@
 // SYCL-based LBM algorithms
 #include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 #include "../gpu/two_lattice/non-linear/non_linear_gpu_two_lattice.hpp"
-#include "../gpu/two_lattice/optimized/optimized_gpu_two_lattice.hpp"
+#include "../gpu/two_lattice/buffered/buffered_gpu_two_lattice.hpp"
 #include "../gpu/swap/gpu_swap.hpp"
 
 // Standard library
@@ -51,7 +51,12 @@ namespace lbm
 
             private:
 
-            std::unique_ptr<sycl::gpu_selector> gpu_selector; 
+            #ifdef FORCE_USE_CPU
+            std::unique_ptr<sycl::cpu_selector> cpu_selector; 
+            #else
+            std::unique_ptr<sycl::default_selector> device_selector; 
+            #endif
+
             std::shared_ptr<sycl::queue> queue;
             std::unique_ptr<SYCLAlgorithm> algorithm;
             bool active;
@@ -118,19 +123,19 @@ namespace lbm
                     if(properties.data_layout == "stream")
                     {
                         algorithm = std::make_unique<
-                            gpu::two_lattice::optimized::OptimizedGpuTwoLattice<core::access::StreamAccessor>
+                            gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::StreamAccessor>
                                 >(*queue);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
-                            gpu::two_lattice::optimized::OptimizedGpuTwoLattice<core::access::CollisionAccessor>
+                            gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::CollisionAccessor>
                                 >(*queue);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
-                            gpu::two_lattice::optimized::OptimizedGpuTwoLattice<core::access::BundleAccessor>
+                            gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::BundleAccessor>
                                 >(*queue);
                     }
                     else
@@ -227,19 +232,19 @@ namespace lbm
                     if(properties.data_layout == "stream")
                     {
                         algorithm = std::make_unique<
-                            gpu::two_lattice::optimized::OptimizedGpuTwoLatticeDebug<core::access::StreamAccessor>
+                            gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::StreamAccessor>
                                 >(*queue);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
-                            gpu::two_lattice::optimized::OptimizedGpuTwoLatticeDebug<core::access::CollisionAccessor>
+                            gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::CollisionAccessor>
                                 >(*queue);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
-                            gpu::two_lattice::optimized::OptimizedGpuTwoLatticeDebug<core::access::BundleAccessor>
+                            gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::BundleAccessor>
                                 >(*queue);
                     }
                     else
@@ -297,20 +302,42 @@ namespace lbm
 
             public:
 
+
+            #ifdef FORCE_USE_CPU
+
             /**
-             * @brief   Construct a new SYCL executor and initializes it such that it stores the current simulation 
-             *          data present by default.
+             * @brief   Construct a new SYCL executor and initializes it such that it stores the current simulation data
+             *          present by default.
              */
             explicit SYCLAlgorithmHandler()
             : 
             AlgorithmHandler(0),
-            gpu_selector(std::make_unique<sycl::gpu_selector>()), 
-            queue(std::make_unique<sycl::queue>(*gpu_selector)),
+            cpu_selector(std::make_unique<sycl::cpu_selector>()), 
+            queue(std::make_unique<sycl::queue>(*cpu_selector)),
             active(false)
             {
                 initialize_algorithm();
                 processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
             };
+
+            #else
+
+            /**
+             * @brief   Construct a new SYCL executor and initializes it such that it stores the current simulation data
+             *          present by default.
+             */
+            explicit SYCLAlgorithmHandler()
+            : 
+            AlgorithmHandler(0),
+            device_selector(std::make_unique<sycl::default_selector>()), 
+            queue(std::make_unique<sycl::queue>(*device_selector)),
+            active(false)
+            {
+                initialize_algorithm();
+                processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
+            };
+
+            #endif
 
             inline void initialize() override
             {

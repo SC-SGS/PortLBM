@@ -5,11 +5,11 @@
  * 
  * @brief       Entry point of the program executing the GPU lattice Boltzmann application.
  * 
- * @version     1.3
+ * @version     1.5
  * 
- * @date        January 2025
+ * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  */
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,10 +18,6 @@
 #include "../include/lbm/file_interaction/file_interaction.hpp"
 #include "../include/lbm/core/simulation.hpp"
 #include "../execution/sycl_algorithm_handler.hpp"
-
-// HPX includes that are always necessary regardless of the CMake configuration
-#include <hpx/hpx_init.hpp>
-#include <hpx/execution.hpp>
 
 // Conditional includes
 #ifdef WITH_VISUALIZATION                       // If the flag for building with GUI features is set, ...
@@ -32,7 +28,7 @@
 
 #ifdef WITH_VISUALIZATION // Flag is set if -DWITH_VISUALIZATION=ON, must be specified by user
 
-int hpx_main(hpx::program_options::variables_map& vm)
+int main(int argc, char* argv[])
 {
     try
     {
@@ -44,16 +40,17 @@ int hpx_main(hpx::program_options::variables_map& vm)
         std::cerr << exception.to_string();
     }
 
-    return hpx::local::finalize();
+    return 0;
 }
 
 #else // ! WITH_VISUALIZATION
 
-int hpx_main(hpx::program_options::variables_map& vm)
+int main(int argc, char* argv[])
 {
     try
     {
-        std::unique_ptr<lbm::execution::SYCLAlgorithmHandler> algorithm_handler = std::make_unique<lbm::execution::SYCLAlgorithmHandler>();
+        std::unique_ptr<lbm::execution::SYCLAlgorithmHandler> algorithm_handler = 
+            std::make_unique<lbm::execution::SYCLAlgorithmHandler>();
         algorithm_handler->start();
         algorithm_handler->block_until_finished();
     }
@@ -62,19 +59,9 @@ int hpx_main(hpx::program_options::variables_map& vm)
         std::cerr << exception.to_string();
     }
 
-    return hpx::local::finalize();
+    return 0;
 }
 
 #endif // End of macro-managed definitions based on flag WITH_VISUALIZATION
-
-int main(int argc, char* argv[])
-{
-    hpx::program_options::options_description desc_commandline("Usage: " HPX_APPLICATION_STRING " [options]");
-
-    hpx::init_params init_args;
-    init_args.desc_cmdline = desc_commandline;
-
-    return hpx::init(argc, argv, init_args);
-}
 
 // ! main_gpu.cpp

@@ -6,11 +6,11 @@
  * @brief       This namespace contains kernels that can be used in multiple non-buffered lattice Boltzmann 
  *              implementations.        
  * 
- * @version     1.1
+ * @version     1.2
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2025
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 

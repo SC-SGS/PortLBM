@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declarations and definitions of kernels for the swap algorithm.
  * 
- * @version     1.4
+ * @version     1.5
  * 
  * @date        March 2025
  * 
@@ -189,7 +189,7 @@ namespace lbm
                     subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
                     subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes),
                     local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 2)),
-                    local(sycl::local_accessor<real_type, 1>(sycl::range<1>(4 * local_buffer_length), cgh))
+                    local(sycl::local_accessor<real_type, 1>(sycl::range<1>(2 * local_buffer_length), cgh))
                     {}
 
                     /**
@@ -231,45 +231,88 @@ namespace lbm
 
                         real_type result_buf = 0;
 
-                        // Send out active values and accept passive values of neighbor
-                        for (int dir = 5; dir < 9; ++dir)
-                        {
-                            buffer_target_index = 
-                                core::access::get_neighbor(own_buffer_index, dir, subdomain_horizontal_nodes + 4);
+                        //Load stationary value into private buffer
+                        private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
 
-                            // Write values that are sent to neighbor into their shared buffer
-                            local[4 * buffer_target_index + (8 - dir)] =
-                                distribution_values[A::at(linear_index, dir, total_nodes)];
+                        /* Directions 5 and 6 */
 
-                            // Determine global index of neighbor
-                            neighbor_index = 
-                                core::access::get_neighbor(linear_index, dir, horizontal_nodes_expanded);
+                        // 5 //////////////////////////////////////////////////////////////////////////////////////////
+                        buffer_target_index = 
+                        core::access::get_neighbor(own_buffer_index, 5, subdomain_horizontal_nodes + 4);
 
-                            // Store incoming distribution values in private array
-                            private_distribution_values[8 - dir] = 
-                                distribution_values[A::at(neighbor_index, 8 - dir, total_nodes)];
-                        } 
+                        // Write values that are sent to neighbor into their shared buffer
+                        local[2 * buffer_target_index] = distribution_values[A::at(linear_index, 5, total_nodes)];
+
+                        // Determine global index of neighbor
+                        neighbor_index = core::access::get_neighbor(linear_index, 5, horizontal_nodes_expanded);
+
+                        // Store incoming distribution values in private array
+                        private_distribution_values[3] = distribution_values[A::at(neighbor_index, 3, total_nodes)];
+
+                        // 6 //////////////////////////////////////////////////////////////////////////////////////////
+                        buffer_target_index = 
+                        core::access::get_neighbor(own_buffer_index, 6, subdomain_horizontal_nodes + 4);
+
+                        // Write values that are sent to neighbor into their shared buffer
+                        local[2 * buffer_target_index + 1] = distribution_values[A::at(linear_index, 6, total_nodes)];
+
+                        // Determine global index of neighbor
+                        neighbor_index = core::access::get_neighbor(linear_index, 6, horizontal_nodes_expanded);
+
+                        // Store incoming distribution values in private array
+                        private_distribution_values[2] = distribution_values[A::at(neighbor_index, 2, total_nodes)];
 
                         nd_item.barrier();
 
+                        // Collect passive values from shared buffer //////////////////////////////////////////////////
+                        private_distribution_values[5] = local[2 * own_buffer_index];
+                        private_distribution_values[6] = local[2 * own_buffer_index + 1];
+
+                        nd_item.barrier();
+
+                        /* Directions 7 and 8 */ 
+
+                        // 7 //////////////////////////////////////////////////////////////////////////////////////////
+                        buffer_target_index = 
+                        core::access::get_neighbor(own_buffer_index, 7, subdomain_horizontal_nodes + 4);
+
+                        // Write values that are sent to neighbor into their shared buffer
+                        local[2 * buffer_target_index] = distribution_values[A::at(linear_index, 7, total_nodes)];
+
+                        // Determine global index of neighbor
+                        neighbor_index = core::access::get_neighbor(linear_index, 7, horizontal_nodes_expanded);
+
+                        // Store incoming distribution values in private array
+                        private_distribution_values[1] = distribution_values[A::at(neighbor_index, 1, total_nodes)];
+
+                        // 8 //////////////////////////////////////////////////////////////////////////////////////////
+                        buffer_target_index = 
+                        core::access::get_neighbor(own_buffer_index, 8, subdomain_horizontal_nodes + 4);
+
+                        // Write values that are sent to neighbor into their shared buffer
+                        local[2 * buffer_target_index + 1] = distribution_values[A::at(linear_index, 8, total_nodes)];
+
+                        // Determine global index of neighbor
+                        neighbor_index = core::access::get_neighbor(linear_index, 8, horizontal_nodes_expanded);
+
+                        // Store incoming distribution values in private array
+                        private_distribution_values[0] = distribution_values[A::at(neighbor_index, 0, total_nodes)];
+
+                        nd_item.barrier();
+
+                        // Collect passive values from shared buffer //////////////////////////////////////////////////
+                        private_distribution_values[7] = local[2 * own_buffer_index];
+                        private_distribution_values[8] = local[2 * own_buffer_index + 1];
+
+                        unsigned int iteration_node_offset =
+                        lbm::core::access::get_result_index(
+                            (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
+                            (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
+                            horizontal_nodes_domain
+                        );
+
                         if(!phase_information[linear_index])
-                        {      
-                            //Collect passive values from shared buffer
-                            for (int dir = 0; dir < 4; ++dir)
-                            {
-                                private_distribution_values[8 - dir] = local[4 * own_buffer_index + dir];
-                            }
-                            
-                            //Load stationary value into private buffer
-                            private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
-
-                            unsigned int iteration_node_offset =
-                            lbm::core::access::get_result_index(
-                                (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
-                                (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
-                                horizontal_nodes_domain
-                            );
-
+                        {                                  
                             for (int direction = 0; direction < 9; ++direction)
                             {
                                 density += private_distribution_values[direction];
@@ -280,8 +323,6 @@ namespace lbm
                             }
 
                             absolute_velocity = flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
-                            
-                            nd_item.barrier();
 
                             // Perform collision and write back values to main memory
                             for (int direction = 0; direction < 9; ++direction)
@@ -304,8 +345,7 @@ namespace lbm
                                 distribution_values[A::at(linear_index, direction, total_nodes)] = result;
                             }
 
-                            absolute_velocity = 
-                            sycl::sqrt(absolute_velocity);
+                            absolute_velocity = sycl::sqrt(absolute_velocity);
 
                             #ifdef WITH_NAN_PROTECTION 
 

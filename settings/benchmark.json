@@ -1,5 +1,5 @@
 {
-    "testRunsPerConfig": 2,
+    "testRunsPerConfig": 10,
     "testLinearTwoLattice": true,
     "dataLayouts": [
         "collision", "stream", "bundle"

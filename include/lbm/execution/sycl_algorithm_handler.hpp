@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declaration of a SYCL algorithm handler class.
  * 
- * @version     1.2
+ * @version     1.4
  * 
  * @date        March 2025
  * 
@@ -26,8 +26,12 @@
 // SYCL-based LBM algorithms
 #include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
 #include "../gpu/two_lattice/non-linear/non_linear_gpu_two_lattice.hpp"
-// #include "../gpu/two_lattice/optimized/optimized_gpu_two_lattice.hpp"
+#include "../gpu/two_lattice/buffered/buffered_gpu_two_lattice.hpp"
 #include "../gpu/swap/gpu_swap.hpp"
+
+#ifdef BENCHMARK_MODE
+#include "../core/timer.hpp"
+#endif
 
 // Standard library
 #include <iostream>
@@ -51,15 +55,23 @@ namespace lbm
 
             private:
 
+            #ifdef FORCE_USE_CPU
+            std::unique_ptr<sycl::cpu_selector> cpu_selector; 
+            #else
             std::unique_ptr<sycl::default_selector> device_selector; 
-            std::shared_ptr<sycl::queue> queue;
+            #endif
+
             std::unique_ptr<SYCLAlgorithm> algorithm;
             bool active;
 
+            #ifdef BENCHMARK_MODE
+            std::unique_ptr<core::Timer> timer;
+            #endif
+
             /**
-             * @brief   Initializes the non-debug variant of the algorithm specified in the according properties object.
+             * @brief   Initializes the performance variant of an algorithm, as specified in the properties object.
              * 
-             * @param[in]   properties  the algorithm that is to be set up is stored in this object
+             * @param[in]   properties  contains the algorithm and the data layout
              */
             inline void initialize_non_debug_algorithm(const core::Properties &properties)
             {
@@ -85,7 +97,7 @@ namespace lbm
                     }
                     else
                     {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                        throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
                     }
                 }
                 else if(properties.algorithm == "gpu-two-lattice")
@@ -110,13 +122,34 @@ namespace lbm
                     }
                     else
                     {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                        throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
                     }
                 }
-                // else if(properties->algorithm == "gpu-two-lattice-optimized")
-                // {
-
-                // }
+                else if(properties.algorithm == "gpu-two-lattice-buffered")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
+                    }
+                }
                 else if(properties.algorithm == "gpu-swap")
                 {
                     if(properties.data_layout == "stream")
@@ -134,20 +167,20 @@ namespace lbm
                     else
                     {
                         throw exceptions::Exception(
-                            fmt::format("Unknown data layout: ", properties.data_layout)
+                            fmt::format("Unknown data layout: {}", properties.data_layout)
                         );
                     }
                 }
                 else
                 {
-                    throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties.data_layout));
+                    throw exceptions::Exception(fmt::format("Unknown algorithm: {}", properties.algorithm));
                 }
             }
 
             /**
-             * @brief   Initializes the non-debug variant of the algorithm specified in the according properties object.
+             * @brief   Initializes the debug variant of an algorithm, as specified in the properties object.
              * 
-             * @param[in]   properties  the algorithm that is to be set up is stored in this object
+             * @param[in]   properties  contains the algorithm and the data layout
              */
             inline void initialize_debug_algorithm(const core::Properties &properties)
             {
@@ -173,7 +206,7 @@ namespace lbm
                     }
                     else
                     {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                        throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
                     }
                 }
                 else if(properties.algorithm == "gpu-two-lattice")
@@ -198,13 +231,34 @@ namespace lbm
                     }
                     else
                     {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                        throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
                     }
                 }
-                // else if(properties->algorithm == "gpu-two-lattice-optimized")
-                // {
-                //     
-                // }
+                else if(properties.algorithm == "gpu-two-lattice-buffered")
+                {
+                    if(properties.data_layout == "stream")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::StreamAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "collision")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::CollisionAccessor>
+                                >(*queue);
+                    }
+                    else if(properties.data_layout == "bundle")
+                    {
+                        algorithm = std::make_unique<
+                            gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::BundleAccessor>
+                                >(*queue);
+                    }
+                    else
+                    {
+                        throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
+                    }
+                }
                 else if(properties.algorithm == "gpu-swap")
                 {
                     if(properties.data_layout == "stream")
@@ -224,12 +278,12 @@ namespace lbm
                     }
                     else
                     {
-                        throw exceptions::Exception(fmt::format("Unknown data layout: ", properties.data_layout));
+                        throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
                     }
                 }
                 else
                 {
-                    throw exceptions::Exception(fmt::format("Unknown algorithm: ", properties.data_layout));
+                    throw exceptions::Exception(fmt::format("Unknown algorithm: {}", properties.algorithm));
                 }
             }
 
@@ -239,22 +293,51 @@ namespace lbm
              */
             inline void initialize_algorithm()
             {
-                std::unique_ptr<core::Properties> properties = 
-                    std::make_unique<core::Properties>(lbm::file_interaction::json_to_properties());             
+                #ifdef BENCHMARK_MODE
+                timer->restart();
+                #endif
+                core::Properties properties = lbm::file_interaction::json_to_properties();             
 
-                if(!properties->debug_mode)
-                {
-                    initialize_non_debug_algorithm(*properties);
-                }
-                else
-                {
-                    initialize_debug_algorithm(*properties);
-                }                
+                if(!properties.debug_mode) { initialize_non_debug_algorithm(properties); }
+                else { initialize_debug_algorithm(properties); }        
+                
+                #ifdef BENCHMARK_MODE
+                initialization_time = timer->elapsed();
+                #endif        
             }
 
 // PUBLIC API /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             public:
+
+            std::shared_ptr<sycl::queue> queue;
+
+            #ifdef BENCHMARK_MODE
+            double initialization_time;
+            #endif
+
+            #ifdef FORCE_USE_CPU
+
+            /**
+             * @brief   Construct a new SYCL executor and initializes it such that it stores the current simulation data
+             *          present by default.
+             */
+            explicit SYCLAlgorithmHandler()
+            : 
+            AlgorithmHandler(0),
+            cpu_selector(std::make_unique<sycl::cpu_selector>()), 
+            queue(std::make_unique<sycl::queue>(*cpu_selector)),
+            active(false)
+            {
+                #ifdef BENCHMARK_MODE
+                timer = std::make_unique<core::Timer>();
+                #endif
+
+                initialize_algorithm();
+                processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
+            };
+
+            #else
 
             /**
              * @brief   Construct a new SYCL executor and initializes it such that it stores the current simulation data
@@ -267,9 +350,15 @@ namespace lbm
             queue(std::make_unique<sycl::queue>(*device_selector)),
             active(false)
             {
+                #ifdef BENCHMARK_MODE
+                timer = std::make_unique<core::Timer>();
+                #endif
+
                 initialize_algorithm();
                 processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
             };
+
+            #endif
 
             inline void initialize() override
             {
@@ -300,6 +389,7 @@ namespace lbm
             { 
                 algorithm->block_until_finished();
                 queue->wait(); 
+                active = false;
             }
 
             inline std::vector<real_type> &get_densities() const override 

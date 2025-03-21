@@ -5,24 +5,26 @@
  * 
  * @brief       This header file contains constants used throughout the project.
  * 
- * @version     1.3
+ * @version     1.6
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  */
 
 #ifndef LBM_CONSTANTS_HPP
 #define LBM_CONSTANTS_HPP
 
 #include <array>
+#include <string_view>
 
 namespace lbm
 {
+    // Set float data type throughout the entire lbm namespace
     #ifdef USE_FLOAT
-        using real_type = float;
+        using real_type = float;    // Set `real_type` to `float`, i.e., single-precision
     #else
-        using real_type = double;
+        using real_type = double;   // Set `real_type` to `float`, i.e., double-precision
     #endif
 
     namespace core
@@ -38,10 +40,22 @@ namespace lbm
             constexpr real_type boltzmann = 1.380649e-23;
 
             constexpr std::array<unsigned int, 8> streaming_directions = {0, 1, 2, 3, 5, 6, 7, 8};
+
             constexpr std::array<unsigned int, 9> all_directions = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-            constexpr std::array<real_type, 9> weights = {1.0/36, 1.0/9, 1.0/36, 1.0/9, 4.0/9, 1.0/9, 1.0/36, 1.0/9, 1.0/36}; 
+
+            constexpr std::array<real_type, 9> weights = 
+                {1.0/36, 1.0/9, 1.0/36, 1.0/9, 4.0/9, 1.0/9, 1.0/36, 1.0/9, 1.0/36}; 
 
             constexpr real_type boltzmann_constant = 1.380649e-23;
+
+            constexpr std::array<std::string_view, 4> algorithms = 
+                {"gpu-two-lattice", "gpu-two-lattice-linear", "gpu-two-lattice-buffered", "gpu-swap"};
+
+            constexpr std::array<std::string_view, 3> data_layouts = 
+                {"collision", "stream", "bundle"};
+                
+            constexpr std::array<std::string_view, 8> scenarios = 
+                {"Hagen-Poiseuille", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};
 
         } // ! namespace constants
 

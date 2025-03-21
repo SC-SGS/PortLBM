@@ -1,11 +1,11 @@
-# Description:   CMake file for Bachelor thesis
-#                Real-time visualized and GPU-accelerated Lattice Boltzmann simulations
+# Description:    CMake file for Bachelor thesis
+#                 Real-time visualized and GPU-accelerated Lattice Boltzmann simulations
 #
-# Author:        Marcel Graf
+# Author:         Marcel Graf
 #
-# Copyright:     (C) 2024 Marcel Graf
+# Copyright:      (c) Marcel Graf
 #
-# Last modified: December 27, 2024
+# Last modified:  March 15, 2025
 
 cmake_minimum_required(VERSION 3.18.2)
 
@@ -15,20 +15,24 @@ set(CMAKE_CXX_STANDARD 20)
 
 if(NOT CMAKE_BUILD_TYPE)
 
-  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose one of the following build types: Debug Release RelWithDebInfo MinSizeRel" FORCE)
+  set(
+    CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING 
+    "Choose one of the following build types: Debug Release RelWithDebInfo MinSizeRel" FORCE
+  )
   
 endif(NOT CMAKE_BUILD_TYPE)
 
-# Compiler options
-#set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG} "-Wall -Wextra -pedantic -ggdb3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
 
 # Options
 option(WITH_VISUALIZATION "Build with the visualization framework" OFF)
 option(WITH_NAN_PROTECTION "Build with security against NANs" ON)
 option(USE_FLOAT "If enabled, the project is build using float instead of double as the real type" OFF)
+option(FORCE_USE_CPU "If enabled, the project is build in a version that only uses the host" OFF)
+option(BENCHMARK_MODE "If enabled, the project is build in benchmark mode" OFF)
 
-# Find crucial packages
-find_package(HPX REQUIRED)
+# Find packages
 find_package(AdaptiveCpp CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt REQUIRED)
@@ -40,9 +44,9 @@ add_executable(${PROJECT_NAME} src/main_gpu.cpp)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC HPX::hpx HPX::wrap_main nlohmann_json::nlohmann_json fmt::fmt)
+target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json fmt::fmt)
 
-# If the option for live visualization is set, find the necessary packages
+# If the option for live visualization is set, find the necessary packages and add definition
 if(WITH_VISUALIZATION)
 
   add_definitions(-DWITH_VISUALIZATION)
@@ -52,13 +56,25 @@ if(WITH_VISUALIZATION)
 
 endif(WITH_VISUALIZATION)
 
+# If the option for NaN protection is set, add the respective definition
 if(WITH_NAN_PROTECTION)
   add_definitions(-DWITH_NAN_PROTECTION)
 endif(WITH_NAN_PROTECTION)
 
+# If the option for using float instead of double is set, add the respective definition
 if(USE_FLOAT)
   add_definitions(-DUSE_FLOAT)
 endif(USE_FLOAT)
+
+# If the option for enforcing the usage of the CPU is enabled, add the respective definition
+if(FORCE_USE_CPU)
+  add_definitions(-DFORCE_USE_CPU)
+endif(FORCE_USE_CPU)
+
+# If the option for benchmark mode is enabled, add the respective definition
+if(BENCHMARK_MODE)
+  add_definitions(-DBENCHMARK_MODE)
+endif(BENCHMARK_MODE)
 
 # SYCL
 target_compile_options(${PROJECT_NAME} PUBLIC ${SYCL_FLAGS})

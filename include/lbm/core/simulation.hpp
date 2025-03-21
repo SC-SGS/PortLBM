@@ -6,18 +6,18 @@
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.4
+ * @version     4.8
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
 #ifndef LBM_SIMULATION_HPP
 #define LBM_SIMULATION_HPP
 
-// Includes ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+// INCLUDES ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // LBM exceptions
 #include "../exceptions/exceptions.hpp"
@@ -25,21 +25,17 @@
 // Dependencies on other LBM core features
 #include "access.hpp"
 #include "constants.hpp"
+#include "timer.hpp"
+
+// Standard library
+#include <complex>
+#include <memory>
 
 // Format
 #include <fmt/core.h>
 
-// Standary library
-#include <complex>
-#include <memory>
-
 // SYCL
 #include <sycl/sycl.hpp>
-
-// HPX
-#include <hpx/chrono.hpp>
-
-// Core functionality /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace lbm
 {
@@ -47,7 +43,7 @@ namespace lbm
     namespace core
     {
 
-// Properties /////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PROPERTIES /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief This structure contains all important properties of the simulation.
@@ -62,6 +58,8 @@ namespace lbm
              *          - `"gpu-two-lattice"`
              * 
              *          - `"gpu-two-lattice-linear"`
+             * 
+             *          - `"gpu-two-lattice-buffered"`
              * 
              *          - `"gpu-swap"`
              */
@@ -89,8 +87,6 @@ namespace lbm
             // Every `frame_update_interval` iterations, macroscopic observables are copied to the host
             unsigned int frame_update_interval;
 
-            /* Simulation domain */
-
             /**
              * @brief   Possible values for the scenario string are:
              * 
@@ -117,16 +113,14 @@ namespace lbm
             // Unbuffered amount of vertical nodes including an outer layer of ghost nodes
             unsigned int vertical_nodes;
 
-            // Unbuffered amount of vertical nodes including an outer layer of ghost nodes
+            // Unbuffered amount of horizontal nodes including an outer layer of ghost nodes
             unsigned int horizontal_nodes;
 
-            // Total amount of nodes including ghost nodes and buffer nodes
+            // Total amount of nodes including ghost nodes but no buffer nodes
             unsigned int total_unexpanded_node_count;
 
-            // Total amount of node within the actual simulation domain, excluding ghost nodes
+            // Total amount of nodes within the actual simulation domain, excluding ghost nodes
             unsigned int domain_node_count;
-
-            /* Physical */
 
             real_type inlet_velocity_x;
             real_type inlet_velocity_y;
@@ -139,7 +133,10 @@ namespace lbm
             real_type relaxation_time;
 
             /**
-             * @brief Constructs a new properties object with the specified parameters.
+             * @brief   Constructs a new properties object with the specified parameters.
+             * 
+             * @param[in]   vertical_nodes      vertical nodes excluding ghost and buffer nodes
+             * @param[in]   horizontal_nodes    horizontal nodes excluding ghost and buffer nodes
              */
             explicit Properties
             (
@@ -165,12 +162,12 @@ namespace lbm
             ); 
 
             /**
-             * @brief   Returns a string where the data stored by this object is prepared for console output.
+             * @brief   Returns a string representation of this object.
              */
             std::string to_string() const;
         };
 
-// Control ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CONTROL ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief   This class offers options to control an algorithm and to query its progress and performance data.
@@ -189,13 +186,13 @@ namespace lbm
             unsigned int max_iterations;
 
             // The current progress of the targeted algorithm in range [0,1]
-            real_type progress;
+            double progress;
 
-            // Pointer to a high resolution HPX timer that measures the time spent for performing one iteration
-            std::unique_ptr<hpx::chrono::high_resolution_timer> timer;
+            // Pointer to a high resolution timer that measures the time spent for performing one iteration
+            std::unique_ptr<Timer> timer;
 
             // The last measured calculation time for one full lattice Boltzmann iteration
-            real_type last_frametime;
+            double last_frametime;
 
             public:
 
@@ -227,7 +224,7 @@ namespace lbm
             { return (!stopped) && (current_iteration < max_iterations); }
 
             /**
-             * @brief   Returns whether or not the controlled algorithm has reached is final iteration.
+             * @brief   Returns whether or not the controlled algorithm has reached its final iteration.
              */
             inline bool is_finished() const { return current_iteration == max_iterations; }
 
@@ -242,8 +239,8 @@ namespace lbm
             inline void finalize_iteration() 
             { 
                 current_iteration++; 
-                progress = (real_type)current_iteration / (real_type)max_iterations;
-                last_frametime = timer->elapsed_microseconds() * 0.001;
+                progress = static_cast<double>(current_iteration) / static_cast<double>(max_iterations);
+                last_frametime = timer->elapsed() * 1e3;
             }
 
             /**
@@ -269,14 +266,11 @@ namespace lbm
             inline real_type get_last_frametime() const { return last_frametime; }
         };
 
-// Domain /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DOMAIN /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief   This class contains variables describing the simulation domain on which an algorithm operates. The
-         *          algorithms initialized these variables differently, which is solved through inheritance. Each algo-
-         *          rithm has a custom domain class that inherits from `lbm::core::Domain`. The different ways to init-
-         *          ialize the values are implemented through the according constructors. The constructor of this class
-         *          is protected, and it is only meant to define the variables of its child classes.
+         *          algorithms initialize these variables differently, which is solved through initialization methods. 
          */
         class Domain
         {
@@ -303,9 +297,82 @@ namespace lbm
             // The amount of subdomains in horizontal direction
             unsigned int subdomain_count_horizontal;
 
-            protected:
+            /**
+             * @brief   Initializes this domain object according to the specified properties object.
+             * 
+             *          By default, the domain is initialized for use with the linear two-lattice algorithm. The domain 
+             *          is not expanded and has the extents specified in the `lbm::core::Properties` object. There is 
+             *          only one subdomain that has the extents of the entire grid.
+             * 
+             *          If any other algorithm is selected, the values are adjusted.
+             * 
+             * @param[in]   properties  an object specifying the extents of the lattice and the algorithm used
+             */
+            explicit Domain(core::Properties &properties);
 
-            // This constructor is meant to be called by child classes only to pre-initialize their values.
+            private:
+
+            /**
+             * @brief   This structure stores data of a non-buffered and decomposed domain, as it is used by the 
+             *          non-linear two-lattice algorithm. The domain is expanded to match the extents of the work- 
+             *          groups. The decomposition is performed depending on the specified work group size. The new 
+             *          total dimensions, the dimensions of subdomains and their quantity per dimension is calculated 
+             *          based on the input parameters describing what the original domain looks like.
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             */
+            void setup_for_decomposed_two_lattice
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                const size_t work_group_size
+            );
+
+            /**
+             * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the buffered 
+             *          two-lattice algorithm. Unlike for the swap algorithm, buffers are not considered part of any
+             *          subdomain in this case. 
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             */
+            void setup_for_buffered_two_lattice
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                const size_t work_group_size
+            );   
+
+            /**
+             * @brief   The domain is set up to store data of a buffered and decomposed domain, as it is required for 
+             *          the swap algorithm. The semantics of the domain setup process differ from those of the two-
+             *          lattice algorithms. Since interactions with buffers are required, they are considered part of 
+             *          the subdomain during streaming. In turn, the fraction belonging to the actual subdomain is 
+             *          slightly smaller. Notice that inner buffers are part of overlapping subdomains.
+             * 
+             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
+             *                                          including ghost nodes
+             * @param[in]   work_group_size             the desired work-group size
+             * 
+             * @throws  lbm::exceptions::json::PropertyArgumentException    if `work_group_size < 6`
+             */
+            void setup_for_swap
+            (
+                const unsigned int unexpanded_horizontal_nodes,
+                const unsigned int unexpanded_vertical_nodes,
+                size_t work_group_size
+            ); 
+
+            // This constructor is meant to be called by the other constructor of this class.
             explicit Domain
             (
                 unsigned int total_node_count,
@@ -318,92 +385,10 @@ namespace lbm
             );
         };
 
-        /**
-         * @brief   This structure stores data of a non-buffered and decomposed domain, as it is used by the non-linear
-         *          two-lattice algorithm. The domain is expanded to match the extents of the work groups. The decom-
-         *          position is performed depending on the specified work group size.
-         */
-        class DecomposedTwoLatticeDomain : public Domain
-        {
-            public:
-
-            /**
-             * @brief   Constructs a decomposed domain structure where the new total dimensions, the dimensions of
-             *          subdomains and their quantity per dimension is calculated based on the input parameters 
-             *          describing what the original domain looks like.
-             * 
-             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   work_group_size             the desired work-group size
-             */
-            explicit DecomposedTwoLatticeDomain
-            (
-                const unsigned int unexpanded_horizontal_nodes,
-                const unsigned int unexpanded_vertical_nodes,
-                const size_t work_group_size
-            );
-        };
+// RESULTS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
-         * @brief   This structure stores data of a non-buffered and non-decomposed domain, as it is used by the linear
-         *          two-lattice algorithm. The domain is not expanded and has the extents specified in the
-         *          `lbm::core::Properties` object.
-         */
-        class NonDecomposedTwoLatticeDomain : public Domain
-        {
-            public:
-
-            /**
-             * @brief   Constructs a non-decomposed domain structure where the new total dimensions correspond to those
-             *          specified in the `lbm::core::Properties` object. There is only one subdomain that has the 
-             *          extents of the entire grid.
-             * 
-             * @param[in]   horizontal_nodes    the amount of horizontal nodes in the original domain including ghost 
-             *                                  nodes
-             * @param[in]   vertical_nodes      the amount of vertical nodes in the original domain including ghost
-             *                                  nodes
-             */
-            explicit NonDecomposedTwoLatticeDomain
-            (
-                const unsigned int horizontal_nodes,
-                const unsigned int vertical_nodes
-            );
-        };
-
-        /**
-         * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the swap algo-
-         *          rithm. The semantics of the domain setup process differ from those of the two-lattice algorithm.
-         *          Since interactions with buffers are required, they are considered part of the subdomain during
-         *          streaming and collision. In turn, the fraction belonging to the actual subdomain is slightly 
-         *          smaller. Notice that inner buffers are part of overlapping subdomains.
-         */
-        class SwapDomain : public Domain
-        {
-            public:
-
-            /**
-             * @brief   Constructs a decomposed domain structure for use with the swap algorithm.
-             * 
-             * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-             *                                          including ghost nodes
-             * @param[in]   work_group_size             the desired work-group size
-             */
-            explicit SwapDomain
-            (
-                const unsigned int unexpanded_horizontal_nodes,
-                const unsigned int unexpanded_vertical_nodes,
-                const size_t work_group_size
-            );
-        };
-
-// Results ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        /**
-         * @brief This structure contains the results of the simulation in a structure-of-arrays representation.
+         * @brief This structure contains the results of the simulation.
          */
         class Results
         {
@@ -424,7 +409,7 @@ namespace lbm
              */
             std::unique_ptr<std::vector<real_type>> densities_cpu;
 
-            // GPU-allocated densities
+            // GPU-allocated densities vector
             real_type *densities_gpu;
 
             /**
@@ -469,6 +454,9 @@ namespace lbm
              */
             explicit Results(const size_t &size, sycl::queue &queue);
 
+            /**
+             * @brief   The destructor of a `Results` object frees the GPU-allocated memory.
+             */
             ~Results()
             {
                 sycl::free(densities_gpu, *queue);
@@ -478,7 +466,7 @@ namespace lbm
             }
         };
 
-// Data ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DATA ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief This structure contains all data on which the simulation operates internally.
@@ -513,16 +501,10 @@ namespace lbm
 
             /**
              * @brief   This GPU-allocated array is only used for the linear and non-linear two-lattice algorithm,
-             *          in which case it also contains the distribution values. For the swap algorithm, it remains
+             *          in which case it also contains the distribution values. For the other algorithms, it remains
              *          uninitialized, that is, a `nullptr`.
              */
             real_type *distribution_values_1;
-
-            /**
-             * @brief Constructs a new Data object with an accessor object of the specified type.
-             * 
-             * @param[in] total_unexpanded_node_count the amount of nodes in the lattice including ghosts and buffers.
-             */
 
             /**
              * @brief   Constructs a new `Data` object that contains the phase information and the distribution values.
@@ -532,11 +514,13 @@ namespace lbm
              * @param[in]   total_node_count    the total amount of nodes in the domain including buffer and ghost 
              *                                  nodes
              * @param[in]   queue               the SYCL queue used to allocate the data on the device
-             * @param[in]   two_lattice         whether or not the data object is intended for use with a two-lattice
-             *                                  algorithm
+             * @param[in]   dual_lattice        whether or not `distribution_values_1` should be initialized
              */
-            explicit Data(const size_t total_node_count, sycl::queue &queue, const bool two_lattice);
+            explicit Data(const size_t total_node_count, sycl::queue &queue, const bool dual_lattice);
 
+            /**
+             * @brief   This destructor of a `Data` object frees the GPU-allocated memory.
+             */
             ~Data()
             {
                 sycl::free(phase_information, *queue);
@@ -546,7 +530,7 @@ namespace lbm
             }
         };
 
-// Simulation /////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SIMULATION /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
          * @brief   This structure contains all data that is related to the simulation.
@@ -560,37 +544,36 @@ namespace lbm
             std::unique_ptr<Domain> domain;
 
             /**
-             * @brief   This struct contains all data required for a GPU lattice Boltzmann implementation.
+             * @brief   Constructs a `Simulation` object.
              * 
              * @param[in]   queue   the SYCL queue used for interactions with the device
              * 
-             * @throws  `lbm::exceptions::json::PropertyArgumentException` if an unknown data layout is read from the 
-             *          JSON file
+             * @throws  `lbm::exceptions::json::PropertyArgumentException`
              */
             explicit Simulation(sycl::queue &queue);
         };
 
 
-// Miscellanea ////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MISCELLANEA ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
-         * @brief   Returns the Maxwell-Boltzmann-Distribution for all directions in the order proposed by Mattila et al.
+         * @brief   Stores the Maxwell-Boltzmann distribution for all directions in the order proposed by Mattila 
+         *          et al. within the specified C array.
          * 
-         * @param[in]   x_velocity    x component of the velocity of the node in question
-         * @param[in]   y_velocity    y component of the velocity of the node in question
-         * @param[in]   density       density of the node in question
-         * 
-         * @return  a vector containing the distribution values
+         * @param[in]       x_velocity      x component of the velocity of the node in question
+         * @param[in]       y_velocity      y component of the velocity of the node in question
+         * @param[in]       density         density of the node in question
+         * @param[in, out]  target          constant pointer to the C array to which the distribution is stored
          */
         inline 
-        std::vector<real_type> maxwell_boltzmann_distribution
+        void maxwell_boltzmann_distribution
         (
             const real_type x_velocity, 
             const real_type y_velocity, 
-            const real_type density
+            const real_type density,
+            real_type* const target 
         )
         {
-            std::vector<real_type> result(9,0);
             int velocity_x_component = 0; 
             int velocity_y_component = 0; 
 
@@ -599,20 +582,34 @@ namespace lbm
                 velocity_x_component = (direction % 3) - 1; 
                 velocity_y_component = (direction / 3) - 1; 
 
-                result[direction] = constants::weights.at(direction) *
+                target[direction] = constants::weights.at(direction) *
                     (
                         density + 3 * (velocity_x_component * x_velocity + velocity_y_component * y_velocity)
                         + 9.0/2 * std::pow(velocity_x_component * x_velocity + velocity_y_component * y_velocity, 2)
                         - 3.0/2 * (x_velocity * x_velocity + y_velocity * y_velocity)
                     );
             }
-            return result;
         }
 
         /** 
          * @brief  Returns the inverse direction of that specified. 
          */
         inline constexpr unsigned int invert_direction(const unsigned int dir) { return 8 - dir; }
+
+        /**
+         * @brief   Sets the vertical and horizontal extents of a subdomain according to the specified work group size.
+         * 
+         * @param[in]       work_group_size             the work-group size governs the total amount of nodes per 
+         *                                              subdomain
+         * @param[in, out]  subdomain_vertical_nodes    reference to the value storing the vertical node count
+         * @param[in, out]  subdomain_horizontal_nodes  reference to the value storing the horizontal node count
+         */
+        void power_of_two_handling
+        (
+            const size_t work_group_size,
+            unsigned int &subdomain_vertical_nodes, 
+            unsigned int &subdomain_horizontal_nodes 
+        );
 
         /**
          * @brief   This namespace contains convenience functions for determining which powers of certain bases

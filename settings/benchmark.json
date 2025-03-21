@@ -1,0 +1,13 @@
+{
+    "testRunsPerConfig": 2,
+    "testLinearTwoLattice": true,
+    "dataLayouts": [
+        "collision", "stream", "bundle"
+    ],
+    "algorithms": [
+        "gpu-swap", "gpu-two-lattice", "gpu-two-lattice-buffered"
+    ],
+    "phaseTwoScenarios": [
+        "plate", "wing", "porous"
+    ]
+}

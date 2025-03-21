@@ -5,11 +5,11 @@
  * 
  * @brief       This header file contains the declarations and definitions of kernels for the swap algorithm.
  * 
- * @version     1.3
+ * @version     1.4
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -23,6 +23,8 @@
 
 // SYCL
 #include <sycl/sycl.hpp>
+
+// Standard library
 #include <limits>
 
 namespace lbm
@@ -40,12 +42,12 @@ namespace lbm
             namespace kernels
             {
 
-// Performance kernels ////////////////////////////////////////////////////////////////////////////////////////////////
+// PERFORMANCE KERNELS ////////////////////////////////////////////////////////////////////////////////////////////////
 
                 /**
                  * @brief   Kernel for emplacing the bounce-back values.
                  * 
-                 * @tparam  A any `core::access::AccessorConcept` from access.hpp 
+                 * @tparam  A   any `core::access::AccessorConcept` from access.hpp 
                  */
                 template<core::access::AccessorConcept A>
                 class EmplaceBounceBackKernel
@@ -57,6 +59,7 @@ namespace lbm
                     real_type *distribution_values;
 
                     unsigned int horizontal_nodes;
+                    unsigned int horizontal_nodes_original;
                     unsigned int total_nodes;
 
                     unsigned int subdomain_horizontal_nodes;
@@ -74,6 +77,7 @@ namespace lbm
                     phase_information(simulation.data->phase_information),
                     distribution_values(simulation.data->distribution_values_0),
                     horizontal_nodes(simulation.domain->horizontal_nodes),
+                    horizontal_nodes_original(simulation.properties->horizontal_nodes),
                     total_nodes(simulation.domain->total_node_count),
                     subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
                     subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes)
@@ -99,7 +103,19 @@ namespace lbm
 
                         if(phase_information[linear_index] == 1)
                         {
-                            for(const auto& dir : core::constants::streaming_directions)
+                            for(int dir = 0; dir < 4; ++dir)
+                            {
+                                distribution_values[A::at(linear_index, dir, total_nodes)] = 
+                                    distribution_values[
+                                        A::at(
+                                            core::access::get_neighbor(linear_index, dir, horizontal_nodes), 
+                                            8 - dir, 
+                                            total_nodes
+                                        )
+                                    ];           
+                            }
+
+                            for(int dir = 5; dir < 9; ++dir)
                             {
                                 distribution_values[A::at(linear_index, dir, total_nodes)] = 
                                     distribution_values[
@@ -172,12 +188,13 @@ namespace lbm
                     relaxation_time_inverse(1 / simulation.properties->relaxation_time),
                     subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
                     subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes),
-                    local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 1)),
+                    local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 2)),
                     local(sycl::local_accessor<real_type, 1>(sycl::range<1>(4 * local_buffer_length), cgh))
                     {}
 
                     /**
-                     * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+                     * @brief   This overloaded operator is implicitly called to launch the kernel for various work 
+                     *          items.
                      * 
                      * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
                      */
@@ -212,8 +229,10 @@ namespace lbm
                         real_type private_distribution_values [9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
                         real_type result = 0;
 
+                        real_type result_buf = 0;
+
                         // Send out active values and accept passive values of neighbor
-                        for(auto& dir : {5, 6, 7, 8})
+                        for (int dir = 5; dir < 9; ++dir)
                         {
                             buffer_target_index = 
                                 core::access::get_neighbor(own_buffer_index, dir, subdomain_horizontal_nodes + 4);
@@ -233,60 +252,60 @@ namespace lbm
 
                         nd_item.barrier();
 
-                        //Collect passive values from shared buffer
-                        for(auto& dir : {0, 1, 2, 3})
-                        {
-                            private_distribution_values[8 - dir] = local[4 * own_buffer_index + dir];
-                        }
-                        
-                        //Load stationary value into private buffer
-                        private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
-
-                        unsigned int iteration_node_offset =
-                        lbm::core::access::decomposed::get_results_index(
-                            (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
-                            (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
-                            horizontal_nodes_domain
-                        );
-
-                        for (const auto& direction : core::constants::all_directions)
-                        {
-                            density += private_distribution_values[direction];
-                            velocity_x_component = direction % 3 - 1; 
-                            velocity_y_component = direction / 3 - 1; 
-                            flow_velocity_x += private_distribution_values[direction] * velocity_x_component;
-                            flow_velocity_y += private_distribution_values[direction] * velocity_y_component;
-                        }
-                        absolute_velocity = 
-                            sycl::sqrt(flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y);
-
-                        nd_item.barrier();
-
                         if(!phase_information[linear_index])
-                        {       
+                        {      
+                            //Collect passive values from shared buffer
+                            for (int dir = 0; dir < 4; ++dir)
+                            {
+                                private_distribution_values[8 - dir] = local[4 * own_buffer_index + dir];
+                            }
+                            
+                            //Load stationary value into private buffer
+                            private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
+
+                            unsigned int iteration_node_offset =
+                            lbm::core::access::get_result_index(
+                                (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
+                                (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
+                                horizontal_nodes_domain
+                            );
+
+                            for (int direction = 0; direction < 9; ++direction)
+                            {
+                                density += private_distribution_values[direction];
+                                velocity_x_component = direction % 3 - 1; 
+                                velocity_y_component = direction / 3 - 1; 
+                                flow_velocity_x += private_distribution_values[direction] * velocity_x_component;
+                                flow_velocity_y += private_distribution_values[direction] * velocity_y_component;
+                            }
+
+                            absolute_velocity = flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
+                            
+                            nd_item.barrier();
+
                             // Perform collision and write back values to main memory
-                            for (const auto& direction : core::constants::all_directions)
+                            for (int direction = 0; direction < 9; ++direction)
                             {
                                 velocity_x_component = (direction % 3) - 1; 
                                 velocity_y_component = (direction / 3) - 1; 
 
+                                result_buf = 
+                                    velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y;
+
                                 result = core::constants::weights[direction] *
                                     (
-                                        density 
-                                        + 3 * 
-                                        (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
-                                        + 9.0/2 *
-                                        (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y) *
-                                        (velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y)
-                                        - 3.0/2 * 
-                                        (flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y)
+                                        density + 3 * result_buf + 9.0/2 * result_buf * result_buf - 3.0/2 * 
+                                        absolute_velocity
                                     );
 
-                                result =    -relaxation_time_inverse * (private_distribution_values[direction] - result) 
-                                            + private_distribution_values[direction];
+                                result = -relaxation_time_inverse * (private_distribution_values[direction] - result) 
+                                    + private_distribution_values[direction];
 
                                 distribution_values[A::at(linear_index, direction, total_nodes)] = result;
                             }
+
+                            absolute_velocity = 
+                            sycl::sqrt(absolute_velocity);
 
                             #ifdef WITH_NAN_PROTECTION 
 

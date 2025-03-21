@@ -6,11 +6,11 @@
  * @brief       In this header file, an abstract class for algorithms is defined.
  *              All algorithms inherit from this this base class and implement the execute methods.
  * 
- * @version     1.0
+ * @version     1.2
  * 
- * @date        January 2025
+ * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -23,9 +23,6 @@
 // LBM exceptions
 #include "../exceptions/exceptions.hpp"
 
-// HPX
-#include <hpx/future.hpp>
-
 // SYCL
 #include <sycl/sycl.hpp>
 
@@ -36,8 +33,8 @@ namespace lbm
     {
 
         /**
-         * @brief   Abstract base class of all Lattice Boltzmann algorithms.
-         *          Its non-abstract child classes must implement the execute methods.
+         * @brief   Abstract base class of all lattice Boltzmann algorithms. Its non-abstract child classes must 
+         *          implement the execute methods.
          */
         class SYCLAlgorithm
         {
@@ -47,31 +44,35 @@ namespace lbm
             /**
              * @brief   This future is used to launch the algorithm.
              */
-            hpx::future<void> future;
+            std::future<void> future;
 
+            /**
+             * @brief   Shared pointer to the queue that is used for communication with the GPU.
+             */
             std::shared_ptr<sycl::queue> queue;
 
             /**
-             * @brief   The constructor of an LBMAlgorithm object initializes the HPX future with a dummy value.
+             * @brief   The constructor of a SYCLAlgorithm object initializes the future with a dummy value.
+             * 
+             * @param[in]   queue   This queue is used for communication with the GPU.
              */
             explicit SYCLAlgorithm(sycl::queue &queue)
             : 
-            future(hpx::async([]{})), 
+            future(std::async([]{})), 
             queue(std::make_shared<sycl::queue>(queue)), 
             simulation(std::make_unique<core::Simulation>(queue))
             {};
 
             public:
 
-            std::unique_ptr<core::Simulation> simulation;
-  
             /**
-             * @brief   Returns whether the algorithm is currently within an iteration (`true`) or not (`false`).
+             * @brief   Unique pointer to the simulation object on which this algorithm operates.
              */
-            inline bool is_ready() const { return future.is_ready(); }
+            std::unique_ptr<core::Simulation> simulation;
 
             /**
-             * @brief   Blocks the thread on which this method is accessed until the algorithm
+             * @brief   Blocks the thread on which this method is accessed until the algorithm is paused or reaches its
+             *          final iteration.
              */
             inline void block_until_finished()
             {
@@ -79,17 +80,45 @@ namespace lbm
                 catch(const std::exception& e) 
                 {
                     throw exceptions::algorithm::WaitException(
-                        "A thread accessed a blocking statement causing it to wait for an algorithm that has not been launched."
+                        "A thread accessed a blocking statement causing it to wait for an algorithm that has not been "
+                        "launched."
                     ); 
                 }
             }
 
+            inline void copy_macroscopic_observables_to_cpu()
+            {
+                queue->copy(
+                    simulation->results->densities_gpu, 
+                    simulation->results->densities_cpu->data(), 
+                    simulation->results->densities_cpu->size()
+                );
+                queue->copy(
+                    simulation->results->x_velocities_gpu, 
+                    simulation->results->x_velocities_cpu->data(), 
+                    simulation->results->x_velocities_cpu->size()
+                );
+                queue->copy(
+                    simulation->results->y_velocities_gpu, 
+                    simulation->results->y_velocities_cpu->data(), 
+                    simulation->results->y_velocities_cpu->size()
+                );
+                queue->copy(
+                    simulation->results->absolute_velocities_gpu, 
+                    simulation->results->absolute_velocities_cpu->data(), 
+                    simulation->results->absolute_velocities_cpu->size()
+                );
+            }
+
             /**
-             * @brief   Performs the algorithm until it is either paused or it reaches the last iteration.
-             *          The instructions are enqueued in the queue stored by this `Algorithm` object.
+             * @brief   Performs the algorithm until it is either paused or it reaches the last iteration. The 
+             *          instructions are enqueued in the queue stored by this `Algorithm` object.
              */
             virtual void execute() = 0; 
 
+            /**
+             * @brief   Explicit declaration of default destructor is necessary for polymorphism.
+             */
             virtual ~SYCLAlgorithm() = default;
         };
 
@@ -97,4 +126,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif // ! LBM_ALGORITHM_HPP
+#endif // ! LBM_SYCL_ALGORITHM_HPP

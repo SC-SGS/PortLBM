@@ -2489,7 +2489,7 @@ void PlotHeatmap(const char* label_id, const T* values, int rows, int cols, doub
         }
         ImDrawList& draw_list = *GetPlotDrawList();
         const bool col_maj = ImHasFlag(flags, ImPlotHeatmapFlags_ColMajor);
-        RenderHeatmap(draw_list, values, rows, cols, scale_min, scale_max, fmt, bounds_min, bounds_max, false, col_maj);
+        RenderHeatmap(draw_list, values, rows, cols, scale_min, scale_max, fmt, bounds_min, bounds_max, false, col_maj); // Modified by Marcel Graf: parameter `reverse_y` was initially `true`
         EndItem();
     }
 }

@@ -4,14 +4,14 @@
  * @author      Marcel Graf
  * 
  * @brief       This header file contains the definitions of classes modelling data layouts for storing distribution 
- *              values proposed by Mattila et al, as well as functions for retrieving the index of nodes and simulation
- *              results for domains with or without decomposition and buffering.
+ *              values proposed by Mattila et al, as well as functions for retrieving the indices of nodes and 
+ *              simulation results for domains with or without decomposition and buffering.
  * 
- * @version     2.4
+ * @version     2.6
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
@@ -40,6 +40,9 @@ namespace lbm
          */
         namespace access
         {
+
+// ACCESS FUNCTIONS ///////////////////////////////////////////////////////////////////////////////////////////////////
+
             /**
              * @brief   Models the access of distribution values according to the collision data layout.
              */
@@ -132,10 +135,9 @@ namespace lbm
 
             /**
              * @brief   This concept is used to restrict the template parameter of methods relying on an accessor 
-             *          function. During compile time, the compatibility of the specified class is checked.
-             *          Any methods or classes operating on distribution values must use a data layout and an according
-             *          access pattern. The intended use is to specify both as a template parameter accepting any 
-             *          `AccessorConcept`, that is, any of the following classes:
+             *          function. Any methods or classes operating on distribution values must use a data layout. The 
+             *          intended use is to specify an `AccessorConcept` as a template parameter, that is, any of the 
+             *          following classes:
              * 
              *          - `lbm::core::access::CollisionAccessor`
              * 
@@ -143,31 +145,15 @@ namespace lbm
              * 
              *          - `lbm::core::access::BundleAccessor`
              * 
-             * @tparam T this class is tested for membership in the set of accessors during compile time
+             * @tparam  T    this class is tested for membership in the set of accessors during compile time
              */
             template <class T>
             concept AccessorConcept = 
                 std::same_as<T, CollisionAccessor> || 
                 std::same_as<T, StreamAccessor> || 
                 std::same_as<T, BundleAccessor>;
-            
-            /**
-            * @brief    Retrieves the coordinates of the node with the specified node index.
-            * 
-            * @param[in]    node_index         the index of the node in question
-            * @param[in]    horizontal_nodes   the amount of horizontal nodes in the lattice
-            * 
-            * @return a two-dimensional array containing the x and y coordinate of the specified node.
-            */
-            inline 
-            std::array<unsigned int, 2> get_node_coordinates
-            (
-                const unsigned int node_index,
-                const unsigned int horizontal_nodes
-            )
-            {
-                return std::array{node_index % horizontal_nodes, node_index / horizontal_nodes};
-            }
+
+// NODE INDEX FUNCTIONS ///////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
              * @brief   Returns the index of the neighbor that is reached when moving in the specified direction.
@@ -176,7 +162,7 @@ namespace lbm
              * @param[in]   direction         the direction of movement
              * @param[in]   horizontal_nodes  the amount of horizontal nodes in the lattice
              * 
-             * @return the node index of the neighbor
+             * @return  the node index of the neighbor
              */
             inline 
             unsigned int get_neighbor
@@ -196,8 +182,8 @@ namespace lbm
             }   
 
             /**
-             * @brief   Returns the index the desired node has within the array that stores it. The origin lies at the
-             *          lower left corner and enumeration is row-major.
+             * @brief   Returns the linear index the desired node has within the array that stores it. The origin lies 
+             *          at the lower left corner and enumeration is row-major.
              * 
              * @param[in]   x                 x coordinate
              * @param[in]   y                 y coordinate
@@ -215,59 +201,80 @@ namespace lbm
                 return x + y * horizontal_nodes;
             }
 
-            /**
-             * @brief   This namespace contains functions for the access of simulation results.
-             */
-            namespace results
-            {
-                /**
-                 * @brief   Determines the index of any result array that a macroscopic observable of the node with the
-                 *          specified index is mapped to at the specified time if ghost nodes are ignored.
-                 *          That is, this function is used if no values are stored for the outer "halo".
-                 * 
-                 * @param[in]   node_index          index of the node in question
-                 * @param[in]   horizontal_nodes    the total amount of horizontal nodes within the domain including
-                 *                                  ghost nodes
-                 * @param[in]   domain_node_count   the total amount of nodes belonging to the actual simulation domain,
-                 *                                  i.e. excluding the halo
-                 * @param[in]   time_step           the time step to which the value belongs
-                 * 
-                 * @return the index of the respective value in any vector within the SimulationResults structure     
-                 */
-                inline unsigned int get_result_index
-                (
-                    const unsigned int node_index,
-                    const unsigned int horizontal_nodes,
-                    const unsigned int domain_node_count,
-                    const unsigned int time_step
-                )
-                {
-                    return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) 
-                        + (node_index - 1) % horizontal_nodes) + time_step * domain_node_count;
-                }
+// RESULT INDEX FUNCTIONS /////////////////////////////////////////////////////////////////////////////////////////////
 
-                /**
-                 * @brief   Determines the index of any result array that a macroscopic observable of the node with the
-                 *          specified index if ghost nodes are ignored. That is, this function is used if no values are 
-                 *          stored for the outer "halo".
-                 * 
-                 * @param[in]   node_index          index of the node in question
-                 * @param[in]   horizontal_nodes    the total amount of horizontal nodes within the domain including
-                 *                                  ghost nodes
-                 * 
-                 * @return the index of the respective value in any vector within the SimulationResults structure     
-                 */
-                inline unsigned int get_result_index
-                (
-                    const unsigned int node_index,
-                    const unsigned int horizontal_nodes
-                )
-                {
-                    return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) 
-                        + (node_index - 1) % horizontal_nodes);
-                }
-                
-            } // ! namespace results
+            /**
+             * @brief   Retrieves the linear index of the result belonging to the node with the specified global
+             *          coordinates assuming the specified extent of the non-extended domain. Careful: This function
+             *          only operates correctly if the specified global coordinates belong to a node that is located
+             *          within the actual unexpanded simulation domain! Ensuring this is the responsibility of the 
+             *          caller.
+             * 
+             * @param[in]   global_x                    the global x coordinate of the node in question
+             * @param[in]   global_y                    the global y coordinate of the node in question
+             * @param[in]   horizontal_nodes_domain     the amount of horizontal nodes in the unexpanded domain
+             * @param[in]   domain_node_count           the total amount of nodes in the unexpanded domain
+             * @param[in]   time_step                   the time step at which the results are read
+             * 
+             * @return  the linearized index of the according results
+             */
+            inline unsigned int get_result_index
+            (
+                const unsigned int global_x,
+                const unsigned int global_y,
+                const unsigned int horizontal_nodes_domain,
+                const unsigned int domain_node_count,
+                const unsigned int time_step
+            )
+            {
+                return (global_x - 1) + (global_y - 1) * (horizontal_nodes_domain - 2) + time_step * domain_node_count;
+            }
+
+            /**
+             * @brief   Retrieves the linear index of the result belonging to the node with the specified global
+             *          coordinates assuming the specified extent of the non-extended domain. Careful: This function
+             *          only operates correctly if the specified global coordinates belong to a node that is located
+             *          within the actual unexpanded simulation domain! Ensuring this is the responsibility of the 
+             *          caller.
+             * 
+             * @param[in]   global_x                    the global x coordinate of the node in question
+             * @param[in]   global_y                    the global y coordinate of the node in question
+             * @param[in]   horizontal_nodes_domain     the amount of horizontal nodes in the unexpanded domain
+             * 
+             * @return  the linearized index of the according results
+             */
+            inline unsigned int get_result_index
+            (
+                const unsigned int global_x,
+                const unsigned int global_y,
+                const unsigned int horizontal_nodes_domain
+            )
+            {
+                return (global_x - 1) + (global_y - 1) * (horizontal_nodes_domain - 2);
+            }
+
+            /**
+             * @brief   Retrieves the linear index of the result belonging to the node with the specified linear index. 
+             *          Careful: This function only operates correctly if the specified linear index belongs to a node
+             *          that is located within the actual unexpanded simulation domain! Ensuring this is the 
+             *          responsibility of the caller.
+             * 
+             * @param[in]   node_index                  linear index of the node in question
+             * @param[in]   horizontal_nodes_domain     the amount of horizontal nodes in the unexpanded domain
+             * 
+             * @return  the linearized index of the according results
+             */
+            inline unsigned int get_result_index
+            (
+                const unsigned int node_index,
+                const unsigned int horizontal_nodes
+            )
+            {
+                return (((node_index - horizontal_nodes) / horizontal_nodes) * (horizontal_nodes - 2) 
+                    + (node_index - 1) % horizontal_nodes);
+            }
+
+// DECOMPOSED DOMAINS /////////////////////////////////////////////////////////////////////////////////////////////////
 
             /**
              * @brief   This namespace contains functions for accessing nodes and results within decomposed domains,
@@ -277,28 +284,8 @@ namespace lbm
             {
 
                 /**
-                 * @brief   Retrieves the linear index of the result belonging to the node with the specified global
-                 *          coordinates assuming the specified extent of the non-extended domain.
-                 * 
-                 * @param[in]   global_x                    the global x coordinate of the node in question
-                 * @param[in]   global_y                    the global y coordinate of the node in question
-                 * @param[in]   horizontal_nodes_domain     the amount of horizontal nodes in the unexpanded domain
-                 * 
-                 * @return  the linearized index of the according results
-                 */
-                inline unsigned int get_results_index
-                (
-                    const unsigned int global_x,
-                    const unsigned int global_y,
-                    const unsigned int horizontal_nodes_domain
-                )
-                {
-                    return (global_x - 1) + (global_y - 1) * (horizontal_nodes_domain - 2);
-                }
-
-                /**
                  * @brief   This struct contains a static method to retrieve the linearized index of a node within a
-                 *          non-buffered domain. It does not matter whether or not the domain was expanded or not.
+                 *          non-buffered domain. It is compatible with both expanded and unexpanded domains.
                  */
                 struct NonBufferedNodeAccess
                 {
@@ -340,14 +327,14 @@ namespace lbm
                     /**
                      * @brief   Retrieves the linearized index of a node with the specified global coordinates. The
                      *          domain is organized into subdomains of the specified size, and horizontally has the
-                     *          specified amount of total nodes after a potential extension.
+                     *          specified amount of total nodes after extension.
                      * 
                      * @param[in]   global_x                    the global x coordinate of the node in question
                      * @param[in]   global_y                    the global y coordinate of the node in question
                      * @param[in]   subdomain_vertical_nodes    the amount of vertical nodes per subdomain
                      * @param[in]   subdomain_horizontal_nodes  the amount of horizontal nodes per subdomain
                      * @param[in]   extended_horizontal_nodes   the total amount of nodes in horizontal direction
-                     *                                          considering a possible domain extension
+                     *                                          considering domain extension
                      * 
                      * @return  the linearized index of the node in question.
                      */
@@ -361,18 +348,13 @@ namespace lbm
                         const unsigned int extended_horizontal_nodes
                     )
                     {
-                        // return (x + ((x - 1) / subdomain_horizontal_nodes)) + 
-                        //     (y + ((y - 1) / subdomain_vertical_nodes)) * extended_horizontal_nodes;
-
-                        int b_1 = x - 1;
-                        int b_2 = y - 1;
-                        return (x + (b_1 / (int)subdomain_horizontal_nodes)) + 
-                            (y + (b_2 / (int)subdomain_vertical_nodes)) * extended_horizontal_nodes;
+                        return (x + ((x - 1) / subdomain_horizontal_nodes)) + 
+                            (y + ((y - 1) / subdomain_vertical_nodes)) * extended_horizontal_nodes;
                     }
                 };
 
                 /**
-                 * @brief   This concept allows to specify a node accessor class dor decomposed domains through a
+                 * @brief   This concept allows to specify a node accessor class for decomposed domains through a
                  *          template parameter.
                  * 
                  * @tparam  T   this class is tested for membership in the set of accessors during compile time
@@ -388,4 +370,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif // ! ACCESS_HPP
+#endif // ! LBM_ACCESS_HPP

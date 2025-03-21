@@ -3,44 +3,38 @@
  * 
  * @author      Marcel Graf
  * 
- * @brief       This header file contains the declaration of several exceptions for the lattice Boltzmann implementation.
+ * @brief       This header file contains the declaration of several exceptions for the lattice Boltzmann 
+ *              implementation.
  * 
- * @version     1.2
+ * @version     1.4
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  * 
  */
 
-#ifndef EXCEPTIONS_HPP
-#define EXCEPTIONS_HPP
+#ifndef LBM_EXCEPTIONS_HPP
+#define LBM_EXCEPTIONS_HPP
 
 // Format
 #include <fmt/core.h>
 
-// Standary library
+// Standard library
 #include <stdexcept>                                                   
 #include <string_view>                            
-
-/*
- * Careful: At the time this file was created, the used Clang 18.1.3 compiler includes the `source_location.hpp` header
- *          as an experimental feature. This may change in future versions of Clang, and the include direction may change
- *          to `<source_location>`.
- */
-//#include <experimental/source_location>
-#include <source_location> // tested under clang 18.1.8 with AMDGPU target
+#include <source_location>
 
 namespace lbm
 {
     /**
-     * @brief This namespace contains various exceptions for more precise error handling related to the lattice Boltzmann
-     *        implementation.
+     * @brief   This namespace contains various exceptions for more precise error handling related to the lattice 
+     *          Boltzmann implementation.
      */
     namespace exceptions
     {
         /**
-         * @brief This general exception class is essentially a `std::runtime_error` with a `std::source_location`. 
+         * @brief   This general exception class is essentially a `std::runtime_error` with a `std::source_location`. 
          */
         class Exception : public std::runtime_error
         {
@@ -57,33 +51,33 @@ namespace lbm
                 );
 
                 /**
-                 * @brief Returns a string containing relevant information on the thrown exception.
-                 *        It is intended to be printed to the console.
-                 *        The following information is included (in this order):
+                 * @brief   Returns a string containing relevant information on the thrown exception.
+                 *          It is intended to be printed to the console.
+                 *          The following information is included (in this order):
                  *  
-                 *        - The name of the exception
+                 *          - The name of the exception
                  * 
-                 *        - The `what()` information of the underlying `std::runtime_error`
+                 *          - The `what()` information of the underlying `std::runtime_error`
                  * 
-                 *        - The file in which the concerned line is located
+                 *          - The file in which the concerned line is located
                  * 
-                 *        - The concerned function causing the exception to be thrown.
+                 *          - The concerned function causing the exception to be thrown.
                  * 
-                 *        - The concerned line 
+                 *          - The concerned line 
                  * 
-                 * @return a string containing the aforementioned information
+                 * @return  a string containing the aforementioned information
                  */
                 std::string to_string() const;
         };
 
         /**
-         * @brief This namespace contains exceptions related to the interaction with JSON files.
+         * @brief   This namespace contains exceptions related to the interaction with JSON files.
          */
         namespace json
         {
             /**
-             * @brief This exception is thrown when a read JSON file has one or more properties with illegal values.
-             *        For example, this includes negative domain extents or density values, or `NULL`.
+             * @brief   This exception is thrown when a read JSON file has one or more properties with illegal values.
+             *          For example, this includes negative domain extents or density values, or `NULL`.
              */
             class PropertyArgumentException : public Exception
             {
@@ -97,7 +91,7 @@ namespace lbm
             };
 
             /**
-             * @brief This exception is thrown if one or more properties are not specified in a read JSON file.
+             * @brief   This exception is thrown if one or more properties are not specified in a read JSON file.
              */
             class MissingPropertyException : public Exception
             {
@@ -123,6 +117,7 @@ namespace lbm
                         const std::source_location &source_location = std::source_location::current()
                     );
             };
+
         } // ! namespace json
 
         /**
@@ -131,14 +126,13 @@ namespace lbm
         namespace observables
         {
             /**
-             * @brief This exception is thrown when the value of a macroscopic observable is outside its allowed range.
-             *        The rules of physics and the defined range of `real_type` are considered, and the stronger condition is guiding.
-             *        The following restrictions apply:
+             * @brief   This exception is thrown when the value of a macroscopic observable is outside its allowed 
+             *          range. The rules of physics and the defined range of `real_type` are considered, and the 
+             *          stronger condition is guiding. The following restrictions apply:
              * 
-             *        - Densities:  Must be larger than `0` but not `nan` or `inf` 
+             *          - Densities:  Must be larger than `0` but not `nan` or `inf` 
              * 
-             *        - Velocities: Must not include a component that is `nan` or `inf` 
-             *
+             *          - Velocities: Must not include a component that is `nan` or `inf` 
              */
             class OutOfBoundsException : public Exception
             {
@@ -150,6 +144,7 @@ namespace lbm
                         const std::source_location &source_location= std::source_location::current()
                     );
             };
+
         } // ! namespace observables
 
         /**
@@ -158,8 +153,9 @@ namespace lbm
         namespace domain
         {
             /**
-             * @brief This exception is thrown when an access to a node outside of the simulation domain is attempted.
-             *        Possible cases include negative or beyond-limitation node coordinates, or otherwise illegal requests.
+             * @brief   This exception is thrown when an access to a node outside of the simulation domain is attempted.
+             *          Possible cases include negative or beyond-limitation node coordinates, or otherwise illegal 
+             *          requests.
              */
             class OutOfDomainException : public Exception
             {
@@ -171,6 +167,7 @@ namespace lbm
                         const std::source_location &source_location = std::source_location::current()
                     );
             };
+
         } // ! namespace domain
 
         /**
@@ -180,7 +177,7 @@ namespace lbm
         {
             /**
              * @brief   This exception is thrown when a thread waits for an algorithm to finish its execution although
-             *          the target algorithm has not commenced execution or it will never be able to finish.
+             *          it has never commenced or it will never be able to finish.
              */
             class WaitException : public Exception
             {
@@ -192,10 +189,11 @@ namespace lbm
                         const std::source_location &source_location = std::source_location::current()
                     );
             };
+
         } // ! namespace algorithm
 
     } // ! namespace exceptions
 
 } // ! namespace lbm
 
-#endif // ! EXCEPTIONS_HPP
+#endif // ! LBM_EXCEPTIONS_HPP

@@ -5,15 +5,15 @@
  * 
  * @brief       This header file contains constants for the GUI.
  * 
- * @version     1.2
+ * @version     1.5
  * 
  * @date        March 2025
  * 
- * @copyright   Copyright (c) 2024
+ * @copyright   Copyright (c) Marcel Graf
  */
 
-#ifndef GUI_CONSTANTS_HPP
-#define GUI_CONSTANTS_HPP
+#ifndef LBM_GUI_CONSTANTS_HPP
+#define LBM_GUI_CONSTANTS_HPP
 
 // ImPlot
 #include "../../external/implot/implot.h"
@@ -32,13 +32,7 @@ namespace lbm
          * @brief This namespace contains various `constexpr` used throughout the project.
          */
         namespace constants
-        {
-
-            constexpr std::array<std::string_view, 3/* soon: 4*/> algorithms = {"gpu-two-lattice", "gpu-two-lattice-linear", /* soon: "gpu-two-lattice-optimized", */ "gpu-swap"};
-            constexpr std::array<std::string_view, 3> data_layouts = {"collision", "stream", "bundle"};
-            constexpr std::array<std::string_view, 8> scenarios = 
-                {"Hagen-Poiseuille", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};
-            
+        {   
             /**
              * @brief An array containing all default colormaps offered by ImPlot.
              */
@@ -68,4 +62,4 @@ namespace lbm
 
 } // ! namespace lbm
 
-#endif // ! GUI_CONSTANTS_HPP
+#endif // ! LBM_GUI_CONSTANTS_HPP

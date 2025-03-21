@@ -1,6 +1,6 @@
 {
     "algorithmic": {
-        "algorithm": "gpu-two-lattice-buffered",
+        "algorithm": "gpu-swap",
         "dataLayout": "collision",
         "debugMode": false,
         "frameUpdateInterval": 100000,
@@ -8,9 +8,9 @@
         "workGroupSize": 1024
     },
     "domain": {
-        "horizontalNodes": 25000,
+        "horizontalNodes": 16000,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 10000
+        "verticalNodes": 8000
     },
     "physical": {
         "inletDensity": 1.2000000476837158,

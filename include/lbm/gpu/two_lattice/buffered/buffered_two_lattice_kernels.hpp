@@ -6,7 +6,7 @@
  * @brief       This header file contains the declarations and definitions of kernels for the buffered two-lattice 
  *              algorithm.
  * 
- * @version     1.2
+ * @version     1.4
  * 
  * @date        March 2025
  * 
@@ -61,7 +61,6 @@ namespace lbm
 
                         int8_t *phase_information;
                         real_type *source;
-                        real_type *destination;
 
                         real_type *densities;
                         real_type *x_velocities;
@@ -84,7 +83,6 @@ namespace lbm
                         StreamCollideKernel(const core::Simulation &simulation):
                         phase_information(simulation.data->phase_information),
                         source(simulation.data->distribution_values_0),
-                        destination(simulation.data->distribution_values_1),
                         densities(simulation.results->densities_gpu),
                         x_velocities(simulation.results->x_velocities_gpu),
                         y_velocities(simulation.results->y_velocities_gpu),
@@ -113,31 +111,31 @@ namespace lbm
                             auto linear_index = 
                                 core::access::get_node_index(global_id_x, global_id_y, horizontal_nodes_expanded);
 
+                            // Get index of results vector
+                            unsigned int iteration_node_offset =
+                            lbm::core::access::get_result_index(
+                                (global_id_x) - (global_id_x / (nd_item.get_local_range(1) + 1)),
+                                (global_id_y) - (global_id_y / (nd_item.get_local_range(0) + 1)),
+                                horizontal_nodes_domain
+                            );
+
+                            // This private array acts as a "buffer" for the distribution values, effectively 
+                            // replacing a second grid 
+                            real_type distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+                            // Macroscopic observable declarations
+                            real_type result = 0;
+                            real_type result_buf = 0;
+                            real_type density = 0;
+                            int velocity_x_component = 0; 
+                            int velocity_y_component = 0; 
+                            real_type flow_velocity_x = 0;
+                            real_type flow_velocity_y = 0;
+                            real_type absolute_velocity = 0;
+
                             // Only do something for fluid nodes
                             if(!phase_information[linear_index])
                             {
-                                // Get index of results vector
-                                unsigned int iteration_node_offset =
-                                lbm::core::access::get_result_index(
-                                    (global_id_x) - (global_id_x / (nd_item.get_local_range(1) + 1)),
-                                    (global_id_y) - (global_id_y / (nd_item.get_local_range(0) + 1)),
-                                    horizontal_nodes_domain
-                                );
-
-                                // This private array acts as a "buffer" for the distribution values, effectively 
-                                // replacing a second grid 
-                                real_type distribution_values[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-                                // Macroscopic observable declarations
-                                real_type result = 0;
-                                real_type result_buf = 0;
-                                real_type density = 0;
-                                int velocity_x_component = 0; 
-                                int velocity_y_component = 0; 
-                                real_type flow_velocity_x = 0;
-                                real_type flow_velocity_y = 0;
-                                real_type absolute_velocity = 0;
-
                                 // Get incoming distribution values
                                 for (int direction = 0; direction < 9; ++direction)
                                 {
@@ -151,10 +149,13 @@ namespace lbm
                                                 horizontal_nodes_expanded * vertical_nodes_expanded
                                             )
                                         ];
-                                }
+                                }  
+                            }
 
-                                nd_item.barrier();
+                            nd_item.barrier();
 
+                            if(!phase_information[linear_index])
+                            {
                                 // Calculate macroscopic observables
                                 for (int direction = 0; direction < 9; ++direction)
                                 {
@@ -168,9 +169,12 @@ namespace lbm
 
                                 absolute_velocity = 
                                     flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
-                                
-                                nd_item.barrier();
+                            }
 
+                            nd_item.barrier();
+                            
+                            if(!phase_information[linear_index])
+                            {
                                 // Streaming and collision
                                 for (int direction = 0; direction < 9; ++direction)
                                 {

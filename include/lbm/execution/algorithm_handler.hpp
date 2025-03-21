@@ -16,7 +16,7 @@
  *              declared here. Any additional values that may be necessary for custom executioners should be added in 
  *              their own classes.
  * 
- * @version     1.3
+ * @version     1.4
  * 
  * @date        March 2025
  * 
@@ -32,6 +32,7 @@
 
 // Standard library
 #include <vector>
+#include <concepts>
 
 namespace lbm
 {

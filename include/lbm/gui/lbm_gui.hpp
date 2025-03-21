@@ -6,7 +6,7 @@
  * @brief       This header file contains all declarations and some implementations of the GUI for the lattice 
  *              Boltzmann simulation developed in my Bachelor thesis.
  * 
- * @version     2.5
+ * @version     2.7
  * 
  * @date        March 2025
  * 
@@ -125,11 +125,11 @@ namespace lbm
         {
             explicit Progress();
 
-            real_type progress;
-            real_type framerate_backend;
-            real_type frametime_backend;
-            real_type framerate_frontend;
-            real_type frametime_frontend;
+            float progress;
+            float framerate_backend;
+            float frametime_backend;
+            float framerate_frontend;
+            float frametime_frontend;
         };
 
         /**
@@ -176,11 +176,11 @@ namespace lbm
             explicit Colormaps();
 
             ImPlotColormap density_colormap;
-            real_type density_colormap_lower_scale;
-            real_type density_colormap_upper_scale;
+            float density_colormap_lower_scale;
+            float density_colormap_upper_scale;
             ImPlotColormap velocity_colormap;
-            real_type velocity_colormap_lower_scale;
-            real_type velocity_colormap_upper_scale;
+            float velocity_colormap_lower_scale;
+            float velocity_colormap_upper_scale;
         };
 
         /**
@@ -190,13 +190,12 @@ namespace lbm
         {
             explicit VelocityQuiverData(const size_t &size);
 
-            std::unique_ptr<std::vector<real_type>> x_values;
-            std::unique_ptr<std::vector<real_type>> y_values;
+            std::unique_ptr<std::vector<float>> x_values;
+            std::unique_ptr<std::vector<float>> y_values;
         };
 
         /**
          * @brief   This structure models a buffer for tracking the backend FPS of the simulation.
-         * 
          */
         struct FPSBuffer 
         {
@@ -242,6 +241,25 @@ namespace lbm
             }
         };
 
+        #ifdef BENCHMARK_MODE
+
+        /**
+         * @brief   This structure contains two vectors holding the frontend and backend framerates during a benchmark.
+         */
+        struct FPSBenchmarkValues
+        {
+            std::unique_ptr<std::vector<double>> frontend_fps;
+            std::unique_ptr<std::vector<double>> backend_fps;
+
+            bool is_free;
+
+            unsigned int benchmark_counter;
+
+            explicit FPSBenchmarkValues();
+        };
+
+        #endif
+
 // GUI CLASS //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         /**
@@ -268,9 +286,15 @@ namespace lbm
             std::unique_ptr<FPSBuffer> fps_buffer;
             std::unique_ptr<A> algorithm_handler;
 
+            #ifdef BENCHMARK_MODE
+            std::unique_ptr<FPSBenchmarkValues> benchmark_values;
+            #endif
+
             GLFWwindow *glfw_window;
 
             bool properties_changed;
+
+            double fps_update_time;
 
 // STYLES /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -374,6 +398,10 @@ namespace lbm
                             std::max(
                                 {algorithm_handler->get_inlet_density(), algorithm_handler->get_outlet_density()}
                             );
+
+                        #ifdef BENCHMARK_MODE
+                        benchmark_values->is_free = false;
+                        #endif
                     }
 
                     algorithm_handler->start();
@@ -515,13 +543,13 @@ namespace lbm
 
                 if (ImGui::BeginCombo("Algorithm",  properties_gui->algorithm.c_str()))
                 {
-                    for (int n = 0; n < lbm::gui::constants::algorithms.size(); n++)
+                    for (int n = 0; n < lbm::core::constants::algorithms.size(); n++)
                     {
-                        is_selected = ( properties_gui->algorithm == lbm::gui::constants::algorithms[n]); 
+                        is_selected = ( properties_gui->algorithm == lbm::core::constants::algorithms[n]); 
 
-                        if (ImGui::Selectable(lbm::gui::constants::algorithms[n].data(), is_selected))
+                        if (ImGui::Selectable(lbm::core::constants::algorithms[n].data(), is_selected))
                         {
-                            properties_gui->algorithm = lbm::gui::constants::algorithms[n];
+                            properties_gui->algorithm = lbm::core::constants::algorithms[n];
                             properties_changed = true;
                         }
                         if (is_selected) { ImGui::SetItemDefaultFocus(); }   
@@ -538,12 +566,12 @@ namespace lbm
             {
                 if (ImGui::BeginCombo("Data layout",  properties_gui->data_layout.c_str())) 
                 {
-                    for (int n = 0; n < lbm::gui::constants::data_layouts.size(); n++)
+                    for (int n = 0; n < lbm::core::constants::data_layouts.size(); n++)
                     {
-                        bool is_selected = ( properties_gui->data_layout == lbm::gui::constants::data_layouts[n]); 
-                        if (ImGui::Selectable(lbm::gui::constants::data_layouts[n].data(), is_selected))
+                        bool is_selected = ( properties_gui->data_layout == lbm::core::constants::data_layouts[n]); 
+                        if (ImGui::Selectable(lbm::core::constants::data_layouts[n].data(), is_selected))
                         {
-                            properties_gui->data_layout = lbm::gui::constants::data_layouts[n];
+                            properties_gui->data_layout = lbm::core::constants::data_layouts[n];
                             properties_changed = true;
                         }
                         if (is_selected) { ImGui::SetItemDefaultFocus(); }      
@@ -560,12 +588,12 @@ namespace lbm
             {
                 if (ImGui::BeginCombo("Scenario", properties_gui->scenario.c_str())) 
                 {
-                    for (int n = 0; n < lbm::gui::constants::scenarios.size(); n++)
+                    for (int n = 0; n < lbm::core::constants::scenarios.size(); n++)
                     {
-                        bool is_selected = ( properties_gui->scenario == lbm::gui::constants::scenarios[n]); 
-                        if (ImGui::Selectable(lbm::gui::constants::scenarios[n].data(), is_selected))
+                        bool is_selected = ( properties_gui->scenario == lbm::core::constants::scenarios[n]); 
+                        if (ImGui::Selectable(lbm::core::constants::scenarios[n].data(), is_selected))
                         {
-                            properties_gui->scenario = lbm::gui::constants::scenarios[n];
+                            properties_gui->scenario = lbm::core::constants::scenarios[n];
                             properties_changed = true;
                         }
                         if (is_selected) { ImGui::SetItemDefaultFocus(); }      
@@ -1019,10 +1047,10 @@ namespace lbm
                     unsigned int inner_node_index = 0;
                     unsigned int node_index = 0;
                     unsigned int velocity_value_index = 0;
-                    real_type base_x = 0;
-                    real_type base_y = 0;
-                    real_type offset_x = 0;
-                    real_type offset_y = 0;
+                    float base_x = 0;
+                    float base_y = 0;
+                    float offset_x = 0;
+                    float offset_y = 0;
 
                     velocity_quiver_data->x_values->assign(
                         2 * algorithm_handler->get_horizontal_nodes() *
@@ -1115,21 +1143,21 @@ namespace lbm
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
                         ImGui::SameLine();
 
-                        #ifdef USE_FLOAT
+                        // #ifdef USE_FLOAT
                         ImGui::InputFloat("Lower scale", &colormaps->density_colormap_lower_scale, 0.001, 0.01);
-                        #else
-                        ImGui::InputDouble("Lower scale", &colormaps->density_colormap_lower_scale, 0.001, 0.01);
-                        #endif
+                        // #else
+                        // ImGui::InputDouble("Lower scale", &colormaps->density_colormap_lower_scale, 0.001, 0.01);
+                        // #endif
 
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20, 0));
                         ImGui::SameLine();
 
-                        #ifdef USE_FLOAT
+                        // #ifdef USE_FLOAT
                         ImGui::InputFloat("Upper scale", &colormaps->density_colormap_upper_scale, 0.001, 0.01);
-                        #else
-                        ImGui::InputDouble("Upper scale", &colormaps->density_colormap_upper_scale, 0.001, 0.01);
-                        #endif
+                        // #else
+                        // ImGui::InputDouble("Upper scale", &colormaps->density_colormap_upper_scale, 0.001, 0.01);
+                        // #endif
                     
                         ImPlot::PushColormap(colormaps->density_colormap);
 
@@ -1272,22 +1300,12 @@ namespace lbm
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                         ImGui::SameLine();
 
-                        #ifdef USE_FLOAT
                         ImGui::InputFloat("Lower scale", &colormaps->velocity_colormap_lower_scale, 0.01, 0.1);
-                        #else
-                        ImGui::InputDouble("Lower scale", &colormaps->velocity_colormap_lower_scale, 0.01, 0.1);
-                        #endif
-                        
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                         ImGui::SameLine();
 
-                        #ifdef USE_FLOAT
                         ImGui::InputFloat("Upper scale", &colormaps->velocity_colormap_upper_scale, 0.01, 0.1);
-                        #else
-                        ImGui::InputDouble("Upper scale", &colormaps->velocity_colormap_upper_scale, 0.01, 0.1);
-                        #endif
-
                         ImGui::SameLine();
                         ImGui::Dummy(ImVec2(ImGui::GetWindowWidth() / 20,0));
                         ImGui::SameLine();
@@ -1429,6 +1447,66 @@ namespace lbm
                 }
             }
 
+// BENCHMARK //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifdef BENCHMARK_MODE
+
+            /**
+             * @brief   Exports the collected frontend and backend framerates during a benchmark run to a JSON file
+             *          together with some relevant background information.
+             */
+            inline void export_benchmark_data()
+            {
+                nlohmann::json data;
+                data["frontend"] = *(benchmark_values->frontend_fps);
+                data["backend"] = *(benchmark_values->backend_fps);
+                data["frameUpdateInterval"] = properties_gui->frame_update_interval;
+
+                double frontend_average = std::accumulate(
+                    benchmark_values->frontend_fps->begin(),
+                    benchmark_values->frontend_fps->end(),
+                    0.0
+                ) / benchmark_values->frontend_fps->size();
+
+                double backend_average = std::accumulate(
+                    benchmark_values->backend_fps->begin(),
+                    benchmark_values->backend_fps->end(),
+                    0.0
+                ) / benchmark_values->backend_fps->size();
+
+                data["frontendAverage"] = frontend_average;
+
+                data["backendAverage"] = backend_average;
+
+                data["horizontalNodes"] = properties_gui->horizontal_nodes;
+                data["verticalNodes"] = properties_gui->vertical_nodes;
+
+                data["updateToFramerate"] = (backend_average / properties_gui->frame_update_interval) / frontend_average;
+
+                std::string ofdir = 
+                    "../benchmarks/gui/" 
+                    + std::to_string(properties_gui->horizontal_nodes) 
+                    + "x" 
+                    + std::to_string(properties_gui->vertical_nodes) 
+                    + "_ft_" 
+                    + std::to_string(properties_gui->frame_update_interval) 
+                    + "_"
+                    + std::to_string(benchmark_values->benchmark_counter) 
+                    + ".json";
+
+                std::ofstream file;
+                file.open(ofdir, std::ofstream::out);
+                file << std::setw(4) << data;
+                file.close();
+
+                benchmark_values->frontend_fps = std::make_unique<std::vector<double>>();
+                benchmark_values->backend_fps = std::make_unique<std::vector<double>>();
+                benchmark_values->benchmark_counter++;
+                benchmark_values->is_free = true;
+            }
+
+#endif
+
 // PUBLIC API /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             public:
@@ -1450,6 +1528,13 @@ namespace lbm
             fps_buffer(std::make_unique<FPSBuffer>(2000)),
             algorithm_handler(std::make_unique<A>())
             {
+                #ifdef BENCHMARK_MODE
+                benchmark_values = std::make_unique<FPSBenchmarkValues>();
+                fps_update_time = 0.1;
+                #else
+                fps_update_time = 0.25;
+                #endif
+
                 glfwSetErrorCallback(glfw_error_callback);
                 if (!glfwInit()) {throw exceptions::Exception("Failed to initialize GLFW.");}
                 
@@ -1534,14 +1619,24 @@ namespace lbm
                     properties_window();
 
                     progress->progress = algorithm_handler->get_progress();
-                    if(timer_framerate.elapsed() > 0.25)
+                    if(timer_framerate.elapsed() > fps_update_time)
                     {
+                        double last_frame_time = algorithm_handler->get_last_frametime();
+                        double frametime_frontend = ImGui::GetIO().DeltaTime;
                         
-                        progress->frametime_backend = algorithm_handler->get_last_frametime();
+                        progress->frametime_backend = last_frame_time;
                         progress->framerate_backend = 1 / (progress->frametime_backend * 0.001);
 
-                        progress->frametime_frontend = ImGui::GetIO().DeltaTime * 1000.0;
-                        progress->framerate_frontend = 1.0 / ImGui::GetIO().DeltaTime;
+                        progress->frametime_frontend = frametime_frontend * 1000.0;
+                        progress->framerate_frontend = 1.0 / frametime_frontend;
+
+                        #ifdef BENCHMARK_MODE
+                        if(simulation_control->is_simulation_active && !simulation_control->is_paused)
+                        {
+                            benchmark_values->backend_fps->push_back(1 / (progress->frametime_backend * 0.001));
+                            benchmark_values->frontend_fps->push_back(1.0 / frametime_frontend);
+                        }
+                        #endif
                         timer_framerate.restart();
                     }
 
@@ -1562,6 +1657,13 @@ namespace lbm
                     velocity_window();
                     debug_message();
                     render();
+                    
+                    #ifdef BENCHMARK_MODE
+                    if(!simulation_control->is_simulation_active && !benchmark_values->is_free)
+                    {
+                        export_benchmark_data();
+                    }
+                    #endif
                 }
 
                 algorithm_handler->pause();

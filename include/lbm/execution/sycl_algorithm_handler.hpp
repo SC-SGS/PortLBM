@@ -29,6 +29,10 @@
 #include "../gpu/two_lattice/buffered/buffered_gpu_two_lattice.hpp"
 #include "../gpu/swap/gpu_swap.hpp"
 
+#ifdef BENCHMARK_MODE
+#include "../core/timer.hpp"
+#endif
+
 // Standard library
 #include <iostream>
 
@@ -57,9 +61,12 @@ namespace lbm
             std::unique_ptr<sycl::default_selector> device_selector; 
             #endif
 
-            std::shared_ptr<sycl::queue> queue;
             std::unique_ptr<SYCLAlgorithm> algorithm;
             bool active;
+
+            #ifdef BENCHMARK_MODE
+            std::unique_ptr<core::Timer> timer;
+            #endif
 
             /**
              * @brief   Initializes the performance variant of an algorithm, as specified in the properties object.
@@ -286,22 +293,28 @@ namespace lbm
              */
             inline void initialize_algorithm()
             {
+                #ifdef BENCHMARK_MODE
+                timer->restart();
+                #endif
                 core::Properties properties = lbm::file_interaction::json_to_properties();             
 
-                if(!properties.debug_mode)
-                {
-                    initialize_non_debug_algorithm(properties);
-                }
-                else
-                {
-                    initialize_debug_algorithm(properties);
-                }                
+                if(!properties.debug_mode) { initialize_non_debug_algorithm(properties); }
+                else { initialize_debug_algorithm(properties); }        
+                
+                #ifdef BENCHMARK_MODE
+                initialization_time = timer->elapsed();
+                #endif        
             }
 
 // PUBLIC API /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             public:
 
+            std::shared_ptr<sycl::queue> queue;
+
+            #ifdef BENCHMARK_MODE
+            double initialization_time;
+            #endif
 
             #ifdef FORCE_USE_CPU
 
@@ -316,6 +329,10 @@ namespace lbm
             queue(std::make_unique<sycl::queue>(*cpu_selector)),
             active(false)
             {
+                #ifdef BENCHMARK_MODE
+                timer = std::make_unique<core::Timer>();
+                #endif
+
                 initialize_algorithm();
                 processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
             };
@@ -333,6 +350,10 @@ namespace lbm
             queue(std::make_unique<sycl::queue>(*device_selector)),
             active(false)
             {
+                #ifdef BENCHMARK_MODE
+                timer = std::make_unique<core::Timer>();
+                #endif
+
                 initialize_algorithm();
                 processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
             };
@@ -368,6 +389,7 @@ namespace lbm
             { 
                 algorithm->block_until_finished();
                 queue->wait(); 
+                active = false;
             }
 
             inline std::vector<real_type> &get_densities() const override 

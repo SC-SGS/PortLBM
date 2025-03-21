@@ -7,7 +7,7 @@
  *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. 
  *              The kernel functions are implemented in `swap_kernels.hpp`.
  * 
- * @version     1.3
+ * @version     1.4
  * 
  * @date        March 2025
  * 
@@ -195,7 +195,7 @@ namespace lbm
                         [&](sycl::handler &cgh)
                         {
                             auto kernel = general::buffered::InletUpdateKernel<A>(*simulation, inlet_values);
-                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 2), kernel); 
+                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
                         }
                     );
                     inlet_event.wait();
@@ -215,7 +215,7 @@ namespace lbm
                         [&](sycl::handler &cgh)
                         {
                             auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
-                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes), kernel); 
+                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
                         }
                     ).wait();
                 }
@@ -491,7 +491,7 @@ namespace lbm
                         [&](sycl::handler &cgh)
                         {
                             auto kernel = general::buffered::InletUpdateKernel<A>(*simulation, inlet_values);
-                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 2), kernel); 
+                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
                         }
                     );
                     
@@ -567,7 +567,9 @@ namespace lbm
                         std::cout << "Phase information: \n";
                         std::cout << "-------------------------------------------------------------------------------\n";
 
-                        console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
+                        console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
+                        std::cout << "Length of phase information vector is " << phase_information->size() << "\n";
+                        std::cout << "Total amount of nodes in expanded domain is " << simulation->domain->total_node_count << "\n";
 
                         std::cout 
                         << "\033[36mNow running GPU swap for " 

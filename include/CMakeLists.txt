@@ -12,3 +12,9 @@ if(WITH_VISUALIZATION)
   target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lbm/gui")
 
 endif(WITH_VISUALIZATION)
+
+if(BENCHMARK_MODE)
+
+  target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lbm/benchmark")
+
+endif(BENCHMARK_MODE)

@@ -25,6 +25,14 @@ set(source_files ${source_files}
 
 endif(WITH_VISUALIZATION)
 
+if(BENCHMARK_MODE)
+
+set(source_files ${source_files}
+    "${CMAKE_CURRENT_SOURCE_DIR}/lbm/benchmark/benchmark.cpp"
+)
+
+endif(BENCHMARK_MODE)
+
 message(STATUS "Added sources:")
 
 foreach(source ${source_files})

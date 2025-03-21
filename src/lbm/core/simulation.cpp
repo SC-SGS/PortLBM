@@ -6,7 +6,7 @@
  * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann 
  *              simulations.
  * 
- * @version     4.5
+ * @version     4.6
  * 
  * @date        March 2025
  * 
@@ -75,7 +75,7 @@ current_iteration(0),
 max_iterations(max_iterations),
 progress(0),
 timer(std::make_unique<Timer>()),
-last_frametime(0)
+last_frametime(std::numeric_limits<double>::max())
 {};
 
 
@@ -437,6 +437,5 @@ control(std::make_unique<Control>(properties->time_steps))
     else
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, false);
-    }
-        
+    }   
 };

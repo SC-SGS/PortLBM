@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains constants for the GUI.
  * 
- * @version     1.4
+ * @version     1.5
  * 
  * @date        March 2025
  * 
@@ -32,17 +32,7 @@ namespace lbm
          * @brief This namespace contains various `constexpr` used throughout the project.
          */
         namespace constants
-        {
-
-            constexpr std::array<std::string_view, 4> algorithms = 
-                {"gpu-two-lattice", "gpu-two-lattice-linear", "gpu-two-lattice-buffered", "gpu-swap"};
-
-            constexpr std::array<std::string_view, 3> data_layouts = 
-                {"collision", "stream", "bundle"};
-                
-            constexpr std::array<std::string_view, 8> scenarios = 
-                {"Hagen-Poiseuille", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};
-            
+        {   
             /**
              * @brief An array containing all default colormaps offered by ImPlot.
              */

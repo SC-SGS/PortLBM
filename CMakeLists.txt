@@ -22,13 +22,15 @@ if(NOT CMAKE_BUILD_TYPE)
   
 endif(NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
 
 # Options
 option(WITH_VISUALIZATION "Build with the visualization framework" OFF)
 option(WITH_NAN_PROTECTION "Build with security against NANs" ON)
 option(USE_FLOAT "If enabled, the project is build using float instead of double as the real type" OFF)
 option(FORCE_USE_CPU "If enabled, the project is build in a version that only uses the host" OFF)
+option(BENCHMARK_MODE "If enabled, the project is build in benchmark mode" OFF)
 
 # Find packages
 find_package(AdaptiveCpp CONFIG REQUIRED)
@@ -68,6 +70,11 @@ endif(USE_FLOAT)
 if(FORCE_USE_CPU)
   add_definitions(-DFORCE_USE_CPU)
 endif(FORCE_USE_CPU)
+
+# If the option for benchmark mode is enabled, add the respective definition
+if(BENCHMARK_MODE)
+  add_definitions(-DBENCHMARK_MODE)
+endif(BENCHMARK_MODE)
 
 # SYCL
 target_compile_options(${PROJECT_NAME} PUBLIC ${SYCL_FLAGS})

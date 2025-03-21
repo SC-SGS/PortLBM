@@ -5,7 +5,7 @@
  * 
  * @brief       This namespace contains kernels that can be used in multiple buffered lattice Boltzmann implementations.        
  * 
- * @version     1.2
+ * @version     1.3
  * 
  * @date        March 2025
  * 
@@ -307,12 +307,14 @@ namespace lbm
 
                         unsigned int current_border_node = 
                                 core::access::decomposed::BufferedNodeAccess::get_index(
-                                    horizontal_nodes_original - 2, 
+                                    horizontal_nodes_original - 3, 
                                     y, 
                                     subdomain_vertical_nodes, 
                                     subdomain_horizontal_nodes, 
                                     horizontal_nodes
                                 );
+
+                        current_border_node = core::access::get_neighbor(current_border_node, 5, horizontal_nodes);
 
                         f_1 = distribution_values[A::at(
                             core::access::get_neighbor(current_border_node, 7, horizontal_nodes), 

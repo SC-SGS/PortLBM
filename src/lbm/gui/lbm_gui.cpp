@@ -5,7 +5,7 @@
  * 
  * @brief       This file contains implementations for GUI-related structs declared in lbm_gui.hpp.
  *              
- * @version     2.6
+ * @version     2.7
  * 
  * @date        March 2025
  * 
@@ -63,6 +63,18 @@ velocity_colormap_upper_scale(0.0f)
 
 lbm::gui::VelocityQuiverData::VelocityQuiverData(const size_t &size) 
 :
-x_values{std::make_unique<std::vector<real_type>>(size)},
-y_values{std::make_unique<std::vector<real_type>>(size)}
+x_values{std::make_unique<std::vector<float>>(size)},
+y_values{std::make_unique<std::vector<float>>(size)}
 {};
+
+#ifdef BENCHMARK_MODE
+
+lbm::gui::FPSBenchmarkValues::FPSBenchmarkValues()
+:
+frontend_fps(std::make_unique<std::vector<double>>()),
+backend_fps(std::make_unique<std::vector<double>>()),
+is_free(true),
+benchmark_counter(0)
+{}
+
+#endif

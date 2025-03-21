@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains the declarations and definitions of kernels for the swap algorithm.
  * 
- * @version     1.3
+ * @version     1.4
  * 
  * @date        March 2025
  * 
@@ -188,7 +188,7 @@ namespace lbm
                     relaxation_time_inverse(1 / simulation.properties->relaxation_time),
                     subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
                     subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes),
-                    local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 1)),
+                    local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 2)),
                     local(sycl::local_accessor<real_type, 1>(sycl::range<1>(4 * local_buffer_length), cgh))
                     {}
 
@@ -252,37 +252,37 @@ namespace lbm
 
                         nd_item.barrier();
 
-                        //Collect passive values from shared buffer
-                        for (int dir = 0; dir < 4; ++dir)
-                        {
-                            private_distribution_values[8 - dir] = local[4 * own_buffer_index + dir];
-                        }
-                        
-                        //Load stationary value into private buffer
-                        private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
-
-                        unsigned int iteration_node_offset =
-                        lbm::core::access::get_result_index(
-                            (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
-                            (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
-                            horizontal_nodes_domain
-                        );
-
-                        for (int direction = 0; direction < 9; ++direction)
-                        {
-                            density += private_distribution_values[direction];
-                            velocity_x_component = direction % 3 - 1; 
-                            velocity_y_component = direction / 3 - 1; 
-                            flow_velocity_x += private_distribution_values[direction] * velocity_x_component;
-                            flow_velocity_y += private_distribution_values[direction] * velocity_y_component;
-                        }
-
-                        absolute_velocity = flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
-
-                        nd_item.barrier();
-
                         if(!phase_information[linear_index])
-                        {       
+                        {      
+                            //Collect passive values from shared buffer
+                            for (int dir = 0; dir < 4; ++dir)
+                            {
+                                private_distribution_values[8 - dir] = local[4 * own_buffer_index + dir];
+                            }
+                            
+                            //Load stationary value into private buffer
+                            private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
+
+                            unsigned int iteration_node_offset =
+                            lbm::core::access::get_result_index(
+                                (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
+                                (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
+                                horizontal_nodes_domain
+                            );
+
+                            for (int direction = 0; direction < 9; ++direction)
+                            {
+                                density += private_distribution_values[direction];
+                                velocity_x_component = direction % 3 - 1; 
+                                velocity_y_component = direction / 3 - 1; 
+                                flow_velocity_x += private_distribution_values[direction] * velocity_x_component;
+                                flow_velocity_y += private_distribution_values[direction] * velocity_y_component;
+                            }
+
+                            absolute_velocity = flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
+                            
+                            nd_item.barrier();
+
                             // Perform collision and write back values to main memory
                             for (int direction = 0; direction < 9; ++direction)
                             {

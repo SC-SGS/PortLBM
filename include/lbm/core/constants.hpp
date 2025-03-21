@@ -5,7 +5,7 @@
  * 
  * @brief       This header file contains constants used throughout the project.
  * 
- * @version     1.4
+ * @version     1.6
  * 
  * @date        March 2025
  * 
@@ -16,6 +16,7 @@
 #define LBM_CONSTANTS_HPP
 
 #include <array>
+#include <string_view>
 
 namespace lbm
 {
@@ -46,6 +47,15 @@ namespace lbm
                 {1.0/36, 1.0/9, 1.0/36, 1.0/9, 4.0/9, 1.0/9, 1.0/36, 1.0/9, 1.0/36}; 
 
             constexpr real_type boltzmann_constant = 1.380649e-23;
+
+            constexpr std::array<std::string_view, 4> algorithms = 
+                {"gpu-two-lattice", "gpu-two-lattice-linear", "gpu-two-lattice-buffered", "gpu-swap"};
+
+            constexpr std::array<std::string_view, 3> data_layouts = 
+                {"collision", "stream", "bundle"};
+                
+            constexpr std::array<std::string_view, 8> scenarios = 
+                {"Hagen-Poiseuille", "walls", "circle", "square", "wing", "skyscraper", "porous", "plate"};
 
         } // ! namespace constants
 

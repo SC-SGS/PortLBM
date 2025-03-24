@@ -452,6 +452,9 @@ void lbm::benchmark::Benchmark::phase_2()
         for (const auto& scenario : *phase_2_scenarios)
         {
             properties->scenario = scenario;
+            
+            // Create properties JSON file //
+            lbm::file_interaction::properties_to_json(*properties);
 
             // Create JSON file for algorithm
             std::string ofdir = 

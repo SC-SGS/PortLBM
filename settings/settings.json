@@ -3,8 +3,8 @@
         "algorithm": "gpu-swap",
         "dataLayout": "collision",
         "debugMode": false,
-        "frameUpdateInterval": 100000,
-        "timeSteps": 10000,
+        "frameUpdateInterval": 1001,
+        "timeSteps": 1000,
         "workGroupSize": 1024
     },
     "domain": {

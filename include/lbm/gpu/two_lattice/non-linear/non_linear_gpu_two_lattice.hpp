@@ -7,9 +7,9 @@
  *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. 
  *              The kernel functions are implemented in `non_linear_two_lattice_kernels.hpp`.
  * 
- * @version     4.4
+ * @version     4.5
  * 
- * @date        March 2025
+ * @date        April 2025
  * 
  * @copyright   Copyright (c) Marcel Graf
  * 
@@ -441,13 +441,13 @@ namespace lbm
                             queue->copy(
                                 simulation->data->distribution_values_0, 
                                 distribution_values->data(), 
-                                9 * simulation->properties->total_unexpanded_node_count
+                                9 * simulation->domain->total_node_count
                             ).wait();
     
                             queue->copy(
                                 simulation->data->phase_information, 
                                 phase_information->data(), 
-                                simulation->properties->total_unexpanded_node_count
+                                simulation->domain->total_node_count
                             ).wait();
     
                             std::cout << "Initial distribution values: \n";
@@ -462,7 +462,7 @@ namespace lbm
                             std::cout << "Phase information: \n";
                             std::cout << "-------------------------------------------------------------------------------\n";
     
-                            console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
+                            console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
 
                             std::cout 
                             << "\033[36mNow running non-linear GPU two-lattice for " 

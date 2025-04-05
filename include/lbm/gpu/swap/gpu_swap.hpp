@@ -7,9 +7,9 @@
  *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. 
  *              The kernel functions are implemented in `swap_kernels.hpp`.
  * 
- * @version     1.4
+ * @version     1.5
  * 
- * @date        March 2025
+ * @date        April 2025
  * 
  * @copyright   Copyright (c) Marcel Graf
  * 
@@ -183,22 +183,6 @@ namespace lbm
                             );
                         }
                     ).wait();
-                }
-
-                /**
-                 * @brief   Updates the inlets and outlets as preparation for the swap algorithm.
-                 */
-                void perform_inout_update()
-                {
-                    auto inlet_event = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::InletUpdateKernel<A>(*simulation, inlet_values);
-                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                        }
-                    );
-                    inlet_event.wait();
 
                     if(simulation->domain->subdomain_count_vertical > 1)
                     {
@@ -209,7 +193,13 @@ namespace lbm
                     {
                         update_vertical_buffers();
                     }
+                }
 
+                /**
+                 * @brief   Updates the inlets and outlets as preparation for the swap algorithm.
+                 */
+                void perform_inout_update()
+                {
                     queue->submit
                     (
                         [&](sycl::handler &cgh)
@@ -486,27 +476,6 @@ namespace lbm
                  */
                 void perform_inout_update()
                 {
-                    auto inlet_event = queue->submit
-                    (
-                        [&](sycl::handler &cgh)
-                        {
-                            auto kernel = general::buffered::InletUpdateKernel<A>(*simulation, inlet_values);
-                            cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                        }
-                    );
-                    
-                    inlet_event.wait();
-
-                    if(simulation->domain->subdomain_count_vertical > 1)
-                    {
-                        update_horizontal_buffers();
-                    }
-
-                    if(simulation->domain->subdomain_count_horizontal > 1)
-                    {
-                        update_vertical_buffers();
-                    }
-
                     auto outlet_event = queue->submit
                     (
                         [&](sycl::handler &cgh)
@@ -546,13 +515,13 @@ namespace lbm
                         queue->copy(
                             simulation->data->distribution_values_0, 
                             distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
+                            9 * simulation->domain->total_node_count
                         ).wait();
 
                         queue->copy(
                             simulation->data->phase_information, 
                             phase_information->data(), 
-                            simulation->properties->total_unexpanded_node_count
+                            simulation->domain->total_node_count
                         ).wait();
 
                         std::cout << "Initial distribution values: \n";
@@ -568,8 +537,6 @@ namespace lbm
                         std::cout << "-------------------------------------------------------------------------------\n";
 
                         console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
-                        std::cout << "Length of phase information vector is " << phase_information->size() << "\n";
-                        std::cout << "Total amount of nodes in expanded domain is " << simulation->domain->total_node_count << "\n";
 
                         std::cout 
                         << "\033[36mNow running GPU swap for " 

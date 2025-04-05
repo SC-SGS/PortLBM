@@ -5,9 +5,9 @@
  * 
  * @brief       This header file contains the definition of benchmark functionality.
  * 
- * @version     1.0
+ * @version     1.1
  * 
- * @date        March 2025
+ * @date        April 2025
  * 
  * @copyright   Copyright (c) Marcel Graf
  * 
@@ -480,6 +480,9 @@ void lbm::benchmark::Benchmark::phase_2()
         for (const auto& scenario : *phase_2_scenarios)
         {
             properties->scenario = scenario;
+
+            // Create properties JSON file //
+            lbm::file_interaction::properties_to_json(*properties);
 
             // Create JSON file for algorithm
             std::string ofdir = 

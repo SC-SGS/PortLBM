@@ -1,8 +1,8 @@
-# Task-based-Lattice-Boltzmann
+# Bachelor thesis: Real-time visualized and GPU-accelerated Lattice Boltzmann simulations
 This repository contains the software belonging to my bachelor thesis.
 
 ## Getting started
-To ensure that you can build and run the code, please check whether you have the following software installed and ready to be found by CMake. All software has been tested with the default [Spack](https://github.com/spack/spack) setup or the minimum necessary additions unless mentioned otherwise.
+To make sure that you can build and run the code, please check whether you have the following software installed and ready to be found by CMake. All software has been tested with the default [Spack](https://github.com/spack/spack) setup or the minimum necessary additions unless mentioned otherwise.
 
 | Software | Version used in the bachelor thesis | Available through Spack v0.23.1 | Spack variant specifiers |
 | -------- | ----------------------------------- | ------------------------------- | ------------------------ |

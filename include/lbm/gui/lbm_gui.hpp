@@ -6,9 +6,9 @@
  * @brief       This header file contains all declarations and some implementations of the GUI for the lattice 
  *              Boltzmann simulation developed in my Bachelor thesis.
  * 
- * @version     2.7
+ * @version     2.8
  * 
- * @date        March 2025
+ * @date        April 2025
  * 
  * @copyright   Copyright (c) Marcel Graf
  * 
@@ -1120,7 +1120,7 @@ namespace lbm
                         ImVec2
                         (
                             (1.0 / 4) * monitor->viewport->WorkSize.x, 
-                            1.0 / 2 * windows->menu_bar_size + 1.0 / 2 * monitor->viewport->WorkSize.y
+                            windows->menu_bar_size + 1.0 / 2 * monitor->viewport->WorkSize.y
                         ), 
                         ImGuiCond_Appearing
                     ); 
@@ -1130,7 +1130,7 @@ namespace lbm
                         ImVec2
                         (
                             (3.0 / 4) * monitor->viewport->WorkSize.x, 
-                            1.0 / 2 * monitor->viewport->WorkSize.y - 1.0 / 2 * windows->menu_bar_size
+                            1.0 / 2 * monitor->viewport->WorkSize.y
                         ), 
                         ImGuiCond_Appearing
                     );
@@ -1286,7 +1286,7 @@ namespace lbm
                         ImVec2
                         (
                             (3.0 / 4) * monitor->viewport->WorkSize.x,
-                            (1.0 / 2) * monitor->viewport->WorkSize.y - 1.0 / 2 * windows->menu_bar_size
+                            (1.0 / 2) * monitor->viewport->WorkSize.y
                         ), 
                         ImGuiCond_Appearing
                     );
@@ -1597,6 +1597,13 @@ namespace lbm
                 // Timer initializations
                 core::Timer timer;
                 core::Timer timer_framerate;
+
+                // Prepare one window such that the windows are correctly realized
+                ImGui_ImplOpenGL3_NewFrame();
+                ImGui_ImplGlfw_NewFrame();
+                ImGui::NewFrame();
+                menu_bar();
+                render();
 
                 // Eternal loop of imaging magic
                 while (!glfwWindowShouldClose(glfw_window))

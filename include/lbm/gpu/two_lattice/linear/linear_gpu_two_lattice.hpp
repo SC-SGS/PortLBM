@@ -9,7 +9,7 @@
  * 
  * @version     4.4
  * 
- * @date        March 2025
+ * @date        April 2025
  * 
  * @copyright   Copyright (c) Marcel Graf
  * 
@@ -90,9 +90,9 @@ namespace lbm
                         event.wait();
 
                         if(
-                            !(simulation->control->get_current_iteration() % 
-                            simulation->properties->frame_update_interval)
-                            || !simulation->control->is_execution_allowed() || simulation->control->is_finished()
+                            simulation->control->get_current_iteration() % 
+                            simulation->properties->frame_update_interval
+                            == simulation->properties->frame_update_interval - 1
                         )
                         {
                             copy_macroscopic_observables_to_cpu();
@@ -163,6 +163,11 @@ namespace lbm
 
                                     simulation->control->finalize_iteration();
                                 }
+
+                                if(simulation->control->is_finished())
+                                {
+                                    copy_macroscopic_observables_to_cpu();
+                                }
                             }
                         );
                     }
@@ -203,6 +208,8 @@ namespace lbm
 
                     // Acts as a buffer for distribution values that are to be printed to the console
                     std::unique_ptr<std::vector<real_type>> distribution_values;
+
+                    std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
 
                     // Contains a copy of the phase information located on the GPU
                     std::unique_ptr<std::vector<int8_t>> phase_information;
@@ -290,24 +297,6 @@ namespace lbm
                         update_macroscopic_observables();
                         
                         copy_macroscopic_observables_to_cpu();
-
-                        all_x_velocities->insert(
-                            all_x_velocities->end(), 
-                            simulation->results->x_velocities_cpu->begin(), 
-                            simulation->results->x_velocities_cpu->end()
-                        );
-
-                        all_y_velocities->insert(
-                            all_y_velocities->end(), 
-                            simulation->results->y_velocities_cpu->begin(), 
-                            simulation->results->y_velocities_cpu->end()
-                        );
-
-                        all_densities->insert(
-                            all_densities->end(), 
-                            simulation->results->densities_cpu->begin(), 
-                            simulation->results->densities_cpu->end()
-                        );
 
                         std::cout 
                         << "Velocities: \n"
@@ -488,35 +477,71 @@ namespace lbm
                                     perform_inout_update();
                                     stream_and_collide();
 
-                                    std::cout 
-                                    << "\033[36mFinished iteration " 
-                                    << current_iteration 
-                                    << " after "
-                                    << simulation->control->get_last_frametime() 
-                                    << " milliseconds.\033[0m\n\n";
-
                                     current_iteration++;
 
                                     real_type *tmp = simulation->data->distribution_values_1;
                                     simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
                                     simulation->data->distribution_values_0 = tmp;
 
+                                    queue->copy(
+                                        simulation->results->x_velocities_gpu, 
+                                        temp_macroscopic_observables->data(), 
+                                        simulation->properties->domain_node_count
+                                    ).wait();
+
+                                    all_x_velocities->insert(
+                                        all_x_velocities->end(), 
+                                        temp_macroscopic_observables->begin(), 
+                                        temp_macroscopic_observables->end()
+                                    );
+
+                                    queue->copy(
+                                        simulation->results->y_velocities_gpu, 
+                                        temp_macroscopic_observables->data(), 
+                                        simulation->properties->domain_node_count
+                                    ).wait();
+
+                                    all_y_velocities->insert(
+                                        all_y_velocities->end(), 
+                                        temp_macroscopic_observables->begin(), 
+                                        temp_macroscopic_observables->end()
+                                    );
+
+                                    queue->copy(
+                                        simulation->results->densities_gpu, 
+                                        temp_macroscopic_observables->data(), 
+                                        simulation->properties->domain_node_count
+                                    ).wait();
+
+                                    all_densities->insert(
+                                        all_densities->end(), 
+                                        temp_macroscopic_observables->begin(), 
+                                        temp_macroscopic_observables->end()
+                                    );
+
                                     simulation->control->finalize_iteration();
+
+                                    std::cout 
+                                    << "\033[36mFinished iteration " 
+                                    << current_iteration 
+                                    << " after "
+                                    << simulation->control->get_last_frametime() 
+                                    << " milliseconds.\033[0m\n\n";
+                                }
+
+                                if(simulation->control->is_finished())
+                                {
+                                    std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
+        
+                                    lbm::console::print_simulation_results(
+                                        *simulation->properties, 
+                                        *all_densities, 
+                                        *all_x_velocities, 
+                                        *all_y_velocities
+                                    );
                                 }
                             }
                         );
-
-                        if(simulation->control->is_finished())
-                        {
-                            std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
-
-                            lbm::console::print_simulation_results(
-                                *simulation->properties, 
-                                *all_densities, 
-                                *all_x_velocities, 
-                                *all_y_velocities
-                            );
-                        }
                     }
 
                     /**
@@ -534,6 +559,8 @@ namespace lbm
                         std::make_unique<std::vector<real_type>>(
                             9 * simulation->properties->total_unexpanded_node_count, 0)
                     ),
+                    temp_macroscopic_observables(
+                        std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
                     phase_information(
                         std::make_unique<std::vector<int8_t>>(simulation->properties->total_unexpanded_node_count, 0)
                     ),

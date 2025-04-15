@@ -1,19 +1,19 @@
 {
     "algorithmic": {
-        "algorithm": "gpu-swap",
-        "dataLayout": "collision",
+        "algorithm": "gpu-two-lattice",
+        "dataLayout": "stream",
         "debugMode": false,
-        "frameUpdateInterval": 1001,
-        "timeSteps": 1000,
+        "frameUpdateInterval": 10001,
+        "timeSteps": 10000,
         "workGroupSize": 1024
     },
     "domain": {
-        "horizontalNodes": 16000,
+        "horizontalNodes": 500,
         "scenario": "Hagen-Poiseuille",
-        "verticalNodes": 8000
+        "verticalNodes": 1000
     },
     "physical": {
-        "inletDensity": 1.2000000476837158,
+        "inletDensity": 1.2999999523162842,
         "inletVelocity": {
             "x": 0.0,
             "y": 0.0
@@ -23,6 +23,6 @@
             "x": 0.0,
             "y": 0.0
         },
-        "relaxationTime": 1.0
+        "relaxationTime": 0.6000000238418579
     }
 }

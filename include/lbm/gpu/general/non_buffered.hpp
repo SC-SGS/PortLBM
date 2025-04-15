@@ -6,9 +6,9 @@
  * @brief       This namespace contains kernels that can be used in multiple non-buffered lattice Boltzmann 
  *              implementations.        
  * 
- * @version     1.2
+ * @version     1.3
  * 
- * @date        March 2025
+ * @date        April 2025
  * 
  * @copyright   Copyright (c) Marcel Graf
  * 
@@ -128,7 +128,7 @@ namespace lbm
                             }
 
                             real_type x_velocity = 
-                                - 1 + (1 / outlet_density) * (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
+                            - outlet_density + (f_1 + f_4 + f_7 + 2 * (f_inverse[0] + f_inverse[1] + f_inverse[2]));
                             
                             real_type y_velocity =
                                 y_velocities[core::access::get_result_index(horizontal_nodes_original - 3, y, horizontal_nodes_original)];
@@ -137,19 +137,19 @@ namespace lbm
                                 core::access::get_neighbor(current_border_node, 8 - missing[0], horizontal_nodes), 
                                 missing[0], 
                                 horizontal_nodes * vertical_nodes
-                            )] = f_inverse[0] - 0.5 * (f_1 - f_7) - 1.0/6 * outlet_density * x_velocity - 0.5 * outlet_density * y_velocity;
+                            )] = f_inverse[0] - 0.5 * (f_1 - f_7) - 1.0/6 * x_velocity - 0.5 * y_velocity;
 
                             source[A::at(
                                 core::access::get_neighbor(current_border_node, 8 - missing[1], horizontal_nodes), 
                                 missing[1], 
                                 horizontal_nodes * vertical_nodes
-                            )] = f_inverse[1] - (2.0/3) * outlet_density * x_velocity;
+                            )] = f_inverse[1] - (2.0/3) * x_velocity;
 
                             source[A::at(
                                 core::access::get_neighbor(current_border_node, 8 - missing[2], horizontal_nodes), 
                                 missing[2], 
                                 horizontal_nodes * vertical_nodes
-                            )] = f_inverse[2] + 0.5 * (f_1 - f_7) - 1.0/6 * outlet_density * x_velocity + 0.5 * outlet_density * y_velocity;
+                            )] = f_inverse[2] + 0.5 * (f_1 - f_7) - 1.0/6 * x_velocity + 0.5 * y_velocity;
                         }
                     };
 

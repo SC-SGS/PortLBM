@@ -7,7 +7,7 @@
  *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. 
  *              The kernel functions are implemented in `non_linear_two_lattice_kernels.hpp`.
  * 
- * @version     4.5
+ * @version     4.6
  * 
  * @date        April 2025
  * 
@@ -95,9 +95,9 @@ namespace lbm
                         ).wait();
 
                         if(
-                            !(simulation->control->get_current_iteration() % 
-                            simulation->properties->frame_update_interval)
-                            || !simulation->control->is_execution_allowed() || simulation->control->is_finished()
+                            simulation->control->get_current_iteration() % 
+                            simulation->properties->frame_update_interval
+                            == simulation->properties->frame_update_interval - 1
                         )
                         {
                             copy_macroscopic_observables_to_cpu();
@@ -170,6 +170,11 @@ namespace lbm
                                     simulation->data->distribution_values_0 = tmp;
 
                                     simulation->control->finalize_iteration();
+                                }
+
+                                if(simulation->control->is_finished())
+                                {
+                                    copy_macroscopic_observables_to_cpu();
                                 }
                             }
                         );
@@ -500,13 +505,6 @@ namespace lbm
                                     perform_inout_update();
                                     stream_and_collide();
 
-                                    std::cout 
-                                    << "\033[36mFinished iteration " 
-                                    << current_iteration 
-                                    << " after "
-                                    << simulation->control->get_last_frametime() 
-                                    << " milliseconds.\033[0m\n\n";
-
                                     current_iteration++;
 
                                     real_type *tmp = simulation->data->distribution_values_1;
@@ -550,16 +548,26 @@ namespace lbm
                                     );
 
                                     simulation->control->finalize_iteration();
+
+                                    std::cout 
+                                    << "\033[36mFinished iteration " 
+                                    << current_iteration 
+                                    << " after "
+                                    << simulation->control->get_last_frametime() 
+                                    << " milliseconds.\033[0m\n\n";
                                 }
 
-                                std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
-
-                                lbm::console::print_simulation_results(
-                                    *simulation->properties, 
-                                    *all_densities, 
-                                    *all_x_velocities, 
-                                    *all_y_velocities
-                                );
+                                if(simulation->control->is_finished())
+                                {
+                                    std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
+        
+                                    lbm::console::print_simulation_results(
+                                        *simulation->properties, 
+                                        *all_densities, 
+                                        *all_x_velocities, 
+                                        *all_y_velocities
+                                    );
+                                }
                             }
                         );
                     }

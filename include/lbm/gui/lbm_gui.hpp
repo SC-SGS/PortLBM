@@ -275,6 +275,8 @@ namespace lbm
 
 // MEMBERS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+            std::string settings_path_;
+
             std::unique_ptr<core::Properties> properties_gui;
             std::unique_ptr<Windows> windows;
             std::unique_ptr<SimulationControl> simulation_control;
@@ -376,13 +378,13 @@ namespace lbm
                     if(!simulation_control->is_simulation_active)
                     {
                         simulation_control->is_simulation_active = true;
-                        file_interaction::properties_to_json(*properties_gui);
+                        file_interaction::properties_to_json(*properties_gui, settings_path_);
 
                         properties_gui.reset();
 
-                        properties_gui = 
+                        properties_gui =
                             std::make_unique<core::Properties>(
-                                file_interaction::json_to_properties("../settings/settings.json", -2)
+                                file_interaction::json_to_properties(settings_path_, -2)
                             );
 
                         properties_changed = false;
@@ -949,9 +951,9 @@ namespace lbm
                         if (ImGui::Button("Undo changes", ImVec2(ImGui::GetWindowSize().x * 0.45f, 0)))
                         {
                             properties_gui.reset();
-                            properties_gui = 
+                            properties_gui =
                                 std::make_unique<core::Properties>(
-                                    file_interaction::json_to_properties("../settings/settings.json", -2)
+                                    file_interaction::json_to_properties(settings_path_, -2)
                                 );
                             properties_changed = false;
                         }
@@ -1027,7 +1029,7 @@ namespace lbm
                         {
                             windows->show_debug_window = false;
                             properties_gui->debug_mode = false;
-                            lbm::file_interaction::properties_to_json(*properties_gui);
+                            lbm::file_interaction::properties_to_json(*properties_gui, settings_path_);
                             windows->node_content = nullptr;
                         }
                         ImGui::SameLine();
@@ -1511,14 +1513,15 @@ namespace lbm
 
             public:
 
-            explicit Gui(const std::string &&window_title)
+            explicit Gui(const std::string &&window_title, const std::string &settings_path)
             :
+            settings_path_(settings_path),
             simulation_control(std::make_unique<SimulationControl>()),
             progress(std::make_unique<Progress>()),
             colormaps(std::make_unique<Colormaps>()),
             properties_gui(
                 std::make_unique<core::Properties>(
-                    lbm::file_interaction::json_to_properties("../settings/settings.json", -2)
+                    lbm::file_interaction::json_to_properties(settings_path_, -2)
                 )
             ),
             windows(std::make_unique<Windows>(properties_gui->debug_mode)),
@@ -1526,7 +1529,7 @@ namespace lbm
             window_title(std::make_unique<std::string>(window_title)),
             properties_changed(false),
             fps_buffer(std::make_unique<FPSBuffer>(2000)),
-            algorithm_handler(std::make_unique<A>())
+            algorithm_handler(std::make_unique<A>(settings_path_))
             {
                 #ifdef BENCHMARK_MODE
                 benchmark_values = std::make_unique<FPSBenchmarkValues>();

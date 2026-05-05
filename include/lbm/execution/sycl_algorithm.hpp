@@ -53,14 +53,15 @@ namespace lbm
 
             /**
              * @brief   The constructor of a SYCLAlgorithm object initializes the future with a dummy value.
-             * 
-             * @param[in]   queue   This queue is used for communication with the GPU.
+             *
+             * @param[in]   queue           the SYCL queue used for communication with the device
+             * @param[in]   settings_path   path to the JSON settings file; forwarded to core::Simulation
              */
-            explicit SYCLAlgorithm(sycl::queue &queue)
-            : 
-            future(std::async([]{})), 
-            queue(std::make_shared<sycl::queue>(queue)), 
-            simulation(std::make_unique<core::Simulation>(queue))
+            explicit SYCLAlgorithm(sycl::queue &queue, const std::string &settings_path)
+            :
+            future(std::async([]{})),
+            queue(std::make_shared<sycl::queue>(queue)),
+            simulation(std::make_unique<core::Simulation>(queue, settings_path))
             {};
 
             public:

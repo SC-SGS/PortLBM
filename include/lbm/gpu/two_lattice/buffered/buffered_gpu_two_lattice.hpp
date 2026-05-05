@@ -245,7 +245,8 @@ namespace lbm
                         );
                     }
 
-                    explicit BufferedGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) 
+                    explicit BufferedGpuTwoLattice(sycl::queue &queue, const std::string &settings_path)
+                    : SYCLAlgorithm(queue, settings_path) 
                     {
                         core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(
                             *simulation, queue
@@ -619,9 +620,9 @@ namespace lbm
                         );
                     }
 
-                    explicit BufferedGpuTwoLatticeDebug(sycl::queue &queue) 
-                    : 
-                    SYCLAlgorithm(queue),
+                    explicit BufferedGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path)
+                    :
+                    SYCLAlgorithm(queue, settings_path),
                     all_densities(std::make_unique<std::vector<real_type>>()), 
                     all_x_velocities(std::make_unique<std::vector<real_type>>()), 
                     all_y_velocities(std::make_unique<std::vector<real_type>>()), 

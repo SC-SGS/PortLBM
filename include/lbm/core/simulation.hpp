@@ -133,6 +133,15 @@ namespace lbm
             real_type relaxation_time;
 
             /**
+             * @brief   Path to the JSON settings file from which this object was loaded.
+             *          Set automatically by `file_interaction::json_to_properties()`.
+             *          Used by `file_interaction::properties_to_json()` and by internal
+             *          self-correction code (e.g. swap work-group size clamping) so that
+             *          the correct file is updated without a hard-coded path.
+             */
+            std::string settings_path;
+
+            /**
              * @brief   Constructs a new properties object with the specified parameters.
              * 
              * @param[in]   vertical_nodes      vertical nodes excluding ghost and buffer nodes
@@ -362,14 +371,16 @@ namespace lbm
              * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
              *                                          including ghost nodes
              * @param[in]   work_group_size             the desired work-group size
-             * 
+             * @param[in]   settings_path               path to the settings JSON used for self-correction
+             *
              * @throws  lbm::exceptions::json::PropertyArgumentException    if `work_group_size < 6`
              */
             void setup_for_swap
             (
                 const unsigned int unexpanded_horizontal_nodes,
                 const unsigned int unexpanded_vertical_nodes,
-                size_t work_group_size
+                size_t work_group_size,
+                const std::string &settings_path
             ); 
 
             // This constructor is meant to be called by the other constructor of this class.
@@ -546,11 +557,13 @@ namespace lbm
             /**
              * @brief   Constructs a `Simulation` object.
              * 
-             * @param[in]   queue   the SYCL queue used for interactions with the device
-             * 
+             * @param[in]   queue           the SYCL queue used for interactions with the device
+             * @param[in]   settings_path   path to the JSON settings file; passed to
+             *                              `file_interaction::json_to_properties()`
+             *
              * @throws  `lbm::exceptions::json::PropertyArgumentException`
              */
-            explicit Simulation(sycl::queue &queue);
+            explicit Simulation(sycl::queue &queue, const std::string &settings_path);
         };
 
 

@@ -175,9 +175,11 @@ namespace lbm
                     /**
                      * @brief   Constructs a `LinearGpuTwoLattice` algorithm object and initializes its domain.
                      * 
-                     * @param[in]   queue   the SYCL queue used for interation with the device 
+                     * @param[in]   queue           the SYCL queue used for interaction with the device
+                     * @param[in]   settings_path   path to the JSON settings file
                      */
-                    explicit LinearGpuTwoLattice(sycl::queue &queue) : SYCLAlgorithm(queue) 
+                    explicit LinearGpuTwoLattice(sycl::queue &queue, const std::string &settings_path)
+                    : SYCLAlgorithm(queue, settings_path) 
                     {
                         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
                             *simulation, queue
@@ -547,11 +549,12 @@ namespace lbm
                     /**
                      * @brief   Constructs a new `LinearGpuTwoLatticeDebug` algorithm object and initializes its domain.
                      * 
-                     * @param[in]   queue   the SYCL queue that is used to allocate the device data
+                     * @param[in]   queue           the SYCL queue used to allocate the device data
+                     * @param[in]   settings_path   path to the JSON settings file
                      */
-                    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue) 
-                    : 
-                    SYCLAlgorithm(queue),
+                    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path)
+                    :
+                    SYCLAlgorithm(queue, settings_path),
                     all_densities(std::make_unique<std::vector<real_type>>()), 
                     all_x_velocities(std::make_unique<std::vector<real_type>>()), 
                     all_y_velocities(std::make_unique<std::vector<real_type>>()), 

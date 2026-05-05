@@ -56,13 +56,18 @@ namespace lbm
             private:
 
             #ifdef FORCE_USE_CPU
-            std::unique_ptr<sycl::cpu_selector> cpu_selector; 
+            std::unique_ptr<sycl::cpu_selector> cpu_selector;
             #else
-            std::unique_ptr<sycl::default_selector> device_selector; 
+            std::unique_ptr<sycl::default_selector> device_selector;
             #endif
 
             std::unique_ptr<SYCLAlgorithm> algorithm;
             bool active;
+
+            // Path to the JSON settings file. Callers supply this at construction; it is
+            // forwarded to every algorithm/simulation object so the library never hard-codes
+            // a relative path to the settings file.
+            std::string settings_path_;
 
             #ifdef BENCHMARK_MODE
             std::unique_ptr<core::Timer> timer;
@@ -81,19 +86,19 @@ namespace lbm
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::StreamAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::CollisionAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::BundleAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else
                     {
@@ -106,19 +111,19 @@ namespace lbm
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else
                     {
@@ -131,19 +136,19 @@ namespace lbm
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::StreamAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::CollisionAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::BundleAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else
                     {
@@ -154,15 +159,15 @@ namespace lbm
                 {
                     if(properties.data_layout == "stream")
                     {
-                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::StreamAccessor>>(*queue);
+                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::StreamAccessor>>(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
-                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::CollisionAccessor>>(*queue);
+                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::CollisionAccessor>>(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
-                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::BundleAccessor>>(*queue);
+                        algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::BundleAccessor>>(*queue, settings_path_);
                     }
                     else
                     {
@@ -190,19 +195,19 @@ namespace lbm
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::StreamAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::CollisionAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::BundleAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else
                     {
@@ -215,19 +220,19 @@ namespace lbm
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::StreamAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::CollisionAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::BundleAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else
                     {
@@ -240,19 +245,19 @@ namespace lbm
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::StreamAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::CollisionAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = std::make_unique<
                             gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::BundleAccessor>
-                                >(*queue);
+                                >(*queue, settings_path_);
                     }
                     else
                     {
@@ -264,17 +269,17 @@ namespace lbm
                     if(properties.data_layout == "stream")
                     {
                         algorithm = 
-                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::StreamAccessor>>(*queue);
+                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::StreamAccessor>>(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "collision")
                     {
                         algorithm = 
-                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::CollisionAccessor>>(*queue);
+                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::CollisionAccessor>>(*queue, settings_path_);
                     }
                     else if(properties.data_layout == "bundle")
                     {
                         algorithm = 
-                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::BundleAccessor>>(*queue);
+                            std::make_unique<gpu::swap::GpuSwapDebug<core::access::BundleAccessor>>(*queue, settings_path_);
                     }
                     else
                     {
@@ -296,7 +301,7 @@ namespace lbm
                 #ifdef BENCHMARK_MODE
                 timer->restart();
                 #endif
-                core::Properties properties = lbm::file_interaction::json_to_properties();             
+                core::Properties properties = lbm::file_interaction::json_to_properties(settings_path_);
 
                 if(!properties.debug_mode) { initialize_non_debug_algorithm(properties); }
                 else { initialize_debug_algorithm(properties); }        
@@ -319,15 +324,18 @@ namespace lbm
             #ifdef FORCE_USE_CPU
 
             /**
-             * @brief   Construct a new SYCL executor and initializes it such that it stores the current simulation data
-             *          present by default.
+             * @brief   Constructs a new SYCL algorithm handler and immediately initializes the simulation.
+             *
+             * @param[in]   settings_path   path to the JSON settings file (e.g. "settings/settings.json").
+             *                              No default — callers must supply an explicit path.
              */
-            explicit SYCLAlgorithmHandler()
-            : 
+            explicit SYCLAlgorithmHandler(const std::string &settings_path)
+            :
             AlgorithmHandler(0),
-            cpu_selector(std::make_unique<sycl::cpu_selector>()), 
+            cpu_selector(std::make_unique<sycl::cpu_selector>()),
             queue(std::make_unique<sycl::queue>(*cpu_selector)),
-            active(false)
+            active(false),
+            settings_path_(settings_path)
             {
                 #ifdef BENCHMARK_MODE
                 timer = std::make_unique<core::Timer>();
@@ -340,15 +348,18 @@ namespace lbm
             #else
 
             /**
-             * @brief   Construct a new SYCL executor and initializes it such that it stores the current simulation data
-             *          present by default.
+             * @brief   Constructs a new SYCL algorithm handler and immediately initializes the simulation.
+             *
+             * @param[in]   settings_path   path to the JSON settings file (e.g. "settings/settings.json").
+             *                              No default — callers must supply an explicit path.
              */
-            explicit SYCLAlgorithmHandler()
-            : 
+            explicit SYCLAlgorithmHandler(const std::string &settings_path)
+            :
             AlgorithmHandler(0),
-            device_selector(std::make_unique<sycl::default_selector>()), 
+            device_selector(std::make_unique<sycl::default_selector>()),
             queue(std::make_unique<sycl::queue>(*device_selector)),
-            active(false)
+            active(false),
+            settings_path_(settings_path)
             {
                 #ifdef BENCHMARK_MODE
                 timer = std::make_unique<core::Timer>();
@@ -419,8 +430,10 @@ namespace lbm
             inline real_type get_inlet_density() const override 
             { return algorithm->simulation->properties->inlet_density; }
 
-            inline real_type get_outlet_density() const override 
-            { return algorithm->simulation->properties->outlet_density; }          
+            inline real_type get_outlet_density() const override
+            { return algorithm->simulation->properties->outlet_density; }
+
+            inline const std::string &get_settings_path() const { return settings_path_; }
         };
 
     } // ! namespace execution

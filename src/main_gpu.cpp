@@ -1,46 +1,58 @@
 /**
  * @file        main_gpu.cpp
- * 
+ *
  * @author      Marcel Graf
- * 
- * @brief       Entry point of the program executing the GPU lattice Boltzmann application.
- * 
- * @version     1.6
- * 
- * @date        March 2025
- * 
+ *
+ * @brief       Entry point of the parallel_lbm driver executable.
+ *
+ * @version     1.7
+ *
+ * @date        March 2025 (Phase-1 library refactor: May 2025)
+ *
  * @copyright   Copyright (c) Marcel Graf
  */
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Fundamental LBM includes that are always necessary regardless of the CMake configuration
-#include "../include/lbm/file_interaction/file_interaction.hpp"
-#include "../include/lbm/core/simulation.hpp"
-#include "../execution/sycl_algorithm_handler.hpp"
+#include <filesystem>
+#include <iostream>
 
-// Conditional includes
-#ifdef WITH_VISUALIZATION                       // If the flag for building with GUI features is set, ...
-#include "../include/lbm/gui/lbm_gui.hpp"       // include the LBM GUI features
+// Library public API
+#include <lbm/file_interaction/file_interaction.hpp>
+#include <lbm/core/simulation.hpp>
+#include <lbm/execution/sycl_algorithm_handler.hpp>
+
+#ifdef WITH_VISUALIZATION
+#include <lbm/gui/lbm_gui.hpp>
 #endif
 
 #ifdef BENCHMARK_MODE
-#include "../include/lbm/benchmark/benchmark.hpp"
+#include <lbm/benchmark/benchmark.hpp>
 #endif
 
-// DEFINITIONS ////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-#ifdef WITH_VISUALIZATION // Flag is set if -DWITH_VISUALIZATION=ON, must be specified by user
+// The settings file is located relative to the executable by convention.
+// Application code owns this path — the library never hard-codes it.
+static const std::string SETTINGS_PATH = "../settings/settings.json";
 
-    #ifdef BENCHMARK_MODE // WITH WITH_VISUALIZATION && BENCHMARK_MODE
+// ---------------------------------------------------------------------------
+// main() — four variants controlled by preprocessor flags
+// ---------------------------------------------------------------------------
+
+#ifdef WITH_VISUALIZATION
+
+    #ifdef BENCHMARK_MODE // WITH_VISUALIZATION && BENCHMARK_MODE
 
     int main(int argc, char* argv[])
     {
-        system("mkdir ../benchmarks ../benchmarks/gui");
+        std::filesystem::create_directories("../benchmarks/gui");
 
         try
         {
-            lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("SYCL Lattice Boltzmann");
+            lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("SYCL Lattice Boltzmann", SETTINGS_PATH);
             gui.run();
         }
         catch(const lbm::exceptions::Exception &exception)
@@ -51,75 +63,78 @@
         return 0;
     }
 
-    #else // WITH WITH_VISUALIZATION && ! BENCHMARK_MODE
+    #else // WITH_VISUALIZATION && !BENCHMARK_MODE
 
-        int main(int argc, char* argv[])
+    int main(int argc, char* argv[])
+    {
+        try
         {
-            try
-            {
-                lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("SYCL Lattice Boltzmann");
-                gui.run();
-            }
-            catch(const lbm::exceptions::Exception &exception)
-            {
-                std::cerr << exception.to_string();
-            }
-
-            return 0;
+            lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("SYCL Lattice Boltzmann", SETTINGS_PATH);
+            gui.run();
         }
+        catch(const lbm::exceptions::Exception &exception)
+        {
+            std::cerr << exception.to_string();
+        }
+
+        return 0;
+    }
 
     #endif
 
+#else // !WITH_VISUALIZATION
 
-#else // ! WITH_VISUALIZATION
+    #ifdef BENCHMARK_MODE // !WITH_VISUALIZATION && BENCHMARK_MODE
 
-    #ifdef BENCHMARK_MODE // ! WITH WITH_VISUALIZATION && BENCHMARK_MODE
+    int main(int argc, char* argv[])
+    {
+        std::filesystem::create_directories("../benchmarks/phase0");
+        std::filesystem::create_directories("../benchmarks/phase1");
+        std::filesystem::create_directories("../benchmarks/phase2");
 
-        int main(int argc, char* argv[])
+        try
         {
-            try
-            {
-                std::cout << "Starting benchmark. \n\n";
-                system("mkdir ../benchmarks ../benchmarks/phase0 ../benchmarks/phase1 ../benchmarks/phase2");
-                std::shared_ptr<lbm::execution::SYCLAlgorithmHandler> algorithm_handler = 
-                    std::make_shared<lbm::execution::SYCLAlgorithmHandler>();
+            std::cout << "Starting benchmark. \n\n";
 
-                lbm::benchmark::Benchmark benchmark(algorithm_handler);
-                benchmark.phase_0();
-                benchmark.phase_1();
-                benchmark.phase_2();
+            std::shared_ptr<lbm::execution::SYCLAlgorithmHandler> algorithm_handler =
+                std::make_shared<lbm::execution::SYCLAlgorithmHandler>(SETTINGS_PATH);
 
-                std::cout << "\nDone with all benchmarks. Exiting. \n\n";
-            }
-            catch(const lbm::exceptions::Exception &exception)
-            {
-                std::cerr << exception.to_string();
-            }
+            lbm::benchmark::Benchmark benchmark(algorithm_handler);
+            benchmark.phase_0();
+            benchmark.phase_1();
+            benchmark.phase_2();
 
-            return 0;
+            std::cout << "\nDone with all benchmarks. Exiting. \n\n";
+        }
+        catch(const lbm::exceptions::Exception &exception)
+        {
+            std::cerr << exception.to_string();
         }
 
-    #else // ! WITH WITH_VISUALIZATION && ! BENCHMARK_MODE
+        return 0;
+    }
 
-        int main(int argc, char* argv[])
+    #else // !WITH_VISUALIZATION && !BENCHMARK_MODE
+
+    int main(int argc, char* argv[])
+    {
+        try
         {
-            try
-            {
-                std::unique_ptr<lbm::execution::SYCLAlgorithmHandler> algorithm_handler = 
-                    std::make_unique<lbm::execution::SYCLAlgorithmHandler>();
-                algorithm_handler->start();
-                algorithm_handler->block_until_finished();
-            }
-            catch(const lbm::exceptions::Exception &exception)
-            {
-                std::cerr << exception.to_string();
-            }
-
-            return 0;
+            std::unique_ptr<lbm::execution::SYCLAlgorithmHandler> algorithm_handler =
+                std::make_unique<lbm::execution::SYCLAlgorithmHandler>(SETTINGS_PATH);
+            algorithm_handler->start();
+            algorithm_handler->block_until_finished();
+        }
+        catch(const lbm::exceptions::Exception &exception)
+        {
+            std::cerr << exception.to_string();
         }
 
-    #endif // End of non-benchmark non-visualized main
+        return 0;
+    }
 
-#endif // End of macro-managed definitions based on flag WITH_VISUALIZATION
+    #endif // !BENCHMARK_MODE
+
+#endif // !WITH_VISUALIZATION
 
 // ! main_gpu.cpp

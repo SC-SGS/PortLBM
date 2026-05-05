@@ -55,7 +55,7 @@ lbm::core::Properties lbm::file_interaction::json_to_properties(const std::strin
     nlohmann::json data = nlohmann::json::parse(file);
     file.close();
 
-    return lbm::core::Properties
+    lbm::core::Properties result
     (
         // Algorithmic properties
         data.at("algorithmic").at("algorithm").get<std::string>(),
@@ -77,4 +77,8 @@ lbm::core::Properties lbm::file_interaction::json_to_properties(const std::strin
         data.at("physical").at("outletDensity").get<real_type>(),
         data.at("physical").at("relaxationTime").get<real_type>()
     );
+
+    // Record the source path so callers can round-trip without tracking it separately.
+    result.settings_path = path;
+    return result;
 }

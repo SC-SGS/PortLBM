@@ -35,26 +35,30 @@ namespace lbm
     {
         /**
          * @brief   Outputs a JSON file to the specified path based on the specified `Properties` object.
-         * 
-         * @param[in]   properties  the properties are read from this object    
-         * @param[in]   path        the path where the JSON file is stored
+         *          The path must be supplied explicitly. Use `properties.settings_path` when the
+         *          object was originally loaded via `json_to_properties`.
+         *
+         * @param[in]   properties  source of the values written to the file
+         * @param[in]   path        destination path for the JSON file (required)
          */
         void properties_to_json
         (
             const core::Properties &properties,
-            const std::string &path = "../settings/settings.json"
+            const std::string &path
         );
 
         /**
-         * @brief   Creates a `core::Properties` object based on an input JSON file.
-         * 
-         * @param[in]   path    the path to the JSON file
-         * @param[in]   offset  this offset is added to the horizontal and vertical node count, e.g., for removing the
-         *                      ghost nodes
-         * 
-         * @return  a `Properties` object
+         * @brief   Creates a `core::Properties` object from an input JSON file.
+         *          The returned object's `settings_path` field is set to `path` so that
+         *          callers can later invoke `properties_to_json` without tracking the path
+         *          separately.
+         *
+         * @param[in]   path    path to the JSON settings file (required — no default)
+         * @param[in]   offset  value added to horizontal/vertical node counts (e.g. to strip ghost nodes)
+         *
+         * @return  a `Properties` object with `settings_path` populated
          */
-        core::Properties json_to_properties(const std::string &path = "../settings/settings.json", const int offset = 0);
+        core::Properties json_to_properties(const std::string &path, const int offset = 0);
 
     } // ! namespace file_interaction
 

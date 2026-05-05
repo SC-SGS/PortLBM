@@ -76,7 +76,7 @@ lbm::benchmark::Benchmark::Benchmark(std::shared_ptr<execution::SYCLAlgorithmHan
 :
 sycl_algorithm_handler(sycl_algorithm_handler),
 properties(std::make_unique<core::Properties>(
-    file_interaction::json_to_properties("../settings/settings.json", -2))
+    file_interaction::json_to_properties(sycl_algorithm_handler->get_settings_path(), -2))
 ),
 runtime_timer(std::make_unique<core::Timer>()),
 benchmark_timer(std::make_unique<core::Timer>()),

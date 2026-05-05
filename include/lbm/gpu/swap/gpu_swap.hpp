@@ -244,9 +244,11 @@ namespace lbm
                 /**
                  * @brief   Constructs a new `GpuSwap` algorithm object and initializes its domain.
                  * 
-                 * @param[in]   queue   the SYCL queue that is used to allocate the device data
+                 * @param[in]   queue           the SYCL queue used to allocate the device data
+                 * @param[in]   settings_path   path to the JSON settings file
                  */
-                explicit GpuSwap(sycl::queue &queue) : SYCLAlgorithm(queue) 
+                explicit GpuSwap(sycl::queue &queue, const std::string &settings_path)
+                : SYCLAlgorithm(queue, settings_path) 
                 {
                     core::maxwell_boltzmann_distribution(
                         simulation->properties->inlet_velocity_x,
@@ -646,11 +648,12 @@ namespace lbm
                 /**
                  * @brief   Constructs a new `GpuSwapDebug` algorithm object and initializes its domain.
                  * 
-                 * @param[in]   queue   the SYCL queue that is used to allocate the device data
+                 * @param[in]   queue           the SYCL queue used to allocate the device data
+                 * @param[in]   settings_path   path to the JSON settings file
                  */
-                explicit GpuSwapDebug(sycl::queue &queue) 
-                : 
-                SYCLAlgorithm(queue),
+                explicit GpuSwapDebug(sycl::queue &queue, const std::string &settings_path)
+                :
+                SYCLAlgorithm(queue, settings_path),
                 all_densities(std::make_unique<std::vector<real_type>>()), 
                 all_x_velocities(std::make_unique<std::vector<real_type>>()), 
                 all_y_velocities(std::make_unique<std::vector<real_type>>()), 

@@ -1,17 +1,17 @@
 /**
- * @file        simulation.hpp
- * 
+ * @file        simulation.cpp
+ *
  * @author      Marcel Graf
- * 
- * @brief       This source file contains the defintion of crucial functionality of the SYCL lattice Boltzmann 
+ *
+ * @brief       This source file contains the definition of crucial functionality of the SYCL lattice Boltzmann
  *              simulations.
- * 
- * @version     4.6
- * 
- * @date        March 2025
- * 
+ *
+ * @version     4.7
+ *
+ * @date        March 2025 (Phase-1 library refactor: May 2025)
+ *
  * @copyright   Copyright (c) Marcel Graf
- * 
+ *
  */
 
 #include "../../../include/lbm/core/simulation.hpp"
@@ -41,7 +41,7 @@ lbm::core::Properties::Properties
     const real_type outlet_velocity_y,
     const real_type outlet_density,
     const real_type relaxation_time
-) 
+)
 :
 // Algorithmic properties
 algorithm(algorithm),
@@ -63,7 +63,9 @@ inlet_density(inlet_density),
 outlet_velocity_x(outlet_velocity_x),
 outlet_velocity_y(outlet_velocity_y),
 outlet_density(outlet_density),
-relaxation_time(relaxation_time)
+relaxation_time(relaxation_time),
+// settings_path is intentionally left empty here; it is set by json_to_properties()
+settings_path("")
 {};
 
 // CONTROL ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -178,7 +180,8 @@ Domain
         setup_for_swap(
             properties.horizontal_nodes,
             properties.vertical_nodes,
-            properties.work_group_size
+            properties.work_group_size,
+            properties.settings_path      // <-- no longer hard-coded
         );
     }
 }
@@ -187,14 +190,14 @@ Domain
 void lbm::core::power_of_two_handling
 (
     const size_t work_group_size,
-    unsigned int &subdomain_vertical_nodes, 
-    unsigned int &subdomain_horizontal_nodes 
+    unsigned int &subdomain_vertical_nodes,
+    unsigned int &subdomain_horizontal_nodes
 )
 {
     size_t power_4 = power_functions::which_power_of_4(work_group_size);
     size_t power_2 = power_functions::which_power_of_2(work_group_size);
 
-    if (power_4) // Is work_group_size a power of four? 
+    if (power_4) // Is work_group_size a power of four?
     {
         // ==> square subdomains
 
@@ -202,23 +205,23 @@ void lbm::core::power_of_two_handling
         for(int i = 0; i < power_4; ++i) { size *= 2; }
 
         subdomain_horizontal_nodes = size;
-        subdomain_vertical_nodes = size; 
+        subdomain_vertical_nodes = size;
     }
     else if (power_2) // Is work_group_size a power of two?
     {
-        // ==> as close to square as possible, with preference for horizontal length 
+        // ==> as close to square as possible, with preference for horizontal length
         size_t power_height = power_2 / 2;
         size_t height = 1;
         for(int i = 0; i < power_height; ++i) { height *= 2; }
 
         subdomain_vertical_nodes = height;
-        subdomain_horizontal_nodes = 2 * height; 
+        subdomain_horizontal_nodes = 2 * height;
     }
     else // work_group_size is a multiple of two
     {
         //  ==> stripe subdomains with extents 2 and work_group_size / 2
         subdomain_vertical_nodes = 2;
-        subdomain_horizontal_nodes = work_group_size / 2; 
+        subdomain_horizontal_nodes = work_group_size / 2;
     }
 }
 
@@ -282,14 +285,15 @@ void lbm::core::Domain::setup_for_buffered_two_lattice
     horizontal_nodes = (subdomain_horizontal_nodes + 1) * subdomain_count_horizontal + 1;
 
     total_node_count = vertical_nodes * horizontal_nodes;
-} 
+}
 
 
 void lbm::core::Domain::setup_for_swap
 (
     const unsigned int unexpanded_horizontal_nodes,
     const unsigned int unexpanded_vertical_nodes,
-    size_t work_group_size
+    size_t work_group_size,
+    const std::string &settings_path      // <-- explicit path, no longer hard-coded
 )
 {
     // Swap algorithm requires a work-group size of at least 6
@@ -297,12 +301,12 @@ void lbm::core::Domain::setup_for_swap
     {
         size_t wrong_size = work_group_size;
 
-        core::Properties properties = 
-            lbm::file_interaction::json_to_properties("../settings/settings.json", -2);
+        core::Properties properties =
+            lbm::file_interaction::json_to_properties(settings_path, -2);
 
         properties.work_group_size = 6;
 
-        lbm::file_interaction::properties_to_json(properties);
+        lbm::file_interaction::properties_to_json(properties, settings_path);
 
         throw lbm::exceptions::json::PropertyArgumentException
         (
@@ -333,7 +337,7 @@ void lbm::core::Domain::setup_for_swap
     subdomain_count_vertical = (((unexpanded_vertical_nodes - 2) / subdomain_vertical_nodes) + 1);
     if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
     vertical_nodes = (subdomain_vertical_nodes + 1) * subdomain_count_vertical + 1;
-    
+
     subdomain_count_horizontal = (((unexpanded_horizontal_nodes - 2) / subdomain_horizontal_nodes) + 1);
     if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
     horizontal_nodes = (subdomain_horizontal_nodes + 1) * subdomain_count_horizontal + 1;
@@ -390,9 +394,12 @@ distribution_values_0(sycl::malloc_device<real_type>(9 * total_node_count, queue
 };
 
 
-lbm::core::Simulation::Simulation(sycl::queue &queue)
+// settings_path is stored in properties->settings_path (set by json_to_properties).
+// It is forwarded to properties_to_json() for self-correction writes and
+// indirectly to Domain::setup_for_swap() via properties.settings_path.
+lbm::core::Simulation::Simulation(sycl::queue &queue, const std::string &settings_path)
 :
-properties(std::make_unique<Properties>(file_interaction::json_to_properties())),
+properties(std::make_unique<Properties>(file_interaction::json_to_properties(settings_path))),
 results(std::make_unique<Results>(properties->domain_node_count, queue)),
 control(std::make_unique<Control>(properties->time_steps))
 {
@@ -405,8 +412,9 @@ control(std::make_unique<Control>(properties->time_steps))
         properties->horizontal_nodes -= 2;
         properties->vertical_nodes -= 2;
 
-        lbm::file_interaction::properties_to_json(*properties);
-        
+        // Use the path stored in properties (set by json_to_properties above)
+        lbm::file_interaction::properties_to_json(*properties, properties->settings_path);
+
         throw lbm::exceptions::json::PropertyArgumentException
         (
             fmt::format
@@ -437,5 +445,5 @@ control(std::make_unique<Control>(properties->time_steps))
     else
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, false);
-    }   
+    }
 };

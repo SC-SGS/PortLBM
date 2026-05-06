@@ -19,12 +19,12 @@
 #include "../execution/sycl_algorithm_handler.hpp"
 
 // LBM core functionality
-#include "../../../include/lbm/core/constants.hpp"
-#include "../../../include/lbm/core/simulation.hpp"
-#include "../../../include/lbm/core/timer.hpp"
+#include "../core/constants.hpp"
+#include "../core/simulation.hpp"
+#include "../core/timer.hpp"
 
 // LBM file interaction
-#include "../../../include/lbm/file_interaction/file_interaction.hpp"
+#include "../file_interaction/file_interaction.hpp"
 
 // Standard library
 #include <iostream>

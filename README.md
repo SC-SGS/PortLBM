@@ -1,40 +1,55 @@
-# Bachelor thesis: Real-time visualized and GPU-accelerated Lattice Boltzmann simulations
-This repository contains the software belonging to my bachelor thesis.
+# PortLBM — GPU-accelerated Lattice Boltzmann Simulations
+Real-time visualized, GPU-accelerated fluid simulation using the Lattice Boltzmann Method (D2Q9/BGK) with SYCL via AdaptiveCpp.
 
 ## Getting started
-To make sure that you can build and run the code, please check whether you have the following software installed and ready to be found by CMake. All software has been tested with the default [Spack](https://github.com/spack/spack) setup or the minimum necessary additions unless mentioned otherwise.
 
-| Software | Version used in the bachelor thesis | Available through Spack v0.23.1 | Spack variant specifiers |
-| -------- | ----------------------------------- | ------------------------------- | ------------------------ |
-| [JSON for Modern C++](https://github.com/nlohmann/json) | 3.11.3 | yes | none needed |
-| [fmt](https://github.com/fmtlib/fmt) | 11.0.2 | yes | none needed |
-| [llvm](https://github.com/llvm/llvm-project)| 18.1.8 | yes | `+llvm_dylib -gold +clang` |
-| [boost](https://github.com/boostorg/boost) | 1.85.0 | yes | `+fiber +context +atomic +filesystem` |
-| [AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp) | v24.10 | no | N/A |
+### Dependencies
 
-The following CMake command can be used to set up AdaptiveCpp from within a build folder:
+Only two dependencies must be installed manually. Everything else is either auto-fetched by CMake or installed via the provided script.
+
+| Software | Version | How to obtain |
+| -------- | ------- | ------------- |
+| [llvm](https://github.com/llvm/llvm-project) | 18.1.8 | `spack install llvm@18.1.8 +llvm_dylib -gold +clang` |
+| [glfw](https://github.com/glfw/glfw) | any | Only required with `-DWITH_VISUALIZATION=ON`. Auto-fetched by CMake if not found, but requires X11 dev headers (`sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`). Alternatively: `spack install glfw` |
+
+> **Note:** Building LLVM with Spack can take more than one hour depending on your machine.
+
+[nlohmann/json](https://github.com/nlohmann/json) and [fmt](https://github.com/fmtlib/fmt) are fetched automatically by CMake if not found on the system.
+
+### Installing AdaptiveCpp
+
+AdaptiveCpp is installed via the provided script, which clones the source and builds it into the build directory:
+
+```bash
+# NVIDIA GPU (default)
+./install_adaptivecpp.sh
+
+# AMD GPU
+./install_adaptivecpp.sh --rocm
+
+# CPU / OpenMP only (no GPU required)
+./install_adaptivecpp.sh --cpu
+
+# Custom build directory (default: ./build)
+./install_adaptivecpp.sh --build-dir /path/to/build
 ```
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../v24.10.0 -DWITH_CUDA_BACKEND=ON -DWITH_ACCELERATED_CPU=ON -DCMAKE_CXX_COMPILER=clang++ -DWITH_SSCP_COMPILER=ON -DWITH_STDPAR_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF ..
-make -j 16 install
-```
 
-If you plan on using AdaptiveCpp on an AMD GPU, replace `-DWITH_CUDA_BACKEND=ON` with `-DWITH_ROCM_BACKEND=ON`. A setup with both enabled was not tested.
-Caution: Building LLVM with Spack can take more than one hour depending on your machine.
+CMake automatically picks up the installation from the build directory — no additional flags needed.
 
-Once the software is set up correctly, the following commands suffice to build a runnable program.
+### Building
 
-If you want to build without the GUI, use the following lines while in the build directory:
-```
-cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_NAN_PROTECTION=OFF ../ # NaN protection is only necessary for the GUI
+```bash
+mkdir build && cd build
+
+# Without GUI
+cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_NAN_PROTECTION=OFF ..
 make
-./parallel_lbm # run the code
-```
+./parallel_lbm
 
-If you want to build with the GUI use the following lines while in the build directory:
-```
-cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_VISUALIZATION=ON -DWITH_NAN_PROTECTION=ON ../
+# With GUI
+cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_VISUALIZATION=ON -DWITH_NAN_PROTECTION=ON ..
 make
-./parallel_lbm # run the code
+./parallel_lbm
 ```
 
 ## Compile options in detail
@@ -47,6 +62,7 @@ In the following, the different CMake compilation options are explained in more 
 | `-DUSE_FLOAT`          | `OFF` | If enabled, the program uses single-precision floating-point numbers instead of double-precision |
 | `-DFORCE_USE_CPU` | `OFF` | If enabled, the program uses the CPU even if a more performant device is available |
 | `-DBENCHMARK_MODE` | `OFF` | Depending on the value of `WITH_VISUALIZATION`, enables the visualized or non-visualized benchmark |
+| `-DPORTLBM_BUILD_EXECUTABLE` | `ON` | If disabled, only the `portlbm_core` library is built without the `parallel_lbm` driver executable |
 
 ## Simulation settings
 The settings of a simulation are specified in `settings/settings.json`. 

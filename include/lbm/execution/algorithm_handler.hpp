@@ -28,7 +28,7 @@
 #define LBM_ALGORITHM_HANDLER_HPP
 
 // LBM core functionality: Only required for real_type, may be outsourced for different backends
-#include "constants.hpp"
+#include "../core/constants.hpp"
 
 // Standard library
 #include <vector>

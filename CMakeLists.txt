@@ -1,11 +1,5 @@
-# Description:    CMake file for PortLBM
-#                 Real-time visualized and GPU-accelerated Lattice Boltzmann simulations
-#
-# Author:         Marcel Graf
-#
-# Copyright:      (c) Marcel Graf
-#
-# Phase-1 library refactor applied: May 2025
+# CMake file for PortLBM — GPU-accelerated Lattice Boltzmann simulations
+# Author: Marcel Graf  |  Copyright (c) Marcel Graf
 
 cmake_minimum_required(VERSION 3.18.2)
 
@@ -24,34 +18,85 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
 
 # ---- Options ---------------------------------------------------------------
 
-option(WITH_VISUALIZATION   "Build with the ImGui/ImPlot visualization framework"    OFF)
-option(WITH_NAN_PROTECTION  "Enable guards against NaN/Inf in macroscopic variables" ON)
-option(USE_FLOAT            "Use float instead of double as real_type"               OFF)
-option(FORCE_USE_CPU        "Force host execution even when a GPU is available"      OFF)
-option(BENCHMARK_MODE       "Build the benchmark driver"                             OFF)
+option(WITH_VISUALIZATION       "Build with ImGui/ImPlot visualization"              OFF)
+option(WITH_NAN_PROTECTION      "Guard against NaN/Inf in macroscopic variables"     ON)
+option(USE_FLOAT                "Use float instead of double as real_type"           OFF)
+option(FORCE_USE_CPU            "Force host execution even when a GPU is available"  OFF)
+option(BENCHMARK_MODE           "Build the benchmark driver"                         OFF)
 option(PORTLBM_BUILD_EXECUTABLE "Build the parallel_lbm driver executable"          ON)
 
 # ---- Dependencies ----------------------------------------------------------
 
+include(FetchContent)
+
+# nlohmann_json — fall back to FetchContent if not on system
+find_package(nlohmann_json QUIET)
+if(NOT nlohmann_json_FOUND)
+  message(STATUS "[PortLBM] nlohmann_json not found — fetching via FetchContent")
+  FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+    GIT_SHALLOW    TRUE
+  )
+  set(JSON_BuildTests OFF CACHE INTERNAL "")
+  set(JSON_Install    OFF CACHE INTERNAL "")
+  FetchContent_MakeAvailable(nlohmann_json)
+  set(PORTLBM_JSON_FETCHED TRUE)
+endif()
+
+# fmt — fall back to FetchContent if not on system
+find_package(fmt QUIET)
+if(NOT fmt_FOUND)
+  message(STATUS "[PortLBM] fmt not found — fetching via FetchContent")
+  FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG        10.2.1
+    GIT_SHALLOW    TRUE
+  )
+  set(FMT_INSTALL OFF CACHE INTERNAL "")
+  FetchContent_MakeAvailable(fmt)
+  set(PORTLBM_FMT_FETCHED TRUE)
+endif()
+
+# Search _deps/acpp-install first (populated by install_adaptivecpp.sh),
+# then fall back to whatever AdaptiveCpp_DIR or CMAKE_PREFIX_PATH provides.
+list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/_deps/acpp-install")
 find_package(AdaptiveCpp CONFIG REQUIRED)
-find_package(nlohmann_json REQUIRED)
-find_package(fmt REQUIRED)
 
 if(WITH_VISUALIZATION)
   find_package(OpenGL REQUIRED)
-  find_package(glfw3 REQUIRED)
+  # glfw3 — fall back to FetchContent if not on system
+  find_package(glfw3 QUIET)
+  if(NOT glfw3_FOUND)
+    message(STATUS "[PortLBM] glfw3 not found — fetching via FetchContent")
+    message(STATUS "[PortLBM] Note: building GLFW from source requires X11 dev headers.")
+    message(STATUS "[PortLBM]   Ubuntu/Debian: sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev")
+    message(STATUS "[PortLBM]   If this fails, consider installing glfw via Spack: spack install glfw")
+    FetchContent_Declare(
+      glfw
+      GIT_REPOSITORY https://github.com/glfw/glfw.git
+      GIT_TAG        3.4
+      GIT_SHALLOW    TRUE
+    )
+    set(GLFW_BUILD_DOCS     OFF CACHE INTERNAL "")
+    set(GLFW_BUILD_TESTS    OFF CACHE INTERNAL "")
+    set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+    set(GLFW_INSTALL        OFF CACHE INTERNAL "")
+    set(GLFW_BUILD_WAYLAND  OFF CACHE INTERNAL "")
+    FetchContent_MakeAvailable(glfw)
+  endif()
 endif()
 
-# ---- Library target: portlbm_core ------------------------------------------
+# ---- Library target --------------------------------------------------------
 
 add_library(portlbm_core STATIC)
 add_library(PortLBM::portlbm_core ALIAS portlbm_core)
 
-# Source files and internal include dirs are set in the subdirectories
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-# Public include root: consumers do  #include <lbm/portlbm.hpp>  etc.
 target_include_directories(portlbm_core
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -59,16 +104,24 @@ target_include_directories(portlbm_core
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(portlbm_core
-  PUBLIC
-    nlohmann_json::nlohmann_json
-    fmt::fmt
-)
+# Fetched targets are not IMPORTED, so CMake cannot serialize them into the
+# install export. Wrap them in BUILD_INTERFACE; PortLBMConfig.cmake.in's
+# find_dependency() covers consumers of the installed library.
+if(PORTLBM_JSON_FETCHED)
+  target_link_libraries(portlbm_core PUBLIC $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>)
+else()
+  target_link_libraries(portlbm_core PUBLIC nlohmann_json::nlohmann_json)
+endif()
 
-# Compile definitions — PUBLIC so that header-only templates (GPU kernels,
-# real_type, device-selector) pick up the same flags as the library .cpp files.
-# USE_FLOAT changes real_type in the public header constants.hpp and therefore
-# affects the ABI; propagating it via PUBLIC is intentional.
+if(PORTLBM_FMT_FETCHED)
+  target_link_libraries(portlbm_core PUBLIC $<BUILD_INTERFACE:fmt::fmt>)
+else()
+  target_link_libraries(portlbm_core PUBLIC fmt::fmt)
+endif()
+
+
+# PUBLIC so header-only GPU kernel templates and real_type see the same flags.
+# USE_FLOAT changes real_type and therefore the ABI — PUBLIC is intentional.
 target_compile_definitions(portlbm_core
   PUBLIC
     $<$<BOOL:${WITH_NAN_PROTECTION}>:WITH_NAN_PROTECTION>
@@ -81,12 +134,11 @@ if(WITH_VISUALIZATION)
   target_link_libraries(portlbm_core PUBLIC glfw OpenGL::GL)
 endif()
 
-# SYCL: PUBLIC so compile options propagate to the executable that instantiates
-# the header-only kernel templates.
+# PUBLIC so SYCL compile options propagate to the executable's kernel templates.
 target_compile_options(portlbm_core PUBLIC ${SYCL_FLAGS})
 add_sycl_to_target(TARGET portlbm_core)
 
-# ---- Version header (1.5) --------------------------------------------------
+# ---- Version header --------------------------------------------------------
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/include/lbm/version.hpp.in"
@@ -94,14 +146,13 @@ configure_file(
   @ONLY
 )
 
-# ---- Executable target (1.1, 1.7) ------------------------------------------
+# ---- Executable target -----------------------------------------------------
 
 if(PORTLBM_BUILD_EXECUTABLE)
   add_executable(parallel_lbm src/main_gpu.cpp)
   target_link_libraries(parallel_lbm PRIVATE portlbm_core)
 
-  # benchmark.cpp is application-level code; it is NOT compiled into the library.
-  # It is added only to the driver executable when BENCHMARK_MODE is requested.
+  # benchmark.cpp is application-level; not compiled into the library.
   if(BENCHMARK_MODE)
     target_sources(parallel_lbm PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src/lbm/benchmark/benchmark.cpp"
@@ -109,11 +160,10 @@ if(PORTLBM_BUILD_EXECUTABLE)
     target_compile_definitions(parallel_lbm PRIVATE BENCHMARK_MODE)
   endif()
 
-  # The executable instantiates header-only SYCL kernel templates.
   add_sycl_to_target(TARGET parallel_lbm)
 endif()
 
-# ---- Install and export (1.4) -----------------------------------------------
+# ---- Install and export ----------------------------------------------------
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -126,14 +176,13 @@ install(TARGETS portlbm_core
   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
-# Install public headers; exclude vendored external/ sources (ImGui, ImPlot)
+# Exclude vendored external/ headers (ImGui, ImPlot) from the install tree.
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/lbm"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h"
   PATTERN "external" EXCLUDE
 )
 
-# Install the generated version header
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/lbm/version.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/lbm"
 )
@@ -152,7 +201,7 @@ configure_package_config_file(
 
 write_basic_package_version_file(
   "${CMAKE_CURRENT_BINARY_DIR}/PortLBMConfigVersion.cmake"
-  VERSION     "${PROJECT_VERSION}"
+  VERSION       "${PROJECT_VERSION}"
   COMPATIBILITY SameMajorVersion
 )
 

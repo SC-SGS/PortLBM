@@ -92,10 +92,9 @@ void lbm::core::Properties::validate() const
     {
         throw exceptions::json::PropertyArgumentException("frame_update_interval must be >= 1");
     }
-    if (frame_update_interval > time_steps)
-    {
-        throw exceptions::json::PropertyArgumentException("frame_update_interval must be <= time_steps");
-    }
+    // frame_update_interval > time_steps is allowed: it means the host copy
+    // never fires during the run (results are only read at the very end).
+    // The bundled settings.json uses exactly this pattern (10001 > 10000).
     if (work_group_size < 1)
     {
         throw exceptions::json::PropertyArgumentException("work_group_size must be >= 1");

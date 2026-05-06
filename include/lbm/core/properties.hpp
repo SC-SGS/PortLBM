@@ -155,7 +155,7 @@ struct Properties
      * Checked constraints:
      *  - `vertical_nodes >= 4` and `horizontal_nodes >= 4` (inner domain ≥ 2×2)
      *  - `time_steps >= 1`
-     *  - `1 <= frame_update_interval <= time_steps`
+     *  - `frame_update_interval >= 1` (values > time_steps are allowed and mean "copy only at end")
      *  - `work_group_size >= 1`
      *  - `inlet_density > 0` and `outlet_density > 0`
      *  - `relaxation_time > 0`

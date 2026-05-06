@@ -17,7 +17,7 @@
 #define LBM_FILE_INTERACTION_HPP
 
 // Dependencies on LBM core features
-#include "../core/simulation.hpp"
+#include "../core/properties.hpp"
 
 // C++ JSON integration by N. Lohmann
 #include <nlohmann/json.hpp>

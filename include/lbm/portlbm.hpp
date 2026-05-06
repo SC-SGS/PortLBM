@@ -28,9 +28,12 @@
 // Version
 #include "version.hpp"
 
-// Core
-#include "core/access.hpp"
+// Core (SYCL-free headers first — safe to include without a device)
 #include "core/constants.hpp"
+#include "core/domain.hpp"
+#include "core/properties.hpp"
+// Core (SYCL-dependent)
+#include "core/access.hpp"
 #include "core/domain_initialization.hpp"
 #include "core/simulation.hpp"
 #include "core/timer.hpp"

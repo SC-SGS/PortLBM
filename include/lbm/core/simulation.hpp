@@ -25,6 +25,8 @@
 // Dependencies on other LBM core features
 #include "access.hpp"
 #include "constants.hpp"
+#include "domain.hpp"
+#include "properties.hpp"
 #include "timer.hpp"
 
 // Standard library
@@ -43,136 +45,7 @@ namespace lbm
 namespace core
 {
 
-// PROPERTIES /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * @brief This structure contains all important properties of the simulation.
- */
-struct Properties
-{
-    /* Algorithmic options */
-
-    /**
-     * @brief   Possible values for the algorithm string are:
-     *
-     *          - `"gpu-two-lattice"`
-     *
-     *          - `"gpu-two-lattice-linear"`
-     *
-     *          - `"gpu-two-lattice-buffered"`
-     *
-     *          - `"gpu-swap"`
-     */
-    std::string algorithm;
-
-    /**
-     * @brief   Possible values for the data layout string are:
-     *
-     *          - `"stream"`
-     *
-     *          - `"collide"`
-     *
-     *          - `"bundle"`
-     */
-    std::string data_layout;
-
-    // If set, a mode with thorough console debug prints is entered.
-    bool debug_mode;
-
-    unsigned int work_group_size;
-
-    // This many time steps will be executed in total by the algorithm.
-    unsigned int time_steps;
-
-    // Every `frame_update_interval` iterations, macroscopic observables are copied to the host
-    unsigned int frame_update_interval;
-
-    /**
-     * @brief   Possible values for the scenario string are:
-     *
-     *          - `"Hagen-Poiseuille"`
-     *
-     *          - `"walls"`
-     *
-     *          - `"circle"`
-     *
-     *          - `"square"`
-     *
-     *          - `"plate"`
-     *
-     *          - `"skyscraper"`
-     *
-     *          - `"wing"`
-     *
-     *          - `"porous"`
-     *
-     * @see     core/domain_initialization.hpp
-     */
-    std::string scenario;
-
-    // Unbuffered amount of vertical nodes including an outer layer of ghost nodes
-    unsigned int vertical_nodes;
-
-    // Unbuffered amount of horizontal nodes including an outer layer of ghost nodes
-    unsigned int horizontal_nodes;
-
-    // Total amount of nodes including ghost nodes but no buffer nodes
-    unsigned int total_unexpanded_node_count;
-
-    // Total amount of nodes within the actual simulation domain, excluding ghost nodes
-    unsigned int domain_node_count;
-
-    real_type inlet_velocity_x;
-    real_type inlet_velocity_y;
-    real_type inlet_density;
-
-    real_type outlet_velocity_x;
-    real_type outlet_velocity_y;
-    real_type outlet_density;
-
-    real_type relaxation_time;
-
-    /**
-     * @brief   Path to the JSON settings file from which this object was loaded.
-     *          Set automatically by `file_interaction::json_to_properties()`.
-     *          Used by `file_interaction::properties_to_json()` and by internal
-     *          self-correction code (e.g. swap work-group size clamping) so that
-     *          the correct file is updated without a hard-coded path.
-     */
-    std::string settings_path;
-
-    /**
-     * @brief   Constructs a new properties object with the specified parameters.
-     *
-     * @param[in]   vertical_nodes      vertical nodes excluding ghost and buffer nodes
-     * @param[in]   horizontal_nodes    horizontal nodes excluding ghost and buffer nodes
-     */
-    explicit Properties(
-        // Algorithmic properties
-        const std::string &&algorithm,
-        const std::string &&data_layout,
-        const bool debug_mode,
-        const unsigned int work_group_size,
-        const unsigned int time_steps,
-        const unsigned int frame_update_interval,
-        // Domain properties
-        const std::string &&scenario,
-        const unsigned int vertical_nodes,
-        const unsigned int horizontal_nodes,
-        // Physical
-        const real_type inlet_velocity_x,
-        const real_type inlet_velocity_y,
-        const real_type inlet_density,
-        const real_type outlet_velocity_x,
-        const real_type outlet_velocity_y,
-        const real_type outlet_density,
-        const real_type relaxation_time);
-
-    /**
-     * @brief   Returns a string representation of this object.
-     */
-    std::string to_string() const;
-};
+// Properties is declared in properties.hpp (no SYCL dependency), included above.
 
 // CONTROL ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -270,112 +143,7 @@ class Control
     inline real_type get_last_frametime() const { return last_frametime; }
 };
 
-// DOMAIN /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * @brief   This class contains variables describing the simulation domain on which an algorithm operates. The
- *          algorithms initialize these variables differently, which is solved through initialization methods.
- */
-class Domain
-{
-  public:
-    // The total amount of nodes in this domain. Buffer nodes are included for buffered domains.
-    unsigned int total_node_count;
-
-    // The total amount of horizontal nodes in this domain. Buffer nodes are included for buffered domains.
-    unsigned int horizontal_nodes;
-
-    // The total amount of vertical nodes in this domain. Buffer nodes are included for buffered domains.
-    unsigned int vertical_nodes;
-
-    // The amount of vertical nodes per subdomain
-    unsigned int subdomain_vertical_nodes;
-
-    // The amount of horizontal nodes per subdomain
-    unsigned int subdomain_horizontal_nodes;
-
-    // The amount of subdomains in vertical direction
-    unsigned int subdomain_count_vertical;
-
-    // The amount of subdomains in horizontal direction
-    unsigned int subdomain_count_horizontal;
-
-    /**
-     * @brief   Initializes this domain object according to the specified properties object.
-     *
-     *          By default, the domain is initialized for use with the linear two-lattice algorithm. The domain
-     *          is not expanded and has the extents specified in the `lbm::core::Properties` object. There is
-     *          only one subdomain that has the extents of the entire grid.
-     *
-     *          If any other algorithm is selected, the values are adjusted.
-     *
-     * @param[in]   properties  an object specifying the extents of the lattice and the algorithm used
-     */
-    explicit Domain(core::Properties &properties);
-
-  private:
-    /**
-     * @brief   This structure stores data of a non-buffered and decomposed domain, as it is used by the
-     *          non-linear two-lattice algorithm. The domain is expanded to match the extents of the work-
-     *          groups. The decomposition is performed depending on the specified work group size. The new
-     *          total dimensions, the dimensions of subdomains and their quantity per dimension is calculated
-     *          based on the input parameters describing what the original domain looks like.
-     *
-     * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-     *                                          including ghost nodes
-     * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-     *                                          including ghost nodes
-     * @param[in]   work_group_size             the desired work-group size
-     */
-    void setup_for_decomposed_two_lattice(const unsigned int unexpanded_horizontal_nodes,
-                                          const unsigned int unexpanded_vertical_nodes,
-                                          const size_t work_group_size);
-
-    /**
-     * @brief   This structure stores data of a buffered and decomposed domain, as it is used for the buffered
-     *          two-lattice algorithm. Unlike for the swap algorithm, buffers are not considered part of any
-     *          subdomain in this case.
-     *
-     * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-     *                                          including ghost nodes
-     * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-     *                                          including ghost nodes
-     * @param[in]   work_group_size             the desired work-group size
-     */
-    void setup_for_buffered_two_lattice(const unsigned int unexpanded_horizontal_nodes,
-                                        const unsigned int unexpanded_vertical_nodes,
-                                        const size_t work_group_size);
-
-    /**
-     * @brief   The domain is set up to store data of a buffered and decomposed domain, as it is required for
-     *          the swap algorithm. The semantics of the domain setup process differ from those of the two-
-     *          lattice algorithms. Since interactions with buffers are required, they are considered part of
-     *          the subdomain during streaming. In turn, the fraction belonging to the actual subdomain is
-     *          slightly smaller. Notice that inner buffers are part of overlapping subdomains.
-     *
-     * @param[in]   unexpanded_horizontal_nodes the amount of horizontal nodes in the original domain
-     *                                          including ghost nodes
-     * @param[in]   unexpanded_vertical_nodes   the amount of horizontal nodes in the original domain
-     *                                          including ghost nodes
-     * @param[in]   work_group_size             the desired work-group size
-     * @param[in]   settings_path               path to the settings JSON used for self-correction
-     *
-     * @throws  lbm::exceptions::json::PropertyArgumentException    if `work_group_size < 6`
-     */
-    void setup_for_swap(const unsigned int unexpanded_horizontal_nodes,
-                        const unsigned int unexpanded_vertical_nodes,
-                        size_t work_group_size,
-                        const std::string &settings_path);
-
-    // This constructor is meant to be called by the other constructor of this class.
-    explicit Domain(unsigned int total_node_count,
-                    unsigned int vertical_nodes,
-                    unsigned int horizontal_nodes,
-                    unsigned int subdomain_vertical_nodes,
-                    unsigned int subdomain_horizontal_nodes,
-                    unsigned int subdomain_count_vertical,
-                    unsigned int subdomain_count_horizontal);
-};
+// Domain is declared in domain.hpp (no SYCL dependency), included above.
 
 // RESULTS ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -534,15 +302,30 @@ struct Simulation
     std::unique_ptr<Domain> domain;
 
     /**
-     * @brief   Constructs a `Simulation` object.
+     * @brief   Constructs a `Simulation` from a JSON settings file.
      *
-     * @param[in]   queue           the SYCL queue used for interactions with the device
+     * @param[in]   queue           SYCL queue used for device interactions
      * @param[in]   settings_path   path to the JSON settings file; passed to
      *                              `file_interaction::json_to_properties()`
      *
      * @throws  `lbm::exceptions::json::PropertyArgumentException`
      */
     explicit Simulation(sycl::queue &queue, const std::string &settings_path);
+
+    /**
+     * @brief   Constructs a `Simulation` from a pre-built `Properties` object.
+     *
+     * Use this overload when settings are constructed programmatically rather
+     * than loaded from disk.  Call `props.validate()` before passing it here
+     * to get clear error messages for illegal values.
+     *
+     * @param[in]   queue   SYCL queue used for device interactions
+     * @param[in]   props   fully-populated properties object (taken by value)
+     *
+     * @throws  `lbm::exceptions::json::PropertyArgumentException` if
+     *          `work_group_size` exceeds the device maximum
+     */
+    explicit Simulation(sycl::queue &queue, core::Properties props);
 };
 
 // MISCELLANEA ////////////////////////////////////////////////////////////////////////////////////////////////////////

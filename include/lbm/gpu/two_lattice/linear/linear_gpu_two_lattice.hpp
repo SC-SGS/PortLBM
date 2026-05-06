@@ -165,6 +165,13 @@ class LinearGpuTwoLattice : public execution::SYCLAlgorithm
         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
             *simulation, queue);
     }
+
+    explicit LinearGpuTwoLattice(sycl::queue &queue, const core::Properties &props) :
+        SYCLAlgorithm(queue, props)
+    {
+        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
+            *simulation, queue);
+    }
 };
 
 // DEBUG LINEAR TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////////////
@@ -463,6 +470,35 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
      */
     explicit LinearGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path),
+        all_densities(std::make_unique<std::vector<real_type>>()),
+        all_x_velocities(std::make_unique<std::vector<real_type>>()),
+        all_y_velocities(std::make_unique<std::vector<real_type>>()),
+        distribution_values(
+            std::make_unique<std::vector<real_type>>(9 * simulation->properties->total_unexpanded_node_count, 0)),
+        temp_macroscopic_observables(
+            std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
+        phase_information(
+            std::make_unique<std::vector<int8_t>>(simulation->properties->total_unexpanded_node_count, 0)),
+        current_iteration(0)
+    {
+        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
+            *simulation, queue);
+
+        all_densities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_densities->shrink_to_fit();
+
+        all_x_velocities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_x_velocities->shrink_to_fit();
+
+        all_y_velocities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_y_velocities->shrink_to_fit();
+
+        distribution_values->shrink_to_fit();
+        phase_information->shrink_to_fit();
+    }
+
+    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue, const core::Properties &props) :
+        SYCLAlgorithm(queue, props),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
         all_y_velocities(std::make_unique<std::vector<real_type>>()),

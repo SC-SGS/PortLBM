@@ -35,6 +35,7 @@
 
 // Standard library
 #include <iostream>
+#include <optional>
 
 namespace lbm
 {
@@ -63,10 +64,11 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
     std::unique_ptr<SYCLAlgorithm> algorithm;
     bool active;
 
-    // Path to the JSON settings file. Callers supply this at construction; it is
-    // forwarded to every algorithm/simulation object so the library never hard-codes
-    // a relative path to the settings file.
+    // Path to the JSON settings file. Empty when constructed from a Properties object.
     std::string settings_path_;
+
+    // When set, initialize_algorithm() uses these properties instead of re-reading JSON.
+    std::optional<core::Properties> explicit_props_;
 
 #ifdef BENCHMARK_MODE
     std::unique_ptr<core::Timer> timer;
@@ -85,19 +87,19 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
             {
                 algorithm =
                     std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::StreamAccessor>>(
-                        *queue, settings_path_);
+                        *queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
                 algorithm =
                     std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::CollisionAccessor>>(
-                        *queue, settings_path_);
+                        *queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
                 algorithm =
                     std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::BundleAccessor>>(
-                        *queue, settings_path_);
+                        *queue, properties);
             }
             else
             {
@@ -110,19 +112,19 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else
             {
@@ -135,19 +137,19 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
             {
                 algorithm =
                     std::make_unique<gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::StreamAccessor>>(
-                        *queue, settings_path_);
+                        *queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::CollisionAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
                 algorithm =
                     std::make_unique<gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::BundleAccessor>>(
-                        *queue, settings_path_);
+                        *queue, properties);
             }
             else
             {
@@ -158,16 +160,15 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
         {
             if (properties.data_layout == "stream")
             {
-                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::StreamAccessor>>(*queue, settings_path_);
+                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm =
-                    std::make_unique<gpu::swap::GpuSwap<core::access::CollisionAccessor>>(*queue, settings_path_);
+                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::BundleAccessor>>(*queue, settings_path_);
+                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
@@ -193,19 +194,19 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
             {
                 algorithm =
                     std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::StreamAccessor>>(
-                        *queue, settings_path_);
+                        *queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::CollisionAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
                 algorithm =
                     std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::BundleAccessor>>(
-                        *queue, settings_path_);
+                        *queue, properties);
             }
             else
             {
@@ -218,19 +219,19 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::StreamAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::CollisionAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::BundleAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else
             {
@@ -243,19 +244,19 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::StreamAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::CollisionAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
                 algorithm = std::make_unique<
                     gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::BundleAccessor>>(
-                    *queue, settings_path_);
+                    *queue, properties);
             }
             else
             {
@@ -266,18 +267,16 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
         {
             if (properties.data_layout == "stream")
             {
-                algorithm =
-                    std::make_unique<gpu::swap::GpuSwapDebug<core::access::StreamAccessor>>(*queue, settings_path_);
+                algorithm = std::make_unique<gpu::swap::GpuSwapDebug<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
                 algorithm =
-                    std::make_unique<gpu::swap::GpuSwapDebug<core::access::CollisionAccessor>>(*queue, settings_path_);
+                    std::make_unique<gpu::swap::GpuSwapDebug<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm =
-                    std::make_unique<gpu::swap::GpuSwapDebug<core::access::BundleAccessor>>(*queue, settings_path_);
+                algorithm = std::make_unique<gpu::swap::GpuSwapDebug<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
@@ -299,7 +298,8 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
 #ifdef BENCHMARK_MODE
         timer->restart();
 #endif
-        core::Properties properties = lbm::file_interaction::json_to_properties(settings_path_);
+        core::Properties properties =
+            explicit_props_.has_value() ? *explicit_props_ : lbm::file_interaction::json_to_properties(settings_path_);
 
         if (!properties.debug_mode)
         {
@@ -328,10 +328,9 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
 #ifdef FORCE_USE_CPU
 
     /**
-     * @brief   Constructs a new SYCL algorithm handler and immediately initializes the simulation.
+     * @brief   Constructs a handler from a JSON settings file path.
      *
-     * @param[in]   settings_path   path to the JSON settings file (e.g. "settings/settings.json").
-     *                              No default — callers must supply an explicit path.
+     * @param[in]   settings_path   path to the JSON settings file
      */
     explicit SYCLAlgorithmHandler(const std::string &settings_path) :
         AlgorithmHandler(0),
@@ -343,7 +342,28 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
 #ifdef BENCHMARK_MODE
         timer = std::make_unique<core::Timer>();
 #endif
+        initialize_algorithm();
+        processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
+    }
 
+    /**
+     * @brief   Constructs a handler from a pre-built `Properties` object.
+     *
+     * Call `props.validate()` first to get clear error messages for illegal values.
+     *
+     * @param[in]   props   fully-populated properties (taken by value)
+     */
+    explicit SYCLAlgorithmHandler(core::Properties props) :
+        AlgorithmHandler(0),
+        cpu_selector(std::make_unique<sycl::cpu_selector>()),
+        queue(std::make_unique<sycl::queue>(*cpu_selector)),
+        active(false),
+        settings_path_(props.settings_path),
+        explicit_props_(std::move(props))
+    {
+#ifdef BENCHMARK_MODE
+        timer = std::make_unique<core::Timer>();
+#endif
         initialize_algorithm();
         processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
     }
@@ -351,10 +371,9 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
 #else
 
     /**
-     * @brief   Constructs a new SYCL algorithm handler and immediately initializes the simulation.
+     * @brief   Constructs a handler from a JSON settings file path.
      *
-     * @param[in]   settings_path   path to the JSON settings file (e.g. "settings/settings.json").
-     *                              No default — callers must supply an explicit path.
+     * @param[in]   settings_path   path to the JSON settings file
      */
     explicit SYCLAlgorithmHandler(const std::string &settings_path) :
         AlgorithmHandler(0),
@@ -366,7 +385,28 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
 #ifdef BENCHMARK_MODE
         timer = std::make_unique<core::Timer>();
 #endif
+        initialize_algorithm();
+        processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
+    }
 
+    /**
+     * @brief   Constructs a handler from a pre-built `Properties` object.
+     *
+     * Call `props.validate()` first to get clear error messages for illegal values.
+     *
+     * @param[in]   props   fully-populated properties (taken by value)
+     */
+    explicit SYCLAlgorithmHandler(core::Properties props) :
+        AlgorithmHandler(0),
+        device_selector(std::make_unique<sycl::default_selector>()),
+        queue(std::make_unique<sycl::queue>(*device_selector)),
+        active(false),
+        settings_path_(props.settings_path),
+        explicit_props_(std::move(props))
+    {
+#ifdef BENCHMARK_MODE
+        timer = std::make_unique<core::Timer>();
+#endif
         initialize_algorithm();
         processing_element_constraint = queue->get_device().get_info<sycl::info::device::max_work_group_size>();
     }
@@ -447,6 +487,15 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
     inline real_type get_outlet_density() const override { return algorithm->simulation->properties->outlet_density; }
 
     inline const std::string &get_settings_path() const { return settings_path_; }
+
+    inline unsigned int get_current_iteration() const override
+    {
+        return algorithm->simulation->control->get_current_iteration();
+    }
+
+    inline const core::Properties &get_properties() const override { return *algorithm->simulation->properties; }
+
+    inline const core::Domain &get_domain() const override { return *algorithm->simulation->domain; }
 };
 
 }  // namespace execution

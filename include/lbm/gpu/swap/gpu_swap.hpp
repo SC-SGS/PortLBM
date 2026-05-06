@@ -229,6 +229,18 @@ class GpuSwap : public execution::SYCLAlgorithm
 
         core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
     }
+
+    explicit GpuSwap(sycl::queue &queue, const core::Properties &props) :
+        SYCLAlgorithm(queue, props)
+    {
+        core::maxwell_boltzmann_distribution(
+            simulation->properties->inlet_velocity_x,
+            simulation->properties->inlet_velocity_y,
+            simulation->properties->inlet_density,
+            inlet_values);
+
+        core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
+    }
 };
 
 // DEBUG SWAP /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -552,6 +564,39 @@ class GpuSwapDebug : public execution::SYCLAlgorithm
      */
     explicit GpuSwapDebug(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path),
+        all_densities(std::make_unique<std::vector<real_type>>()),
+        all_x_velocities(std::make_unique<std::vector<real_type>>()),
+        all_y_velocities(std::make_unique<std::vector<real_type>>()),
+        distribution_values(std::make_unique<std::vector<real_type>>(9 * simulation->domain->total_node_count, 0)),
+        temp_macroscopic_observables(
+            std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
+        phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
+        current_iteration(0)
+    {
+        core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
+
+        all_densities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_densities->shrink_to_fit();
+
+        all_x_velocities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_x_velocities->shrink_to_fit();
+
+        all_y_velocities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_y_velocities->shrink_to_fit();
+
+        distribution_values->shrink_to_fit();
+        temp_macroscopic_observables->shrink_to_fit();
+        phase_information->shrink_to_fit();
+
+        core::maxwell_boltzmann_distribution(
+            simulation->properties->inlet_velocity_x,
+            simulation->properties->inlet_velocity_y,
+            simulation->properties->inlet_density,
+            inlet_values);
+    }
+
+    explicit GpuSwapDebug(sycl::queue &queue, const core::Properties &props) :
+        SYCLAlgorithm(queue, props),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
         all_y_velocities(std::make_unique<std::vector<real_type>>()),

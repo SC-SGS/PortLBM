@@ -27,8 +27,10 @@
 #ifndef LBM_ALGORITHM_HANDLER_HPP
 #define LBM_ALGORITHM_HANDLER_HPP
 
-// LBM core functionality: Only required for real_type, may be outsourced for different backends
+// LBM core features
 #include "../core/constants.hpp"
+#include "../core/domain.hpp"
+#include "../core/properties.hpp"
 
 // Standard library
 #include <concepts>
@@ -52,6 +54,11 @@ class AlgorithmHandler
      *          potentially adjusted in some way.
      */
     size_t processing_element_constraint;
+
+    /**
+     * @brief   Virtual destructor — required for safe polymorphic deletion.
+     */
+    virtual ~AlgorithmHandler() = default;
 
     /**
      * @brief   (Re-)Initializes the algorithm addressed by this algorithm handler.
@@ -137,6 +144,22 @@ class AlgorithmHandler
      *          correspond to those of the GUI.
      */
     virtual real_type get_last_frametime() const = 0;
+
+    /**
+     * @brief   Returns the zero-based index of the iteration currently being processed (or the last
+     *          completed iteration if the simulation is paused or finished).
+     */
+    virtual unsigned int get_current_iteration() const = 0;
+
+    /**
+     * @brief   Returns a const reference to the simulation parameters.
+     */
+    virtual const core::Properties &get_properties() const = 0;
+
+    /**
+     * @brief   Returns a const reference to the resolved domain dimensions.
+     */
+    virtual const core::Domain &get_domain() const = 0;
 
   protected:
     explicit AlgorithmHandler(size_t processing_element_constraint) :

@@ -50,15 +50,26 @@ class SYCLAlgorithm
     std::shared_ptr<sycl::queue> queue;
 
     /**
-     * @brief   The constructor of a SYCLAlgorithm object initializes the future with a dummy value.
+     * @brief   Constructs a `SYCLAlgorithm` from a JSON settings file path.
      *
-     * @param[in]   queue           the SYCL queue used for communication with the device
-     * @param[in]   settings_path   path to the JSON settings file; forwarded to core::Simulation
+     * @param[in]   queue           SYCL queue used for device communication
+     * @param[in]   settings_path   path to the JSON settings file; forwarded to `core::Simulation`
      */
     explicit SYCLAlgorithm(sycl::queue &queue, const std::string &settings_path) :
         future(std::async([] {})),
         queue(std::make_shared<sycl::queue>(queue)),
         simulation(std::make_unique<core::Simulation>(queue, settings_path)){};
+
+    /**
+     * @brief   Constructs a `SYCLAlgorithm` from a pre-built `Properties` object.
+     *
+     * @param[in]   queue   SYCL queue used for device communication
+     * @param[in]   props   fully-populated properties (taken by value)
+     */
+    explicit SYCLAlgorithm(sycl::queue &queue, core::Properties props) :
+        future(std::async([] {})),
+        queue(std::make_shared<sycl::queue>(queue)),
+        simulation(std::make_unique<core::Simulation>(queue, std::move(props))){};
 
   public:
     /**

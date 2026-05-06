@@ -19,42 +19,41 @@
 #include "../../../include/lbm/exceptions/exceptions.hpp"
 #include "../../../include/lbm/file_interaction/file_interaction.hpp"
 
+// Standard library
+#include <algorithm>
+#include <array>
+#include <string_view>
+
 // PROPERTIES /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lbm::core::Properties::Properties(
-    // Algorithmic properties
-    const std::string &&algorithm,
-    const std::string &&data_layout,
-    const bool debug_mode,
-    const unsigned int work_group_size,
-    const unsigned int time_steps,
-    const unsigned int frame_update_interval,
-    // Domain properties
-    const std::string &&scenario,
-    const unsigned int vertical_nodes,
-    const unsigned int horizontal_nodes,
-    // Physical
-    const real_type inlet_velocity_x,
-    const real_type inlet_velocity_y,
-    const real_type inlet_density,
-    const real_type outlet_velocity_x,
-    const real_type outlet_velocity_y,
-    const real_type outlet_density,
-    const real_type relaxation_time) :
-    // Algorithmic properties
-    algorithm(algorithm),
-    data_layout(data_layout),
+    std::string algorithm,
+    std::string data_layout,
+    bool debug_mode,
+    unsigned int work_group_size,
+    unsigned int time_steps,
+    unsigned int frame_update_interval,
+    std::string scenario,
+    unsigned int vertical_nodes,
+    unsigned int horizontal_nodes,
+    real_type inlet_velocity_x,
+    real_type inlet_velocity_y,
+    real_type inlet_density,
+    real_type outlet_velocity_x,
+    real_type outlet_velocity_y,
+    real_type outlet_density,
+    real_type relaxation_time) :
+    algorithm(std::move(algorithm)),
+    data_layout(std::move(data_layout)),
     debug_mode(debug_mode),
     work_group_size(work_group_size),
     time_steps(time_steps),
     frame_update_interval(frame_update_interval),
-    // Domain properties
-    scenario(scenario),
+    scenario(std::move(scenario)),
     vertical_nodes(vertical_nodes + 2),
     horizontal_nodes(horizontal_nodes + 2),
     total_unexpanded_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
     domain_node_count(vertical_nodes * horizontal_nodes),
-    // Physical
     inlet_velocity_x(inlet_velocity_x),
     inlet_velocity_y(inlet_velocity_y),
     inlet_density(inlet_density),
@@ -62,8 +61,81 @@ lbm::core::Properties::Properties(
     outlet_velocity_y(outlet_velocity_y),
     outlet_density(outlet_density),
     relaxation_time(relaxation_time),
-    // settings_path is intentionally left empty here; it is set by json_to_properties()
-    settings_path(""){};
+    // settings_path is intentionally left empty; set by json_to_properties()
+    settings_path("")
+{ }
+
+void lbm::core::Properties::validate() const
+{
+    constexpr static std::array<std::string_view, 4> valid_algorithms = {
+        "gpu-two-lattice", "gpu-two-lattice-linear", "gpu-two-lattice-buffered", "gpu-swap"
+    };
+    constexpr static std::array<std::string_view, 3> valid_layouts = { "stream", "collision", "bundle" };
+    constexpr static std::array<std::string_view, 8> valid_scenarios = {
+        "Hagen-Poiseuille", "walls", "circle", "square", "plate", "skyscraper", "wing", "porous"
+    };
+
+    // Note: stored vertical/horizontal_nodes already include the 2 ghost-node layers
+    if (vertical_nodes < 4)
+    {
+        throw exceptions::json::PropertyArgumentException("vertical_nodes must be >= 4 (inner domain >= 2 rows)");
+    }
+    if (horizontal_nodes < 4)
+    {
+        throw exceptions::json::PropertyArgumentException("horizontal_nodes must be >= 4 (inner domain >= 2 cols)");
+    }
+    if (time_steps < 1)
+    {
+        throw exceptions::json::PropertyArgumentException("time_steps must be >= 1");
+    }
+    if (frame_update_interval < 1)
+    {
+        throw exceptions::json::PropertyArgumentException("frame_update_interval must be >= 1");
+    }
+    if (frame_update_interval > time_steps)
+    {
+        throw exceptions::json::PropertyArgumentException("frame_update_interval must be <= time_steps");
+    }
+    if (work_group_size < 1)
+    {
+        throw exceptions::json::PropertyArgumentException("work_group_size must be >= 1");
+    }
+    if (inlet_density <= real_type{ 0 })
+    {
+        throw exceptions::json::PropertyArgumentException("inlet_density must be > 0");
+    }
+    if (outlet_density <= real_type{ 0 })
+    {
+        throw exceptions::json::PropertyArgumentException("outlet_density must be > 0");
+    }
+    if (relaxation_time <= real_type{ 0 })
+    {
+        throw exceptions::json::PropertyArgumentException("relaxation_time must be > 0");
+    }
+
+    auto in_list = [](const std::string &val, const auto &list)
+    { return std::find(list.begin(), list.end(), std::string_view{ val }) != list.end(); };
+
+    if (!in_list(algorithm, valid_algorithms))
+    {
+        throw exceptions::json::PropertyArgumentException(fmt::format(
+            "Unknown algorithm: \"{}\". Valid values: gpu-two-lattice, gpu-two-lattice-linear, "
+            "gpu-two-lattice-buffered, gpu-swap",
+            algorithm));
+    }
+    if (!in_list(data_layout, valid_layouts))
+    {
+        throw exceptions::json::PropertyArgumentException(
+            fmt::format("Unknown data_layout: \"{}\". Valid values: stream, collision, bundle", data_layout));
+    }
+    if (!in_list(scenario, valid_scenarios))
+    {
+        throw exceptions::json::PropertyArgumentException(fmt::format(
+            "Unknown scenario: \"{}\". Valid values: Hagen-Poiseuille, walls, circle, square, "
+            "plate, skyscraper, wing, porous",
+            scenario));
+    }
+}
 
 // CONTROL ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -396,6 +468,45 @@ lbm::core::Simulation::Simulation(sycl::queue &queue, const std::string &setting
         throw lbm::exceptions::json::PropertyArgumentException(fmt::format(
             "Detected illegal work group size of {} that exceeds the maximum work group size of {}. "
             "JSON property \"workGroupSize\" has been set to {} to enable graceful program restart. ",
+            wrong_size,
+            max_work_group_size,
+            max_work_group_size));
+    }
+
+    domain = std::make_unique<Domain>(*properties);
+
+    if (properties->algorithm == "gpu-two-lattice-linear")
+    {
+        data = std::make_unique<Data>(properties->total_unexpanded_node_count, queue, true);
+    }
+    else if (properties->algorithm == "gpu-two-lattice")
+    {
+        data = std::make_unique<Data>(domain->total_node_count, queue, true);
+    }
+    else if (properties->algorithm == "gpu-two-lattice-buffered")
+    {
+        data = std::make_unique<Data>(domain->total_node_count, queue, false);
+    }
+    else
+    {
+        data = std::make_unique<Data>(domain->total_node_count, queue, false);
+    }
+}
+
+lbm::core::Simulation::Simulation(sycl::queue &queue, core::Properties props) :
+    properties(std::make_unique<Properties>(std::move(props))),
+    results(std::make_unique<Results>(properties->domain_node_count, queue)),
+    control(std::make_unique<Control>(properties->time_steps))
+{
+    size_t max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+
+    if (properties->work_group_size > max_work_group_size)
+    {
+        size_t wrong_size = properties->work_group_size;
+        properties->work_group_size = static_cast<unsigned int>(max_work_group_size);
+
+        throw lbm::exceptions::json::PropertyArgumentException(fmt::format(
+            "work_group_size {} exceeds the device maximum of {}; reduce it to {} and reconstruct.",
             wrong_size,
             max_work_group_size,
             max_work_group_size));

@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q \
+            clang-18 llvm-18 libclang-18-dev libclang-cpp18-dev llvm-18-dev \
+            libomp-18-dev \
+            libboost-fiber-dev libboost-context-dev
+
+      - name: Set compiler env
+        run: |
+          echo "CC=clang-18"    >> $GITHUB_ENV
+          echo "CXX=clang++-18" >> $GITHUB_ENV
+
+      - name: Cache AdaptiveCpp
+        id: cache-acpp
+        uses: actions/cache@v4
+        with:
+          path: build/_deps/acpp-install
+          key: acpp-v24.10.0-ubuntu-24.04
+
+      - name: Install AdaptiveCpp
+        if: steps.cache-acpp.outputs.cache-hit != 'true'
+        run: ./install_adaptivecpp.sh --cpu --build-dir build --llvm-dir /usr/lib/llvm-18/cmake
+
+      - name: Configure
+        run: >-
+          cmake -B build
+          -DCMAKE_CXX_COMPILER=clang++-18
+          -DCMAKE_BUILD_TYPE=Release
+          -DWITH_NAN_PROTECTION=OFF
+          -DFORCE_USE_CPU=ON
+
+      - name: Build
+        run: cmake --build build -j $(nproc)

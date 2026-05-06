@@ -1,16 +1,16 @@
 /**
  * @file        swap_kernels.hpp
- * 
+ *
  * @author      Marcel Graf
- * 
+ *
  * @brief       This header file contains the declarations and definitions of kernels for the swap algorithm.
- * 
+ *
  * @version     1.5
- * 
+ *
  * @date        March 2025
- * 
+ *
  * @copyright   Copyright (c) Marcel Graf
- * 
+ *
  */
 
 #ifndef LBM_SWAP_KERNELS_HPP
@@ -30,351 +30,324 @@
 namespace lbm
 {
 
-    namespace gpu
-    {
+namespace gpu
+{
 
-        namespace swap
-        {
+namespace swap
+{
 
-            /**
-             * @brief This namespace contains all kernels for the swap algorithm.
-             */
-            namespace kernels
-            {
+/**
+ * @brief This namespace contains all kernels for the swap algorithm.
+ */
+namespace kernels
+{
 
 // PERFORMANCE KERNELS ////////////////////////////////////////////////////////////////////////////////////////////////
 
-                /**
-                 * @brief   Kernel for emplacing the bounce-back values.
-                 * 
-                 * @tparam  A   any `core::access::AccessorConcept` from access.hpp 
-                 */
-                template<core::access::AccessorConcept A>
-                class EmplaceBounceBackKernel
-                {
-                    private:
-
-                    int8_t *phase_information;
-
-                    real_type *distribution_values;
-
-                    unsigned int horizontal_nodes;
-                    unsigned int horizontal_nodes_original;
-                    unsigned int total_nodes;
-
-                    unsigned int subdomain_horizontal_nodes;
-                    unsigned int subdomain_vertical_nodes;
-
-                    public:
-
-                    /**
-                     * @brief   Constructor for a new `EmplaceBounceBackKernel` object.
-                     *          Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
-                     * 
-                     * @param[in]   simulation  the structure containing all simulation data
-                     */
-                    EmplaceBounceBackKernel(const core::Simulation &simulation):
-                    phase_information(simulation.data->phase_information),
-                    distribution_values(simulation.data->distribution_values_0),
-                    horizontal_nodes(simulation.domain->horizontal_nodes),
-                    horizontal_nodes_original(simulation.properties->horizontal_nodes),
-                    total_nodes(simulation.domain->total_node_count),
-                    subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
-                    subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes)
-                    {}
-
-                    /**
-                     * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
-                     * 
-                     * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
-                     */
-                    void operator()(const sycl::nd_item<2> &nd_item) const
-                    {
-                        auto global_id_x = nd_item.get_global_id(1) + 1;
-                        auto global_id_y = nd_item.get_global_id(0) + 1;
-                        auto linear_index = 
-                            core::access::decomposed::BufferedNodeAccess::get_index(
-                                global_id_x, 
-                                global_id_y, 
-                                subdomain_vertical_nodes, 
-                                subdomain_horizontal_nodes, 
-                                horizontal_nodes
-                            );
-
-                        if(phase_information[linear_index] == 1)
-                        {
-                            for(int dir = 0; dir < 4; ++dir)
-                            {
-                                distribution_values[A::at(linear_index, dir, total_nodes)] = 
-                                    distribution_values[
-                                        A::at(
-                                            core::access::get_neighbor(linear_index, dir, horizontal_nodes), 
-                                            8 - dir, 
-                                            total_nodes
-                                        )
-                                    ];           
-                            }
-
-                            for(int dir = 5; dir < 9; ++dir)
-                            {
-                                distribution_values[A::at(linear_index, dir, total_nodes)] = 
-                                    distribution_values[
-                                        A::at(
-                                            core::access::get_neighbor(linear_index, dir, horizontal_nodes), 
-                                            8 - dir, 
-                                            total_nodes
-                                        )
-                                    ];           
-                            }
-                        }
-                    }
-                };
-
-                /**
-                 * @brief   This kernel performs the streaming step, the update of the macroscopic observables and 
-                 *          collision step of a swap iteration.
-                 * 
-                 * @tparam  A any `core::access::AccessorConcept` from access.hpp 
-                 */          
-                template<core::access::AccessorConcept A>
-                class StreamCollideKernel
-                {
-                    private:
-
-                    int8_t *phase_information;
-
-                    real_type *distribution_values;
-
-                    real_type *densities;
-                    real_type *x_velocities;
-                    real_type *y_velocities;
-                    real_type *absolute_velocity_values;
-
-                    unsigned int vertical_nodes_expanded;
-                    unsigned int horizontal_nodes_expanded;
-                    unsigned int horizontal_nodes_domain;
-                    unsigned int total_nodes;
-
-                    unsigned int subdomain_horizontal_nodes;
-                    unsigned int subdomain_vertical_nodes;
-
-                    real_type relaxation_time_inverse;
-
-                    unsigned int local_buffer_length;
-                    sycl::local_accessor<real_type, 1> local;
-
-                    public:
-
-                    /**
-                     * @brief Constructor for a new `StreamCollideKernel` object.
-                     *        Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
-                     * 
-                     * @param[in]   simulation      the structure containing all simulation data
-                     * @param[in]   cgh             the SYCL command group handler is used for setting up the local 
-                     *                              memory
-                     * @param[in]   work_group_size the work group size used by this kernel
-                     */
-                    StreamCollideKernel(const core::Simulation &simulation, sycl::handler &cgh, int work_group_size):
-                    phase_information(simulation.data->phase_information),
-                    distribution_values(simulation.data->distribution_values_0),
-                    densities(simulation.results->densities_gpu),
-                    x_velocities(simulation.results->x_velocities_gpu),
-                    y_velocities(simulation.results->y_velocities_gpu),
-                    absolute_velocity_values(simulation.results->absolute_velocities_gpu),
-                    vertical_nodes_expanded(simulation.domain->vertical_nodes),
-                    horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
-                    horizontal_nodes_domain(simulation.properties->horizontal_nodes),
-                    total_nodes(simulation.domain->total_node_count),
-                    relaxation_time_inverse(1 / simulation.properties->relaxation_time),
-                    subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
-                    subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes),
-                    local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 2)),
-                    local(sycl::local_accessor<real_type, 1>(sycl::range<1>(2 * local_buffer_length), cgh))
-                    {}
+/**
+ * @brief   Kernel for emplacing the bounce-back values.
+ *
+ * @tparam  A   any `core::access::AccessorConcept` from access.hpp
+ */
+template <core::access::AccessorConcept A>
+class EmplaceBounceBackKernel
+{
+  private:
+    int8_t *phase_information;
+
+    real_type *distribution_values;
+
+    unsigned int horizontal_nodes;
+    unsigned int horizontal_nodes_original;
+    unsigned int total_nodes;
+
+    unsigned int subdomain_horizontal_nodes;
+    unsigned int subdomain_vertical_nodes;
+
+  public:
+    /**
+     * @brief   Constructor for a new `EmplaceBounceBackKernel` object.
+     *          Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+     *
+     * @param[in]   simulation  the structure containing all simulation data
+     */
+    EmplaceBounceBackKernel(const core::Simulation &simulation) :
+        phase_information(simulation.data->phase_information),
+        distribution_values(simulation.data->distribution_values_0),
+        horizontal_nodes(simulation.domain->horizontal_nodes),
+        horizontal_nodes_original(simulation.properties->horizontal_nodes),
+        total_nodes(simulation.domain->total_node_count),
+        subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
+        subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes)
+    { }
+
+    /**
+     * @brief This overloaded operator is implicitly called to launch the kernel for various work items.
+     *
+     * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
+     */
+    void operator()(const sycl::nd_item<2> &nd_item) const
+    {
+        auto global_id_x = nd_item.get_global_id(1) + 1;
+        auto global_id_y = nd_item.get_global_id(0) + 1;
+        auto linear_index = core::access::decomposed::BufferedNodeAccess::get_index(
+            global_id_x, global_id_y, subdomain_vertical_nodes, subdomain_horizontal_nodes, horizontal_nodes);
+
+        if (phase_information[linear_index] == 1)
+        {
+            for (int dir = 0; dir < 4; ++dir)
+            {
+                distribution_values[A::at(linear_index, dir, total_nodes)] = distribution_values[A::at(
+                    core::access::get_neighbor(linear_index, dir, horizontal_nodes), 8 - dir, total_nodes)];
+            }
+
+            for (int dir = 5; dir < 9; ++dir)
+            {
+                distribution_values[A::at(linear_index, dir, total_nodes)] = distribution_values[A::at(
+                    core::access::get_neighbor(linear_index, dir, horizontal_nodes), 8 - dir, total_nodes)];
+            }
+        }
+    }
+};
+
+/**
+ * @brief   This kernel performs the streaming step, the update of the macroscopic observables and
+ *          collision step of a swap iteration.
+ *
+ * @tparam  A any `core::access::AccessorConcept` from access.hpp
+ */
+template <core::access::AccessorConcept A>
+class StreamCollideKernel
+{
+  private:
+    int8_t *phase_information;
+
+    real_type *distribution_values;
+
+    real_type *densities;
+    real_type *x_velocities;
+    real_type *y_velocities;
+    real_type *absolute_velocity_values;
+
+    unsigned int vertical_nodes_expanded;
+    unsigned int horizontal_nodes_expanded;
+    unsigned int horizontal_nodes_domain;
+    unsigned int total_nodes;
+
+    unsigned int subdomain_horizontal_nodes;
+    unsigned int subdomain_vertical_nodes;
+
+    real_type relaxation_time_inverse;
+
+    unsigned int local_buffer_length;
+    sycl::local_accessor<real_type, 1> local;
+
+  public:
+    /**
+     * @brief Constructor for a new `StreamCollideKernel` object.
+     *        Create an instance of this kernel and pass it to `cgh.parallel_for(...)`.
+     *
+     * @param[in]   simulation      the structure containing all simulation data
+     * @param[in]   cgh             the SYCL command group handler is used for setting up the local
+     *                              memory
+     * @param[in]   work_group_size the work group size used by this kernel
+     */
+    StreamCollideKernel(const core::Simulation &simulation, sycl::handler &cgh, int work_group_size) :
+        phase_information(simulation.data->phase_information),
+        distribution_values(simulation.data->distribution_values_0),
+        densities(simulation.results->densities_gpu),
+        x_velocities(simulation.results->x_velocities_gpu),
+        y_velocities(simulation.results->y_velocities_gpu),
+        absolute_velocity_values(simulation.results->absolute_velocities_gpu),
+        vertical_nodes_expanded(simulation.domain->vertical_nodes),
+        horizontal_nodes_expanded(simulation.domain->horizontal_nodes),
+        horizontal_nodes_domain(simulation.properties->horizontal_nodes),
+        total_nodes(simulation.domain->total_node_count),
+        relaxation_time_inverse(1 / simulation.properties->relaxation_time),
+        subdomain_horizontal_nodes(simulation.domain->subdomain_horizontal_nodes),
+        subdomain_vertical_nodes(simulation.domain->subdomain_vertical_nodes),
+        local_buffer_length((subdomain_horizontal_nodes + 4) * (subdomain_vertical_nodes + 2)),
+        local(sycl::local_accessor<real_type, 1>(sycl::range<1>(2 * local_buffer_length), cgh))
+    { }
 
-                    /**
-                     * @brief   This overloaded operator is implicitly called to launch the kernel for various work 
-                     *          items.
-                     * 
-                     * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
-                     */
-                    void operator()(const sycl::nd_item<2> &nd_item) const 
-                    {
-                        unsigned int global_id_x = 
-                            nd_item.get_global_id(1) - nd_item.get_global_id(1) / nd_item.get_local_range(1);
+    /**
+     * @brief   This overloaded operator is implicitly called to launch the kernel for various work
+     *          items.
+     *
+     * @param[in]   nd_item a work item from a two-dimensional SYCL nd-range
+     */
+    void operator()(const sycl::nd_item<2> &nd_item) const
+    {
+        unsigned int global_id_x = nd_item.get_global_id(1) - nd_item.get_global_id(1) / nd_item.get_local_range(1);
 
-                        unsigned int global_id_y = 
-                            nd_item.get_global_id(0);
+        unsigned int global_id_y = nd_item.get_global_id(0);
 
-                        unsigned int linear_index = 
-                            core::access::get_node_index(global_id_x, global_id_y,  horizontal_nodes_expanded);
+        unsigned int linear_index = core::access::get_node_index(global_id_x, global_id_y, horizontal_nodes_expanded);
 
-                        unsigned int neighbor_index = 0;
+        unsigned int neighbor_index = 0;
 
-                        unsigned int buffer_id_x = nd_item.get_local_id(1) + 1;
-                        unsigned int buffer_id_y = nd_item.get_local_id(0);
+        unsigned int buffer_id_x = nd_item.get_local_id(1) + 1;
+        unsigned int buffer_id_y = nd_item.get_local_id(0);
 
-                        unsigned int own_buffer_index = 
-                            core::access::get_node_index(buffer_id_x, buffer_id_y, subdomain_horizontal_nodes + 4);
+        unsigned int own_buffer_index =
+            core::access::get_node_index(buffer_id_x, buffer_id_y, subdomain_horizontal_nodes + 4);
 
-                        unsigned int buffer_target_index = 0;
-
-                        real_type density = 0;
-                        int velocity_x_component = 0; 
-                        int velocity_y_component = 0; 
-                        real_type flow_velocity_x = 0;
-                        real_type flow_velocity_y = 0;
-                        real_type absolute_velocity = 0;
-
-                        real_type private_distribution_values [9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-                        real_type result = 0;
-
-                        real_type result_buf = 0;
-
-                        //Load stationary value into private buffer
-                        private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
-
-                        /* Directions 5 and 6 */
-
-                        // 5 //////////////////////////////////////////////////////////////////////////////////////////
-                        buffer_target_index = 
-                        core::access::get_neighbor(own_buffer_index, 5, subdomain_horizontal_nodes + 4);
-
-                        // Write values that are sent to neighbor into their shared buffer
-                        local[2 * buffer_target_index] = distribution_values[A::at(linear_index, 5, total_nodes)];
-
-                        // Determine global index of neighbor
-                        neighbor_index = core::access::get_neighbor(linear_index, 5, horizontal_nodes_expanded);
-
-                        // Store incoming distribution values in private array
-                        private_distribution_values[3] = distribution_values[A::at(neighbor_index, 3, total_nodes)];
+        unsigned int buffer_target_index = 0;
 
-                        // 6 //////////////////////////////////////////////////////////////////////////////////////////
-                        buffer_target_index = 
-                        core::access::get_neighbor(own_buffer_index, 6, subdomain_horizontal_nodes + 4);
+        real_type density = 0;
+        int velocity_x_component = 0;
+        int velocity_y_component = 0;
+        real_type flow_velocity_x = 0;
+        real_type flow_velocity_y = 0;
+        real_type absolute_velocity = 0;
 
-                        // Write values that are sent to neighbor into their shared buffer
-                        local[2 * buffer_target_index + 1] = distribution_values[A::at(linear_index, 6, total_nodes)];
-
-                        // Determine global index of neighbor
-                        neighbor_index = core::access::get_neighbor(linear_index, 6, horizontal_nodes_expanded);
-
-                        // Store incoming distribution values in private array
-                        private_distribution_values[2] = distribution_values[A::at(neighbor_index, 2, total_nodes)];
-
-                        nd_item.barrier();
-
-                        // Collect passive values from shared buffer //////////////////////////////////////////////////
-                        private_distribution_values[5] = local[2 * own_buffer_index];
-                        private_distribution_values[6] = local[2 * own_buffer_index + 1];
-
-                        nd_item.barrier();
-
-                        /* Directions 7 and 8 */ 
-
-                        // 7 //////////////////////////////////////////////////////////////////////////////////////////
-                        buffer_target_index = 
-                        core::access::get_neighbor(own_buffer_index, 7, subdomain_horizontal_nodes + 4);
+        real_type private_distribution_values[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        real_type result = 0;
 
-                        // Write values that are sent to neighbor into their shared buffer
-                        local[2 * buffer_target_index] = distribution_values[A::at(linear_index, 7, total_nodes)];
+        real_type result_buf = 0;
 
-                        // Determine global index of neighbor
-                        neighbor_index = core::access::get_neighbor(linear_index, 7, horizontal_nodes_expanded);
+        // Load stationary value into private buffer
+        private_distribution_values[4] = distribution_values[A::at(linear_index, 4, total_nodes)];
 
-                        // Store incoming distribution values in private array
-                        private_distribution_values[1] = distribution_values[A::at(neighbor_index, 1, total_nodes)];
+        /* Directions 5 and 6 */
 
-                        // 8 //////////////////////////////////////////////////////////////////////////////////////////
-                        buffer_target_index = 
-                        core::access::get_neighbor(own_buffer_index, 8, subdomain_horizontal_nodes + 4);
+        // 5 //////////////////////////////////////////////////////////////////////////////////////////
+        buffer_target_index = core::access::get_neighbor(own_buffer_index, 5, subdomain_horizontal_nodes + 4);
 
-                        // Write values that are sent to neighbor into their shared buffer
-                        local[2 * buffer_target_index + 1] = distribution_values[A::at(linear_index, 8, total_nodes)];
+        // Write values that are sent to neighbor into their shared buffer
+        local[2 * buffer_target_index] = distribution_values[A::at(linear_index, 5, total_nodes)];
 
-                        // Determine global index of neighbor
-                        neighbor_index = core::access::get_neighbor(linear_index, 8, horizontal_nodes_expanded);
+        // Determine global index of neighbor
+        neighbor_index = core::access::get_neighbor(linear_index, 5, horizontal_nodes_expanded);
 
-                        // Store incoming distribution values in private array
-                        private_distribution_values[0] = distribution_values[A::at(neighbor_index, 0, total_nodes)];
+        // Store incoming distribution values in private array
+        private_distribution_values[3] = distribution_values[A::at(neighbor_index, 3, total_nodes)];
 
-                        nd_item.barrier();
+        // 6 //////////////////////////////////////////////////////////////////////////////////////////
+        buffer_target_index = core::access::get_neighbor(own_buffer_index, 6, subdomain_horizontal_nodes + 4);
+
+        // Write values that are sent to neighbor into their shared buffer
+        local[2 * buffer_target_index + 1] = distribution_values[A::at(linear_index, 6, total_nodes)];
+
+        // Determine global index of neighbor
+        neighbor_index = core::access::get_neighbor(linear_index, 6, horizontal_nodes_expanded);
+
+        // Store incoming distribution values in private array
+        private_distribution_values[2] = distribution_values[A::at(neighbor_index, 2, total_nodes)];
+
+        nd_item.barrier();
+
+        // Collect passive values from shared buffer //////////////////////////////////////////////////
+        private_distribution_values[5] = local[2 * own_buffer_index];
+        private_distribution_values[6] = local[2 * own_buffer_index + 1];
+
+        nd_item.barrier();
+
+        /* Directions 7 and 8 */
+
+        // 7 //////////////////////////////////////////////////////////////////////////////////////////
+        buffer_target_index = core::access::get_neighbor(own_buffer_index, 7, subdomain_horizontal_nodes + 4);
+
+        // Write values that are sent to neighbor into their shared buffer
+        local[2 * buffer_target_index] = distribution_values[A::at(linear_index, 7, total_nodes)];
 
-                        // Collect passive values from shared buffer //////////////////////////////////////////////////
-                        private_distribution_values[7] = local[2 * own_buffer_index];
-                        private_distribution_values[8] = local[2 * own_buffer_index + 1];
+        // Determine global index of neighbor
+        neighbor_index = core::access::get_neighbor(linear_index, 7, horizontal_nodes_expanded);
 
-                        unsigned int iteration_node_offset =
-                        lbm::core::access::get_result_index(
-                            (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
-                            (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
-                            horizontal_nodes_domain
-                        );
+        // Store incoming distribution values in private array
+        private_distribution_values[1] = distribution_values[A::at(neighbor_index, 1, total_nodes)];
 
-                        if(!phase_information[linear_index])
-                        {                                  
-                            for (int direction = 0; direction < 9; ++direction)
-                            {
-                                density += private_distribution_values[direction];
-                                velocity_x_component = direction % 3 - 1; 
-                                velocity_y_component = direction / 3 - 1; 
-                                flow_velocity_x += private_distribution_values[direction] * velocity_x_component;
-                                flow_velocity_y += private_distribution_values[direction] * velocity_y_component;
-                            }
+        // 8 //////////////////////////////////////////////////////////////////////////////////////////
+        buffer_target_index = core::access::get_neighbor(own_buffer_index, 8, subdomain_horizontal_nodes + 4);
 
-                            absolute_velocity = flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
+        // Write values that are sent to neighbor into their shared buffer
+        local[2 * buffer_target_index + 1] = distribution_values[A::at(linear_index, 8, total_nodes)];
 
-                            // Perform collision and write back values to main memory
-                            for (int direction = 0; direction < 9; ++direction)
-                            {
-                                velocity_x_component = (direction % 3) - 1; 
-                                velocity_y_component = (direction / 3) - 1; 
+        // Determine global index of neighbor
+        neighbor_index = core::access::get_neighbor(linear_index, 8, horizontal_nodes_expanded);
 
-                                result_buf = 
-                                    velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y;
+        // Store incoming distribution values in private array
+        private_distribution_values[0] = distribution_values[A::at(neighbor_index, 0, total_nodes)];
 
-                                result = core::constants::weights[direction] *
-                                    (
-                                        density + 3 * result_buf + 9.0/2 * result_buf * result_buf - 3.0/2 * 
-                                        absolute_velocity
-                                    );
+        nd_item.barrier();
 
-                                result = -relaxation_time_inverse * (private_distribution_values[direction] - result) 
-                                    + private_distribution_values[direction];
+        // Collect passive values from shared buffer //////////////////////////////////////////////////
+        private_distribution_values[7] = local[2 * own_buffer_index];
+        private_distribution_values[8] = local[2 * own_buffer_index + 1];
 
-                                distribution_values[A::at(linear_index, direction, total_nodes)] = result;
-                            }
+        unsigned int iteration_node_offset = lbm::core::access::get_result_index(
+            (global_id_x) - (global_id_x / (subdomain_horizontal_nodes + 1)),
+            (global_id_y) - (global_id_y / (subdomain_vertical_nodes + 1)),
+            horizontal_nodes_domain);
 
-                            absolute_velocity = sycl::sqrt(absolute_velocity);
+        if (!phase_information[linear_index])
+        {
+            for (int direction = 0; direction < 9; ++direction)
+            {
+                density += private_distribution_values[direction];
+                velocity_x_component = direction % 3 - 1;
+                velocity_y_component = direction / 3 - 1;
+                flow_velocity_x += private_distribution_values[direction] * velocity_x_component;
+                flow_velocity_y += private_distribution_values[direction] * velocity_y_component;
+            }
 
-                            #ifdef WITH_NAN_PROTECTION 
+            absolute_velocity = flow_velocity_x * flow_velocity_x + flow_velocity_y * flow_velocity_y;
 
-                                if(sycl::isnan(density) || density > std::numeric_limits<float>::max()) 
-                                    density = 0;
-                                if(sycl::isnan(flow_velocity_x) || flow_velocity_x > std::numeric_limits<float>::max()) 
-                                    flow_velocity_x = 0;
-                                if(sycl::isnan(flow_velocity_y) || flow_velocity_y > std::numeric_limits<float>::max()) 
-                                    flow_velocity_y = 0;
-                                if(sycl::isnan(absolute_velocity) || absolute_velocity > std::numeric_limits<float>::max()) 
-                                    absolute_velocity = 0;
+            // Perform collision and write back values to main memory
+            for (int direction = 0; direction < 9; ++direction)
+            {
+                velocity_x_component = (direction % 3) - 1;
+                velocity_y_component = (direction / 3) - 1;
 
-                            #endif
+                result_buf = velocity_x_component * flow_velocity_x + velocity_y_component * flow_velocity_y;
 
-                            // Update macroscopic observables
-                            densities[iteration_node_offset] = density;
-                            x_velocities[iteration_node_offset] = flow_velocity_x; 
-                            y_velocities[iteration_node_offset] = flow_velocity_y; 
-                            absolute_velocity_values[iteration_node_offset] = absolute_velocity;
-                        }
-                    }
-                };
+                result = core::constants::weights[direction]
+                         * (density + 3 * result_buf + 9.0 / 2 * result_buf * result_buf - 3.0 / 2 * absolute_velocity);
 
-            } // ! namespace kernels
+                result = -relaxation_time_inverse * (private_distribution_values[direction] - result)
+                         + private_distribution_values[direction];
 
-        } // ! namespace swap
+                distribution_values[A::at(linear_index, direction, total_nodes)] = result;
+            }
 
-    } // ! namespace gpu
+            absolute_velocity = sycl::sqrt(absolute_velocity);
 
-} // ! namespace lbm
+#ifdef WITH_NAN_PROTECTION
 
-#endif // ! LBM_SWAP_KERNELS_HPP
+            if (sycl::isnan(density) || density > std::numeric_limits<float>::max())
+            {
+                density = 0;
+            }
+            if (sycl::isnan(flow_velocity_x) || flow_velocity_x > std::numeric_limits<float>::max())
+            {
+                flow_velocity_x = 0;
+            }
+            if (sycl::isnan(flow_velocity_y) || flow_velocity_y > std::numeric_limits<float>::max())
+            {
+                flow_velocity_y = 0;
+            }
+            if (sycl::isnan(absolute_velocity) || absolute_velocity > std::numeric_limits<float>::max())
+            {
+                absolute_velocity = 0;
+            }
+
+#endif
+
+            // Update macroscopic observables
+            densities[iteration_node_offset] = density;
+            x_velocities[iteration_node_offset] = flow_velocity_x;
+            y_velocities[iteration_node_offset] = flow_velocity_y;
+            absolute_velocity_values[iteration_node_offset] = absolute_velocity;
+        }
+    }
+};
+
+}  // namespace kernels
+
+}  // namespace swap
+
+}  // namespace gpu
+
+}  // namespace lbm
+
+#endif  // ! LBM_SWAP_KERNELS_HPP

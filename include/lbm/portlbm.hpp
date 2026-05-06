@@ -29,10 +29,10 @@
 #include "version.hpp"
 
 // Core
-#include "core/constants.hpp"
 #include "core/access.hpp"
-#include "core/simulation.hpp"
+#include "core/constants.hpp"
 #include "core/domain_initialization.hpp"
+#include "core/simulation.hpp"
 #include "core/timer.hpp"
 
 // Execution
@@ -46,4 +46,4 @@
 // Exceptions
 #include "exceptions/exceptions.hpp"
 
-#endif // !PORTLBM_HPP
+#endif  // !PORTLBM_HPP

@@ -6,7 +6,9 @@
 #   ./install_adaptivecpp.sh --rocm                 # AMD GPU
 #   ./install_adaptivecpp.sh --cpu                  # CPU / OpenMP only
 #   ./install_adaptivecpp.sh --build-dir <path>     # custom build directory (default: ./build)
+#   ./install_adaptivecpp.sh --llvm-dir <path>      # explicit LLVM cmake dir (e.g. /usr/lib/llvm-18/cmake)
 #
+# The compiler is taken from $CXX / $CC if set, otherwise defaults to clang++ / clang.
 # After installation, cmake picks up AdaptiveCpp automatically — no extra flags needed.
 
 set -euo pipefail
@@ -14,6 +16,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build"
 BACKEND="cuda"
+LLVM_DIR=""
 JOBS="${JOBS:-$(nproc)}"
 
 while [[ $# -gt 0 ]]; do
@@ -21,6 +24,7 @@ while [[ $# -gt 0 ]]; do
     --rocm)       BACKEND="rocm";    shift ;;
     --cpu)        BACKEND="cpu";     shift ;;
     --build-dir)  BUILD_DIR="$2";    shift 2 ;;
+    --llvm-dir)   LLVM_DIR="$2";     shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -34,6 +38,8 @@ ACPP_BUILD_DIR="${DEPS_DIR}/acpp-build"
 echo "Backend  : $BACKEND"
 echo "Build dir: $BUILD_DIR"
 echo "Prefix   : $PREFIX"
+echo "Compiler : ${CXX:-clang++}"
+echo "LLVM dir : ${LLVM_DIR:-(auto-detect)}"
 echo "Jobs     : $JOBS"
 echo ""
 
@@ -62,7 +68,9 @@ esac
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-  -DCMAKE_CXX_COMPILER=clang++ \
+  -DCMAKE_CXX_COMPILER="${CXX:-clang++}" \
+  -DCMAKE_C_COMPILER="${CC:-clang}" \
+  ${LLVM_DIR:+-DLLVM_DIR="$LLVM_DIR"} \
   -DWITH_ACCELERATED_CPU=ON \
   -DWITH_SSCP_COMPILER=ON \
   -DWITH_STDPAR_COMPILER=OFF \
@@ -76,5 +84,5 @@ echo ""
 echo "AdaptiveCpp installed to: $PREFIX"
 echo ""
 echo "To build PortLBM:"
-echo "  cmake -DCMAKE_CXX_COMPILER=clang++ -B ${BUILD_DIR} ${SCRIPT_DIR}"
+echo "  cmake -DCMAKE_CXX_COMPILER=${CXX:-clang++} -B ${BUILD_DIR} ${SCRIPT_DIR}"
 echo "  cmake --build ${BUILD_DIR}"

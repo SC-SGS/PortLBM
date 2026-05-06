@@ -15,13 +15,13 @@
  */
 
 #include "../../../include/lbm/core/simulation.hpp"
-#include "../../../include/lbm/file_interaction/file_interaction.hpp"
+
 #include "../../../include/lbm/exceptions/exceptions.hpp"
+#include "../../../include/lbm/file_interaction/file_interaction.hpp"
 
 // PROPERTIES /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-lbm::core::Properties::Properties
-(
+lbm::core::Properties::Properties(
     // Algorithmic properties
     const std::string &&algorithm,
     const std::string &&data_layout,
@@ -40,51 +40,44 @@ lbm::core::Properties::Properties
     const real_type outlet_velocity_x,
     const real_type outlet_velocity_y,
     const real_type outlet_density,
-    const real_type relaxation_time
-)
-:
-// Algorithmic properties
-algorithm(algorithm),
-data_layout(data_layout),
-debug_mode(debug_mode),
-work_group_size(work_group_size),
-time_steps(time_steps),
-frame_update_interval(frame_update_interval),
-// Domain properties
-scenario(scenario),
-vertical_nodes(vertical_nodes + 2),
-horizontal_nodes(horizontal_nodes + 2),
-total_unexpanded_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
-domain_node_count(vertical_nodes * horizontal_nodes),
-// Physical
-inlet_velocity_x(inlet_velocity_x),
-inlet_velocity_y(inlet_velocity_y),
-inlet_density(inlet_density),
-outlet_velocity_x(outlet_velocity_x),
-outlet_velocity_y(outlet_velocity_y),
-outlet_density(outlet_density),
-relaxation_time(relaxation_time),
-// settings_path is intentionally left empty here; it is set by json_to_properties()
-settings_path("")
-{};
+    const real_type relaxation_time) :
+    // Algorithmic properties
+    algorithm(algorithm),
+    data_layout(data_layout),
+    debug_mode(debug_mode),
+    work_group_size(work_group_size),
+    time_steps(time_steps),
+    frame_update_interval(frame_update_interval),
+    // Domain properties
+    scenario(scenario),
+    vertical_nodes(vertical_nodes + 2),
+    horizontal_nodes(horizontal_nodes + 2),
+    total_unexpanded_node_count((vertical_nodes + 2) * (horizontal_nodes + 2)),
+    domain_node_count(vertical_nodes * horizontal_nodes),
+    // Physical
+    inlet_velocity_x(inlet_velocity_x),
+    inlet_velocity_y(inlet_velocity_y),
+    inlet_density(inlet_density),
+    outlet_velocity_x(outlet_velocity_x),
+    outlet_velocity_y(outlet_velocity_y),
+    outlet_density(outlet_density),
+    relaxation_time(relaxation_time),
+    // settings_path is intentionally left empty here; it is set by json_to_properties()
+    settings_path(""){};
 
 // CONTROL ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-lbm::core::Control::Control(const unsigned int max_iterations)
-:
-stopped(false),
-current_iteration(0),
-max_iterations(max_iterations),
-progress(0),
-timer(std::make_unique<Timer>()),
-last_frametime(std::numeric_limits<double>::max())
-{};
-
+lbm::core::Control::Control(const unsigned int max_iterations) :
+    stopped(false),
+    current_iteration(0),
+    max_iterations(max_iterations),
+    progress(0),
+    timer(std::make_unique<Timer>()),
+    last_frametime(std::numeric_limits<double>::max()){};
 
 std::string lbm::core::Properties::to_string() const
 {
-    return fmt::format
-    (
+    return fmt::format(
         "Algorithmic properties: \n"
         "\tAlgorithm: {} \n"
         "\tData layout: {} \n"
@@ -119,119 +112,98 @@ std::string lbm::core::Properties::to_string() const
         outlet_velocity_x,
         outlet_velocity_y,
         outlet_density,
-        relaxation_time
-    );
+        relaxation_time);
 }
 
 // DOMAIN /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-lbm::core::Domain::Domain
-(
-    unsigned int total_node_count,
-    unsigned int vertical_nodes,
-    unsigned int horizontal_nodes,
-    unsigned int subdomain_vertical_nodes,
-    unsigned int subdomain_horizontal_nodes,
-    unsigned int subdomain_count_vertical,
-    unsigned int subdomain_count_horizontal
-)
-:
-total_node_count(total_node_count),
-vertical_nodes(vertical_nodes),
-horizontal_nodes(horizontal_nodes),
-subdomain_vertical_nodes(subdomain_vertical_nodes),
-subdomain_horizontal_nodes(subdomain_horizontal_nodes),
-subdomain_count_vertical(subdomain_count_vertical),
-subdomain_count_horizontal(subdomain_count_horizontal)
-{};
+lbm::core::Domain::Domain(unsigned int total_node_count,
+                          unsigned int vertical_nodes,
+                          unsigned int horizontal_nodes,
+                          unsigned int subdomain_vertical_nodes,
+                          unsigned int subdomain_horizontal_nodes,
+                          unsigned int subdomain_count_vertical,
+                          unsigned int subdomain_count_horizontal) :
+    total_node_count(total_node_count),
+    vertical_nodes(vertical_nodes),
+    horizontal_nodes(horizontal_nodes),
+    subdomain_vertical_nodes(subdomain_vertical_nodes),
+    subdomain_horizontal_nodes(subdomain_horizontal_nodes),
+    subdomain_count_vertical(subdomain_count_vertical),
+    subdomain_count_horizontal(subdomain_count_horizontal){};
 
-
-lbm::core::Domain::Domain(core::Properties &properties)
-:
-Domain
-(
-    properties.horizontal_nodes * properties.vertical_nodes,
-    properties.vertical_nodes,
-    properties.horizontal_nodes,
-    properties.vertical_nodes,
-    properties.horizontal_nodes,
-    1,
-    1
-)
+lbm::core::Domain::Domain(core::Properties &properties) :
+    Domain(properties.horizontal_nodes * properties.vertical_nodes,
+           properties.vertical_nodes,
+           properties.horizontal_nodes,
+           properties.vertical_nodes,
+           properties.horizontal_nodes,
+           1,
+           1)
 {
-    if(properties.algorithm == "gpu-two-lattice")
+    if (properties.algorithm == "gpu-two-lattice")
     {
         setup_for_decomposed_two_lattice(
-            properties.horizontal_nodes,
-            properties.vertical_nodes,
-            properties.work_group_size
-        );
+            properties.horizontal_nodes, properties.vertical_nodes, properties.work_group_size);
     }
-    else if(properties.algorithm == "gpu-two-lattice-buffered")
+    else if (properties.algorithm == "gpu-two-lattice-buffered")
     {
         setup_for_buffered_two_lattice(
-            properties.horizontal_nodes,
-            properties.vertical_nodes,
-            properties.work_group_size
-        );
+            properties.horizontal_nodes, properties.vertical_nodes, properties.work_group_size);
     }
-    else if(properties.algorithm == "gpu-swap")
+    else if (properties.algorithm == "gpu-swap")
     {
-        setup_for_swap(
-            properties.horizontal_nodes,
-            properties.vertical_nodes,
-            properties.work_group_size,
-            properties.settings_path      // <-- no longer hard-coded
+        setup_for_swap(properties.horizontal_nodes,
+                       properties.vertical_nodes,
+                       properties.work_group_size,
+                       properties.settings_path  // <-- no longer hard-coded
         );
     }
 }
 
-
-void lbm::core::power_of_two_handling
-(
-    const size_t work_group_size,
-    unsigned int &subdomain_vertical_nodes,
-    unsigned int &subdomain_horizontal_nodes
-)
+void lbm::core::power_of_two_handling(
+    const size_t work_group_size, unsigned int &subdomain_vertical_nodes, unsigned int &subdomain_horizontal_nodes)
 {
     size_t power_4 = power_functions::which_power_of_4(work_group_size);
     size_t power_2 = power_functions::which_power_of_2(work_group_size);
 
-    if (power_4) // Is work_group_size a power of four?
+    if (power_4)  // Is work_group_size a power of four?
     {
         // ==> square subdomains
 
         size_t size = 1;
-        for(int i = 0; i < power_4; ++i) { size *= 2; }
+        for (int i = 0; i < power_4; ++i)
+        {
+            size *= 2;
+        }
 
         subdomain_horizontal_nodes = size;
         subdomain_vertical_nodes = size;
     }
-    else if (power_2) // Is work_group_size a power of two?
+    else if (power_2)  // Is work_group_size a power of two?
     {
         // ==> as close to square as possible, with preference for horizontal length
         size_t power_height = power_2 / 2;
         size_t height = 1;
-        for(int i = 0; i < power_height; ++i) { height *= 2; }
+        for (int i = 0; i < power_height; ++i)
+        {
+            height *= 2;
+        }
 
         subdomain_vertical_nodes = height;
         subdomain_horizontal_nodes = 2 * height;
     }
-    else // work_group_size is a multiple of two
+    else  // work_group_size is a multiple of two
     {
-        //  ==> stripe subdomains with extents 2 and work_group_size / 2
+        // ==> stripe subdomains with extents 2 and work_group_size / 2
         subdomain_vertical_nodes = 2;
         subdomain_horizontal_nodes = work_group_size / 2;
     }
 }
 
-
-void lbm::core::Domain::setup_for_decomposed_two_lattice
-(
-    const unsigned int unexpanded_horizontal_nodes,
-    const unsigned int unexpanded_vertical_nodes,
-    const size_t work_group_size
-)
+void lbm::core::Domain::setup_for_decomposed_two_lattice(const unsigned int unexpanded_horizontal_nodes,
+                                                         const unsigned int unexpanded_vertical_nodes,
+                                                         const size_t work_group_size)
 {
     // Is work_group_size uneven (and larger than 1)?
     if (work_group_size & 0x1)
@@ -240,29 +212,31 @@ void lbm::core::Domain::setup_for_decomposed_two_lattice
         subdomain_horizontal_nodes = work_group_size;
         subdomain_vertical_nodes = 1;
     }
-    else // work_group_size is guaranteed to be even, that is, a multiple of 2
+    else  // work_group_size is guaranteed to be even, that is, a multiple of 2
     {
         power_of_two_handling(work_group_size, subdomain_vertical_nodes, subdomain_horizontal_nodes);
     }
 
     subdomain_count_vertical = (((unexpanded_vertical_nodes - 2) / subdomain_vertical_nodes) + 1);
-    if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
-    vertical_nodes = (subdomain_vertical_nodes) * subdomain_count_vertical + 2;
+    if (!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes))
+    {
+        subdomain_count_vertical--;
+    }
+    vertical_nodes = (subdomain_vertical_nodes) *subdomain_count_vertical + 2;
 
     subdomain_count_horizontal = (((unexpanded_horizontal_nodes - 2) / subdomain_horizontal_nodes) + 1);
-    if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
-    horizontal_nodes = (subdomain_horizontal_nodes) * subdomain_count_horizontal + 2;
+    if (!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes))
+    {
+        subdomain_count_horizontal--;
+    }
+    horizontal_nodes = (subdomain_horizontal_nodes) *subdomain_count_horizontal + 2;
 
     total_node_count = vertical_nodes * horizontal_nodes;
 }
 
-
-void lbm::core::Domain::setup_for_buffered_two_lattice
-(
-    const unsigned int unexpanded_horizontal_nodes,
-    const unsigned int unexpanded_vertical_nodes,
-    const size_t work_group_size
-)
+void lbm::core::Domain::setup_for_buffered_two_lattice(const unsigned int unexpanded_horizontal_nodes,
+                                                       const unsigned int unexpanded_vertical_nodes,
+                                                       const size_t work_group_size)
 {
     // Is work_group_size uneven (and larger than 1)?
     if (work_group_size & 0x1)
@@ -271,55 +245,52 @@ void lbm::core::Domain::setup_for_buffered_two_lattice
         subdomain_horizontal_nodes = work_group_size;
         subdomain_vertical_nodes = 1;
     }
-    else // work_group_size is guaranteed to be even, that is, a multiple of 2
+    else  // work_group_size is guaranteed to be even, that is, a multiple of 2
     {
         power_of_two_handling(work_group_size, subdomain_vertical_nodes, subdomain_horizontal_nodes);
     }
 
     subdomain_count_vertical = (((unexpanded_vertical_nodes - 2) / subdomain_vertical_nodes) + 1);
-    if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
+    if (!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes))
+    {
+        subdomain_count_vertical--;
+    }
     vertical_nodes = (subdomain_vertical_nodes + 1) * subdomain_count_vertical + 1;
 
     subdomain_count_horizontal = (((unexpanded_horizontal_nodes - 2) / subdomain_horizontal_nodes) + 1);
-    if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
+    if (!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes))
+    {
+        subdomain_count_horizontal--;
+    }
     horizontal_nodes = (subdomain_horizontal_nodes + 1) * subdomain_count_horizontal + 1;
 
     total_node_count = vertical_nodes * horizontal_nodes;
 }
 
-
-void lbm::core::Domain::setup_for_swap
-(
-    const unsigned int unexpanded_horizontal_nodes,
-    const unsigned int unexpanded_vertical_nodes,
-    size_t work_group_size,
-    const std::string &settings_path      // <-- explicit path, no longer hard-coded
+void lbm::core::Domain::setup_for_swap(const unsigned int unexpanded_horizontal_nodes,
+                                       const unsigned int unexpanded_vertical_nodes,
+                                       size_t work_group_size,
+                                       const std::string &settings_path  // <-- explicit path, no longer hard-coded
 )
 {
     // Swap algorithm requires a work-group size of at least 6
-    if(work_group_size < 6)
+    if (work_group_size < 6)
     {
         size_t wrong_size = work_group_size;
 
-        core::Properties properties =
-            lbm::file_interaction::json_to_properties(settings_path, -2);
+        core::Properties properties = lbm::file_interaction::json_to_properties(settings_path, -2);
 
         properties.work_group_size = 6;
 
         lbm::file_interaction::properties_to_json(properties, settings_path);
 
-        throw lbm::exceptions::json::PropertyArgumentException
-        (
-            fmt::format
-            (
-                "Detected illegal work group size of {} that is below the minimum work-group size of {} of the "
-                "swap algorithm. JSON property \"workGroupSize\" has been set to {} to enable graceful program "
-                "restart. ",
-                wrong_size,
-                6,
-                6
-            )
-        );
+        throw lbm::exceptions::json::PropertyArgumentException(fmt::format(
+            "Detected illegal work group size of {} that is below the minimum work-group size of {} of the "
+            "swap algorithm. JSON property \"workGroupSize\" has been set to {} to enable graceful program "
+            "restart. ",
+            wrong_size,
+            6,
+            6));
     }
 
     // Is work_group_size uneven (and larger than 1)?
@@ -332,14 +303,20 @@ void lbm::core::Domain::setup_for_swap
     power_of_two_handling(work_group_size, subdomain_vertical_nodes, subdomain_horizontal_nodes);
 
     subdomain_vertical_nodes -= 1;
-    subdomain_horizontal_nodes -= 2; // should be 2
+    subdomain_horizontal_nodes -= 2;  // should be 2
 
     subdomain_count_vertical = (((unexpanded_vertical_nodes - 2) / subdomain_vertical_nodes) + 1);
-    if(!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes)) { subdomain_count_vertical--; }
+    if (!((unexpanded_vertical_nodes - 2) % subdomain_vertical_nodes))
+    {
+        subdomain_count_vertical--;
+    }
     vertical_nodes = (subdomain_vertical_nodes + 1) * subdomain_count_vertical + 1;
 
     subdomain_count_horizontal = (((unexpanded_horizontal_nodes - 2) / subdomain_horizontal_nodes) + 1);
-    if(!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes)) { subdomain_count_horizontal--; }
+    if (!((unexpanded_horizontal_nodes - 2) % subdomain_horizontal_nodes))
+    {
+        subdomain_count_horizontal--;
+    }
     horizontal_nodes = (subdomain_horizontal_nodes + 1) * subdomain_count_horizontal + 1;
 
     total_node_count = vertical_nodes * horizontal_nodes;
@@ -347,65 +324,66 @@ void lbm::core::Domain::setup_for_swap
 
 // SIMULATION /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-lbm::core::Results::Results(const size_t &size, sycl::queue &queue)
-:
-queue(std::make_shared<sycl::queue>(queue)),
+lbm::core::Results::Results(const size_t &size, sycl::queue &queue) :
+    queue(std::make_shared<sycl::queue>(queue)),
 
-densities_cpu(std::make_unique<std::vector<real_type>>(size, -1.0f)),
-densities_gpu(sycl::malloc_device<real_type>(size, queue)),
+    densities_cpu(std::make_unique<std::vector<real_type>>(size, -1.0f)),
+    densities_gpu(sycl::malloc_device<real_type>(size, queue)),
 
-x_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
-x_velocities_gpu(sycl::malloc_device<real_type>(size, queue)),
+    x_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
+    x_velocities_gpu(sycl::malloc_device<real_type>(size, queue)),
 
-y_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
-y_velocities_gpu(sycl::malloc_device<real_type>(size, queue)),
+    y_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
+    y_velocities_gpu(sycl::malloc_device<real_type>(size, queue)),
 
-absolute_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
-absolute_velocities_gpu(sycl::malloc_device<real_type>(size, queue))
+    absolute_velocities_cpu(std::make_unique<std::vector<real_type>>(size, 0.0f)),
+    absolute_velocities_gpu(sycl::malloc_device<real_type>(size, queue))
 {
-    #ifdef USE_FLOAT
+#ifdef USE_FLOAT
     queue.fill(densities_gpu, -1.0f, size).wait();
     queue.fill(x_velocities_gpu, 0.0f, size).wait();
     queue.fill(y_velocities_gpu, 0.0f, size).wait();
     queue.fill(absolute_velocities_gpu, 0.0f, size).wait();
-    #else
+#else
     queue.fill(densities_gpu, -1.0, size).wait();
     queue.fill(x_velocities_gpu, 0.0, size).wait();
     queue.fill(y_velocities_gpu, 0.0, size).wait();
     queue.fill(absolute_velocities_gpu, 0.0, size).wait();
-    #endif
+#endif
 
     densities_cpu->shrink_to_fit();
     x_velocities_cpu->shrink_to_fit();
     y_velocities_cpu->shrink_to_fit();
     absolute_velocities_cpu->shrink_to_fit();
-};
+}
 
-
-lbm::core::Data::Data(const size_t total_node_count, sycl::queue &queue, const bool dual_lattice)
-:
-queue(std::make_shared<sycl::queue>(queue)),
-phase_information(sycl::malloc_device<int8_t>(total_node_count, queue)),
-distribution_values_0(sycl::malloc_device<real_type>(9 * total_node_count, queue))
+lbm::core::Data::Data(const size_t total_node_count, sycl::queue &queue, const bool dual_lattice) :
+    queue(std::make_shared<sycl::queue>(queue)),
+    phase_information(sycl::malloc_device<int8_t>(total_node_count, queue)),
+    distribution_values_0(sycl::malloc_device<real_type>(9 * total_node_count, queue))
 {
-    queue.fill(phase_information, (int8_t)-1, total_node_count).wait();
-    if(dual_lattice) distribution_values_1 = sycl::malloc_device<real_type>(9 * total_node_count, queue);
-    else distribution_values_1 = nullptr;
-};
-
+    queue.fill(phase_information, (int8_t) -1, total_node_count).wait();
+    if (dual_lattice)
+    {
+        distribution_values_1 = sycl::malloc_device<real_type>(9 * total_node_count, queue);
+    }
+    else
+    {
+        distribution_values_1 = nullptr;
+    }
+}
 
 // settings_path is stored in properties->settings_path (set by json_to_properties).
 // It is forwarded to properties_to_json() for self-correction writes and
 // indirectly to Domain::setup_for_swap() via properties.settings_path.
-lbm::core::Simulation::Simulation(sycl::queue &queue, const std::string &settings_path)
-:
-properties(std::make_unique<Properties>(file_interaction::json_to_properties(settings_path))),
-results(std::make_unique<Results>(properties->domain_node_count, queue)),
-control(std::make_unique<Control>(properties->time_steps))
+lbm::core::Simulation::Simulation(sycl::queue &queue, const std::string &settings_path) :
+    properties(std::make_unique<Properties>(file_interaction::json_to_properties(settings_path))),
+    results(std::make_unique<Results>(properties->domain_node_count, queue)),
+    control(std::make_unique<Control>(properties->time_steps))
 {
     size_t max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
 
-    if(properties->work_group_size > max_work_group_size)
+    if (properties->work_group_size > max_work_group_size)
     {
         size_t wrong_size = properties->work_group_size;
         properties->work_group_size = max_work_group_size;
@@ -415,30 +393,25 @@ control(std::make_unique<Control>(properties->time_steps))
         // Use the path stored in properties (set by json_to_properties above)
         lbm::file_interaction::properties_to_json(*properties, properties->settings_path);
 
-        throw lbm::exceptions::json::PropertyArgumentException
-        (
-            fmt::format
-            (
-                "Detected illegal work group size of {} that exceeds the maximum work group size of {}. "
-                "JSON property \"workGroupSize\" has been set to {} to enable graceful program restart. ",
-                wrong_size,
-                max_work_group_size,
-                max_work_group_size
-            )
-        );
+        throw lbm::exceptions::json::PropertyArgumentException(fmt::format(
+            "Detected illegal work group size of {} that exceeds the maximum work group size of {}. "
+            "JSON property \"workGroupSize\" has been set to {} to enable graceful program restart. ",
+            wrong_size,
+            max_work_group_size,
+            max_work_group_size));
     }
 
     domain = std::make_unique<Domain>(*properties);
 
-    if(properties->algorithm == "gpu-two-lattice-linear")
+    if (properties->algorithm == "gpu-two-lattice-linear")
     {
         data = std::make_unique<Data>(properties->total_unexpanded_node_count, queue, true);
     }
-    else if(properties->algorithm == "gpu-two-lattice")
+    else if (properties->algorithm == "gpu-two-lattice")
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
-    else if(properties->algorithm == "gpu-two-lattice-buffered")
+    else if (properties->algorithm == "gpu-two-lattice-buffered")
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, false);
     }
@@ -446,4 +419,4 @@ control(std::make_unique<Control>(properties->time_steps))
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, false);
     }
-};
+}

@@ -24,6 +24,37 @@ option(USE_FLOAT                "Use float instead of double as real_type"      
 option(FORCE_USE_CPU            "Force host execution even when a GPU is available"  OFF)
 option(BENCHMARK_MODE           "Build the benchmark driver"                         OFF)
 option(PORTLBM_BUILD_EXECUTABLE "Build the parallel_lbm driver executable"          ON)
+option(PORTLBM_FORMAT_ONLY      "Configure formatting targets only — skips all dependencies and compilation" OFF)
+
+# ---- Formatting targets (configured first so FORMAT_ONLY can return early) --
+
+find_program(CLANG_FORMAT_PROGRAM NAMES clang-format-18 clang-format)
+
+if(CLANG_FORMAT_PROGRAM)
+  file(GLOB_RECURSE FORMAT_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/lbm/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/lbm/*.hpp"
+  )
+  list(FILTER FORMAT_SOURCES EXCLUDE REGEX ".*/external/.*")
+
+  add_custom_target(check-clang-format
+    COMMAND ${CLANG_FORMAT_PROGRAM} --dry-run --Werror ${FORMAT_SOURCES}
+    COMMENT "Checking code formatting"
+    VERBATIM
+  )
+
+  add_custom_target(clang-format
+    COMMAND ${CLANG_FORMAT_PROGRAM} -i ${FORMAT_SOURCES}
+    COMMENT "Formatting code"
+    VERBATIM
+  )
+else()
+  message(STATUS "[PortLBM] clang-format not found — formatting targets unavailable")
+endif()
+
+if(PORTLBM_FORMAT_ONLY)
+  return()
+endif()
 
 # ---- Dependencies ----------------------------------------------------------
 

@@ -1,18 +1,18 @@
 /**
  * @file        linear_gpu_two_lattice.hpp
- * 
+ *
  * @author      Marcel Graf
- * 
- * @brief       In this header, two classes for the GPU-based linear two-lattice algorithm are declared. Both inherit 
+ *
+ * @brief       In this header, two classes for the GPU-based linear two-lattice algorithm are declared. Both inherit
  *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The
  *              kernel functions are implemented in `linear_two_lattice_kernels.hpp`.
- * 
+ *
  * @version     4.4
- * 
+ *
  * @date        April 2025
- * 
+ *
  * @copyright   Copyright (c) Marcel Graf
- * 
+ *
  */
 
 #ifndef LINEAR_GPU_TWO_LATTICE_HPP
@@ -37,568 +37,466 @@
 namespace lbm
 {
 
-    /**
-     * @brief This namespace contains the GPU implementations of the two-lattice and the swap algorithm.
-     */
-    namespace gpu
-    {
+/**
+ * @brief This namespace contains the GPU implementations of the two-lattice and the swap algorithm.
+ */
+namespace gpu
+{
 
-        /**
-         * @brief This namespace contains the GPU implementations of the two-lattice algorithm.
-         */
-        namespace two_lattice
-        {
+/**
+ * @brief This namespace contains the GPU implementations of the two-lattice algorithm.
+ */
+namespace two_lattice
+{
 
-            /**
-             * @brief This namespace contains implementations using linear kernels.
-             */
-            namespace linear
-            {
+/**
+ * @brief This namespace contains implementations using linear kernels.
+ */
+namespace linear
+{
 
 // PERFORMANCE LINEAR TWO-LATTICE /////////////////////////////////////////////////////////////////////////////////////
 
-                /**
-                 * @brief   Class representation of the linear SYCL implementation of the two-lattice algorithm.
-                 * 
-                 * @tparam  A   any `core::access::AccessorConcept` from access.hpp
-                 */
-                template <core::access::AccessorConcept A>
-                class LinearGpuTwoLattice : public execution::SYCLAlgorithm
+/**
+ * @brief   Class representation of the linear SYCL implementation of the two-lattice algorithm.
+ *
+ * @tparam  A   any `core::access::AccessorConcept` from access.hpp
+ */
+template <core::access::AccessorConcept A>
+class LinearGpuTwoLattice : public execution::SYCLAlgorithm
+{
+  private:
+    /**
+     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates the
+     *          macroscopic observables in the process. The latter are copied to the host in regular
+     *          intervals.
+     */
+    inline void stream_and_collide()
+    {
+        auto event = queue->submit(
+            [&](sycl::handler &cgh)
+            {
+                auto kernel = linear::kernels::StreamCollideKernel<A>(*simulation);
+                cgh.parallel_for(
+                    sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes),
+                    kernel);
+            });
+        event.wait();
+
+        if (simulation->control->get_current_iteration() % simulation->properties->frame_update_interval
+            == simulation->properties->frame_update_interval - 1)
+        {
+            copy_macroscopic_observables_to_cpu();
+        }
+    }
+
+    /**
+     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice
+     *          algorithm.
+     */
+    void emplace_bounce_back()
+    {
+        auto event = queue->submit(
+            [&](sycl::handler &cgh)
+            {
+                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                cgh.parallel_for(
+                    sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes),
+                    kernel);
+            });
+        event.wait();
+    }
+
+    /**
+     * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
+     */
+    void perform_inout_update()
+    {
+        auto event = queue->submit(
+            [&](sycl::handler &cgh)
+            {
+                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
+                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
+            });
+        event.wait();
+    }
+
+  public:
+    /**
+     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last
+     *          iteration.
+     */
+    inline void execute() override
+    {
+        future = std::async(
+            [&]
+            {
+                while (simulation->control->is_execution_allowed())
                 {
-                    private:
+                    simulation->control->reset_timer();
 
-                    /**
-                     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates the
-                     *          macroscopic observables in the process. The latter are copied to the host in regular
-                     *          intervals.
-                     */
-                    inline void stream_and_collide()
-                    {
-                        auto event = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = linear::kernels::StreamCollideKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<1>(
-                                        simulation->properties->vertical_nodes * 
-                                        simulation->properties->horizontal_nodes
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event.wait();
+                    emplace_bounce_back();
+                    perform_inout_update();
+                    stream_and_collide();
 
-                        if(
-                            simulation->control->get_current_iteration() % 
-                            simulation->properties->frame_update_interval
-                            == simulation->properties->frame_update_interval - 1
-                        )
-                        {
-                            copy_macroscopic_observables_to_cpu();
-                        }
-                    }
+                    real_type *tmp = simulation->data->distribution_values_1;
+                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
+                    simulation->data->distribution_values_0 = tmp;
 
-                    /**
-                     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice 
-                     *          algorithm.
-                     */
-                    void emplace_bounce_back()
-                    {
-                        auto event = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<1>(
-                                        simulation->properties->vertical_nodes * 
-                                        simulation->properties->horizontal_nodes
-                                    ), kernel
-                                );
-                            }
-                        );
-                        event.wait();
-                    }
+                    simulation->control->finalize_iteration();
+                }
 
-                    /**
-                     * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
-                     */
-                    void perform_inout_update()
-                    {
-                        auto event = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
-                                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                            }
-                        );
-                        event.wait();
-                    }
+                if (simulation->control->is_finished())
+                {
+                    copy_macroscopic_observables_to_cpu();
+                }
+            });
+    }
 
-                    public:
-
-                    /**
-                     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last 
-                     *          iteration. 
-                     */
-                    inline void execute() override
-                    {
-                        future = std::async
-                        (
-                            [&]
-                            {
-                                while(simulation->control->is_execution_allowed())
-                                {
-                                    simulation->control->reset_timer();
-
-                                    emplace_bounce_back();
-                                    perform_inout_update();
-                                    stream_and_collide();
-
-                                    real_type *tmp = simulation->data->distribution_values_1;
-                                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
-                                    simulation->data->distribution_values_0 = tmp;
-
-                                    simulation->control->finalize_iteration();
-                                }
-
-                                if(simulation->control->is_finished())
-                                {
-                                    copy_macroscopic_observables_to_cpu();
-                                }
-                            }
-                        );
-                    }
-
-                    /**
-                     * @brief   Constructs a `LinearGpuTwoLattice` algorithm object and initializes its domain.
-                     * 
-                     * @param[in]   queue           the SYCL queue used for interaction with the device
-                     * @param[in]   settings_path   path to the JSON settings file
-                     */
-                    explicit LinearGpuTwoLattice(sycl::queue &queue, const std::string &settings_path)
-                    : SYCLAlgorithm(queue, settings_path) 
-                    {
-                        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
-                            *simulation, queue
-                        );
-                    }; 
-                };
+    /**
+     * @brief   Constructs a `LinearGpuTwoLattice` algorithm object and initializes its domain.
+     *
+     * @param[in]   queue           the SYCL queue used for interaction with the device
+     * @param[in]   settings_path   path to the JSON settings file
+     */
+    explicit LinearGpuTwoLattice(sycl::queue &queue, const std::string &settings_path) :
+        SYCLAlgorithm(queue, settings_path)
+    {
+        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
+            *simulation, queue);
+    }
+};
 
 // DEBUG LINEAR TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////////////
 
-                /**
-                 * @brief Class representation of the linear SYCL debug implementation of the two-lattice algorithm.
-                 * 
-                 * @tparam A any `core::access::AccessorConcept` from access.hpp
-                 */
-                template <core::access::AccessorConcept A>
-                class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
+/**
+ * @brief Class representation of the linear SYCL debug implementation of the two-lattice algorithm.
+ *
+ * @tparam A any `core::access::AccessorConcept` from access.hpp
+ */
+template <core::access::AccessorConcept A>
+class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
+{
+  private:
+    // Contains the density values of all nodes during all iterations
+    std::unique_ptr<std::vector<real_type>> all_densities;
+
+    // Contains the x velocity components of all nodes during all iterations
+    std::unique_ptr<std::vector<real_type>> all_x_velocities;
+
+    // Contains the y velocity components of all nodes during all iterations
+    std::unique_ptr<std::vector<real_type>> all_y_velocities;
+
+    // Acts as a buffer for distribution values that are to be printed to the console
+    std::unique_ptr<std::vector<real_type>> distribution_values;
+
+    std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
+
+    // Contains a copy of the phase information located on the GPU
+    std::unique_ptr<std::vector<int8_t>> phase_information;
+
+    // Contains the current iteration of the algorithm
+    unsigned int current_iteration;
+
+    /**
+     * @brief   Performs the streaming step of the two-lattice algorithm.
+     */
+    void stream()
+    {
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
                 {
-                    private:
+                    auto kernel = linear::kernels::StreamKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
+                })
+            .wait();
+    }
 
-                    // Contains the density values of all nodes during all iterations
-                    std::unique_ptr<std::vector<real_type>> all_densities;
-                    
-                    // Contains the x velocity components of all nodes during all iterations
-                    std::unique_ptr<std::vector<real_type>> all_x_velocities;
+    /**
+     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
+     *          the macroscopic observables in the process.
+     */
+    void update_macroscopic_observables()
+    {
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
+                })
+            .wait();
+    }
 
-                    // Contains the y velocity components of all nodes during all iterations
-                    std::unique_ptr<std::vector<real_type>> all_y_velocities;
+    /**
+     * @brief   Performs the collision step of the two-lattice algorithm.
+     *
+     */
+    void collide()
+    {
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = linear::kernels::CollideKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
+                })
+            .wait();
+    }
 
-                    // Acts as a buffer for distribution values that are to be printed to the console
-                    std::unique_ptr<std::vector<real_type>> distribution_values;
+    /**
+     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
+     *          the macroscopic observables in the process.
+     */
+    inline void stream_and_collide()
+    {
+        stream();
 
-                    std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
+        queue
+            ->copy(simulation->data->distribution_values_1,
+                   distribution_values->data(),
+                   9 * simulation->properties->total_unexpanded_node_count)
+            .wait();
 
-                    // Contains a copy of the phase information located on the GPU
-                    std::unique_ptr<std::vector<int8_t>> phase_information;
+        std::cout << "\033[36mDestination lattice after streaming: \n"
+                  << "-------------------------------------------------------------------------------\n\033[0m";
 
-                    // Contains the current iteration of the algorithm
-                    unsigned int current_iteration;
+        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
 
-                    /**
-                     * @brief   Performs the streaming step of the two-lattice algorithm.
-                     */
-                    void stream()
-                    {
-                        queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = linear::kernels::StreamKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
-                                );
-                            }
-                        ).wait();
-                    }
+        update_macroscopic_observables();
 
-                    /**
-                     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
-                     *          the macroscopic observables in the process.
-                     */
-                    void update_macroscopic_observables()
-                    {
-                        queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
-                                );
-                            }
-                        ).wait();
-                    }
+        copy_macroscopic_observables_to_cpu();
 
-                    /**
-                     * @brief   Performs the collision step of the two-lattice algorithm.
-                     * 
-                     */
-                    void collide()
-                    {
-                        queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = linear::kernels::CollideKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
-                                );
-                            }
-                        ).wait();
-                    }
+        std::cout << "Velocities: \n"
+                  << "-------------------------------------------------------------------------------\n";
 
-                    /**
-                     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
-                     *          the macroscopic observables in the process.
-                     */
-                    inline void stream_and_collide()
-                    {
-                        stream();
+        lbm::console::print_velocities(
+            *simulation->properties, *simulation->results->x_velocities_cpu, *simulation->results->y_velocities_cpu, 0);
 
-                        queue->copy(
-                            simulation->data->distribution_values_1, 
-                            distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
-                        ).wait();
+        std::cout << "Densities: \n"
+                  << "-------------------------------------------------------------------------------\n";
+        lbm::console::print_densities(*simulation->properties, *simulation->results->densities_cpu, 0);
 
-                        std::cout 
-                        << "\033[36mDestination lattice after streaming: \n"
-                        << "-------------------------------------------------------------------------------\n\033[0m";
-                        
-                        console::print_distribution_values<A>(
-                            *distribution_values, 
-                            *phase_information,
-                            *simulation
-                        );
-                    
-                        update_macroscopic_observables();
-                        
-                        copy_macroscopic_observables_to_cpu();
+        collide();
 
-                        std::cout 
-                        << "Velocities: \n"
-                        << "-------------------------------------------------------------------------------\n";
+        queue
+            ->copy(simulation->data->distribution_values_1,
+                   distribution_values->data(),
+                   9 * simulation->properties->total_unexpanded_node_count)
+            .wait();
 
-                        lbm::console::print_velocities(
-                            *simulation->properties, 
-                            *simulation->results->x_velocities_cpu, 
-                            *simulation->results->y_velocities_cpu, 
-                            0
-                        );
+        std::cout << "\033[36mDestination lattice after collision: \n"
+                  << "-------------------------------------------------------------------------------\n\033[0m";
 
-                        std::cout 
-                        << "Densities: \n"
-                        << "-------------------------------------------------------------------------------\n";
-                        lbm::console::print_densities(
-                            *simulation->properties, 
-                            *simulation->results->densities_cpu, 
-                            0
-                        );
+        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
+    }
 
-                        collide();
+    /**
+     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
+     */
+    void emplace_bounce_back()
+    {
+        auto event = queue->submit(
+            [&](sycl::handler &cgh)
+            {
+                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
+            });
+        event.wait();
 
-                        queue->copy(
-                            simulation->data->distribution_values_1, 
-                            distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
-                        ).wait();
+        queue
+            ->copy(simulation->data->distribution_values_0,
+                   distribution_values->data(),
+                   9 * simulation->properties->total_unexpanded_node_count)
+            .wait();
 
-                        std::cout 
-                        << "\033[36mDestination lattice after collision: \n"
-                        << "-------------------------------------------------------------------------------\n\033[0m";
+        std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
+                  << "-------------------------------------------------------------------------------\033[0m\n";
 
-                        console::print_distribution_values<A>(
-                            *distribution_values, 
-                            *phase_information,
-                            *simulation
-                        ); 
-                    }
+        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
+    }
 
-                    /**
-                     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
-                     */
-                    void emplace_bounce_back()
-                    {
-                        auto event = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                                cgh.parallel_for(
-                                    sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel
-                                );
-                            }
-                        );
-                        event.wait();
+    /**
+     * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
+     */
+    void perform_inout_update()
+    {
+        auto event = queue->submit(
+            [&](sycl::handler &cgh)
+            {
+                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
+                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
+            });
+        event.wait();
 
-                        queue->copy(
-                            simulation->data->distribution_values_0, 
-                            distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
-                        ).wait();
+        queue
+            ->copy(simulation->data->distribution_values_0,
+                   distribution_values->data(),
+                   9 * simulation->properties->total_unexpanded_node_count)
+            .wait();
 
-                        std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
-                        << "-------------------------------------------------------------------------------\033[0m\n";
+        std::cout << "\033[36mDestination lattice after updating inlets and outlets: \n"
+                  << "-------------------------------------------------------------------------------\033[0m\n";
 
-                        console::print_distribution_values<A>(
-                            *distribution_values, 
-                            *phase_information,
-                            *simulation
-                        );
-                    }
+        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
+    }
 
-                    /**
-                     * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
-                     */
-                    void perform_inout_update()
-                    {
-                        auto event = queue->submit
-                        (
-                            [&](sycl::handler &cgh)
-                            {
-                                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
-                                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel); 
-                            }
-                        );
-                        event.wait();
+  public:
+    /**
+     * @brief   Runs the debug variant of the linear two-lattice algorithm until it is paused or it
+     *          reaches the last iteration.
+     */
+    inline void execute() override
+    {
+        if (current_iteration == 0)
+        {
+            console::print_ansi_color_message();
+            console::print_color_legend();
 
-                        queue->copy(
-                            simulation->data->distribution_values_0, 
-                            distribution_values->data(), 
-                            9 * simulation->properties->total_unexpanded_node_count
-                        ).wait();
+            queue
+                ->copy(simulation->data->distribution_values_0,
+                       distribution_values->data(),
+                       9 * simulation->properties->total_unexpanded_node_count)
+                .wait();
 
-                        std::cout 
-                        << "\033[36mDestination lattice after updating inlets and outlets: \n"
-                        << "-------------------------------------------------------------------------------\033[0m\n";
+            queue
+                ->copy(simulation->data->phase_information,
+                       phase_information->data(),
+                       simulation->properties->total_unexpanded_node_count)
+                .wait();
 
-                        console::print_distribution_values<A>(
-                            *distribution_values, 
-                            *phase_information,
-                            *simulation
-                        );
-                    }
+            std::cout << "Initial distribution values: \n";
+            std::cout << "-------------------------------------------------------------------------------\n";
 
-                    public:
+            console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
 
-                    /**
-                     * @brief   Runs the debug variant of the linear two-lattice algorithm until it is paused or it 
-                     *          reaches the last iteration. 
-                     */
-                    inline void execute() override 
-                    {
-                        if(current_iteration == 0)
-                        {
-                            console::print_ansi_color_message();
-                            console::print_color_legend();
+            std::cout << "Phase information: \n";
+            std::cout << "-------------------------------------------------------------------------------\n";
 
-                            queue->copy(
-                                simulation->data->distribution_values_0, 
-                                distribution_values->data(), 
-                                9 * simulation->properties->total_unexpanded_node_count
-                            ).wait();
+            console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
 
-                            queue->copy(
-                                simulation->data->phase_information, 
-                                phase_information->data(), 
-                                simulation->properties->total_unexpanded_node_count
-                            ).wait();
+            std::cout << "\033[36mNow running linear GPU two-lattice for " << simulation->properties->time_steps
+                      << " iterations.\033[0m\n\n";
 
-                            std::cout << "Initial distribution values: \n";
-                            std::cout << "-------------------------------------------------------------------------------\n";
+            std::cout << "Running on " << queue->get_device().get_info<sycl::info::device::name>() << "\n\n";
 
-                            console::print_distribution_values<A>(
-                                *distribution_values, 
-                                *phase_information,
-                                *simulation
-                            );
+            fmt::print("Simulation properties:\n"
+                       "-------------------------------------------------------------------------------\n");
 
-                            std::cout << "Phase information: \n";
-                            std::cout << "-------------------------------------------------------------------------------\n";
+            fmt::print(fmt::runtime(simulation->properties->to_string()));
+        }
 
-                            console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
+        future = std::async(
+            [&]
+            {
+                while (simulation->control->is_execution_allowed())
+                {
+                    simulation->control->reset_timer();
 
-                            std::cout 
-                            << "\033[36mNow running linear GPU two-lattice for " 
-                            << simulation->properties->time_steps 
-                            << " iterations.\033[0m\n\n";
+                    std::cout
+                        << "\033[36m===============================================================================\n"
+                        << "Iteration " << current_iteration << "\n"
+                        << "===============================================================================\033[0m\n\n";
 
-                            std::cout 
-                            << "Running on " 
-                            << queue->get_device().get_info<sycl::info::device::name>() 
-                            << "\n\n";
+                    emplace_bounce_back();
+                    perform_inout_update();
+                    stream_and_collide();
 
-                            fmt::print
-                            (
-                                "Simulation properties:\n"
-                                "-------------------------------------------------------------------------------\n"
-                            );
+                    current_iteration++;
 
-                            fmt::print(fmt::runtime(simulation->properties->to_string())); 
-                        } 
+                    real_type *tmp = simulation->data->distribution_values_1;
+                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
+                    simulation->data->distribution_values_0 = tmp;
 
-                        future = std::async
-                        (
-                            [&]
-                            { 
-                                while(simulation->control->is_execution_allowed())
-                                {
-                                    simulation->control->reset_timer();
+                    queue
+                        ->copy(simulation->results->x_velocities_gpu,
+                               temp_macroscopic_observables->data(),
+                               simulation->properties->domain_node_count)
+                        .wait();
 
-                                    std::cout 
-                                    << "\033[36m===============================================================================\n"
-                                    << "Iteration " << current_iteration << "\n"
-                                    << "===============================================================================\033[0m\n\n";
+                    all_x_velocities->insert(all_x_velocities->end(),
+                                             temp_macroscopic_observables->begin(),
+                                             temp_macroscopic_observables->end());
 
-                                    emplace_bounce_back();
-                                    perform_inout_update();
-                                    stream_and_collide();
+                    queue
+                        ->copy(simulation->results->y_velocities_gpu,
+                               temp_macroscopic_observables->data(),
+                               simulation->properties->domain_node_count)
+                        .wait();
 
-                                    current_iteration++;
+                    all_y_velocities->insert(all_y_velocities->end(),
+                                             temp_macroscopic_observables->begin(),
+                                             temp_macroscopic_observables->end());
 
-                                    real_type *tmp = simulation->data->distribution_values_1;
-                                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
-                                    simulation->data->distribution_values_0 = tmp;
+                    queue
+                        ->copy(simulation->results->densities_gpu,
+                               temp_macroscopic_observables->data(),
+                               simulation->properties->domain_node_count)
+                        .wait();
 
-                                    queue->copy(
-                                        simulation->results->x_velocities_gpu, 
-                                        temp_macroscopic_observables->data(), 
-                                        simulation->properties->domain_node_count
-                                    ).wait();
+                    all_densities->insert(all_densities->end(),
+                                          temp_macroscopic_observables->begin(),
+                                          temp_macroscopic_observables->end());
 
-                                    all_x_velocities->insert(
-                                        all_x_velocities->end(), 
-                                        temp_macroscopic_observables->begin(), 
-                                        temp_macroscopic_observables->end()
-                                    );
+                    simulation->control->finalize_iteration();
 
-                                    queue->copy(
-                                        simulation->results->y_velocities_gpu, 
-                                        temp_macroscopic_observables->data(), 
-                                        simulation->properties->domain_node_count
-                                    ).wait();
+                    std::cout << "\033[36mFinished iteration " << current_iteration << " after "
+                              << simulation->control->get_last_frametime() << " milliseconds.\033[0m\n\n";
+                }
 
-                                    all_y_velocities->insert(
-                                        all_y_velocities->end(), 
-                                        temp_macroscopic_observables->begin(), 
-                                        temp_macroscopic_observables->end()
-                                    );
+                if (simulation->control->is_finished())
+                {
+                    std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
 
-                                    queue->copy(
-                                        simulation->results->densities_gpu, 
-                                        temp_macroscopic_observables->data(), 
-                                        simulation->properties->domain_node_count
-                                    ).wait();
+                    lbm::console::print_simulation_results(
+                        *simulation->properties, *all_densities, *all_x_velocities, *all_y_velocities);
+                }
+            });
+    }
 
-                                    all_densities->insert(
-                                        all_densities->end(), 
-                                        temp_macroscopic_observables->begin(), 
-                                        temp_macroscopic_observables->end()
-                                    );
+    /**
+     * @brief   Constructs a new `LinearGpuTwoLatticeDebug` algorithm object and initializes its domain.
+     *
+     * @param[in]   queue           the SYCL queue used to allocate the device data
+     * @param[in]   settings_path   path to the JSON settings file
+     */
+    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path) :
+        SYCLAlgorithm(queue, settings_path),
+        all_densities(std::make_unique<std::vector<real_type>>()),
+        all_x_velocities(std::make_unique<std::vector<real_type>>()),
+        all_y_velocities(std::make_unique<std::vector<real_type>>()),
+        distribution_values(
+            std::make_unique<std::vector<real_type>>(9 * simulation->properties->total_unexpanded_node_count, 0)),
+        temp_macroscopic_observables(
+            std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
+        phase_information(
+            std::make_unique<std::vector<int8_t>>(simulation->properties->total_unexpanded_node_count, 0)),
+        current_iteration(0)
+    {
+        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
+            *simulation, queue);
 
-                                    simulation->control->finalize_iteration();
+        all_densities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_densities->shrink_to_fit();
 
-                                    std::cout 
-                                    << "\033[36mFinished iteration " 
-                                    << current_iteration 
-                                    << " after "
-                                    << simulation->control->get_last_frametime() 
-                                    << " milliseconds.\033[0m\n\n";
-                                }
+        all_x_velocities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_x_velocities->shrink_to_fit();
 
-                                if(simulation->control->is_finished())
-                                {
-                                    std::cout << "\033[36mAll done, exiting simulation. \033[0m\n\n";
-        
-                                    lbm::console::print_simulation_results(
-                                        *simulation->properties, 
-                                        *all_densities, 
-                                        *all_x_velocities, 
-                                        *all_y_velocities
-                                    );
-                                }
-                            }
-                        );
-                    }
+        all_y_velocities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
+        all_y_velocities->shrink_to_fit();
 
-                    /**
-                     * @brief   Constructs a new `LinearGpuTwoLatticeDebug` algorithm object and initializes its domain.
-                     * 
-                     * @param[in]   queue           the SYCL queue used to allocate the device data
-                     * @param[in]   settings_path   path to the JSON settings file
-                     */
-                    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path)
-                    :
-                    SYCLAlgorithm(queue, settings_path),
-                    all_densities(std::make_unique<std::vector<real_type>>()), 
-                    all_x_velocities(std::make_unique<std::vector<real_type>>()), 
-                    all_y_velocities(std::make_unique<std::vector<real_type>>()), 
-                    distribution_values(
-                        std::make_unique<std::vector<real_type>>(
-                            9 * simulation->properties->total_unexpanded_node_count, 0)
-                    ),
-                    temp_macroscopic_observables(
-                        std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
-                    phase_information(
-                        std::make_unique<std::vector<int8_t>>(simulation->properties->total_unexpanded_node_count, 0)
-                    ),
-                    current_iteration(0)
-                    {
-                        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
-                                *simulation, queue
-                        );
+        distribution_values->shrink_to_fit();
+        phase_information->shrink_to_fit();
+    }
+};
 
-                        all_densities->reserve(
-                            simulation->properties->time_steps * simulation->properties->domain_node_count
-                        );
-                        all_densities->shrink_to_fit();
+}  // namespace linear
 
-                        all_x_velocities->reserve(
-                            simulation->properties->time_steps * simulation->properties->domain_node_count
-                        );
-                        all_x_velocities->shrink_to_fit();
+}  // namespace two_lattice
 
-                        all_y_velocities->reserve(
-                            simulation->properties->time_steps * simulation->properties->domain_node_count
-                        );
-                        all_y_velocities->shrink_to_fit();
+}  // namespace gpu
 
-                        distribution_values->shrink_to_fit();
-                        phase_information->shrink_to_fit();
-                    }; 
-                };
+}  // namespace lbm
 
-            } // ! namespace linear
-
-        } // ! namespace two_lattice
-
-    } // ! namespace gpu
-
-} // ! namespace lbm
-
-#endif // ! GPU_TWO_LATTICE_HPP
+#endif  // ! GPU_TWO_LATTICE_HPP

@@ -1,0 +1,43 @@
+name: Code formatting
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y -q clang-format-18
+
+      - name: Configure
+        run: >-
+          cmake -B build
+          -DPORTLBM_FORMAT_ONLY=ON
+          -DCLANG_FORMAT_PROGRAM=$(which clang-format-18)
+
+      - name: Check formatting
+        id: clangformat
+        run: |
+          set +e
+          cmake --build build --target check-clang-format
+          status=$?
+          if [ $status -ne 0 ]; then
+            echo "Formatting errors found. Generating patch..."
+            cmake --build build --target clang-format
+            git diff > clang-format.patch
+            exit $status
+          fi
+
+      - name: Upload patch
+        if: failure() && steps.clangformat.conclusion == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-format.patch
+          path: clang-format.patch

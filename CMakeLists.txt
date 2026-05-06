@@ -24,6 +24,7 @@ option(USE_FLOAT                "Use float instead of double as real_type"      
 option(FORCE_USE_CPU            "Force host execution even when a GPU is available"  OFF)
 option(BENCHMARK_MODE           "Build the benchmark driver"                         OFF)
 option(PORTLBM_BUILD_EXECUTABLE "Build the parallel_lbm driver executable"          ON)
+option(PORTLBM_BUILD_TESTS      "Build the GoogleTest suite"                         OFF)
 option(PORTLBM_FORMAT_ONLY      "Configure formatting targets only — skips all dependencies and compilation" OFF)
 
 # ---- Formatting targets (configured first so FORMAT_ONLY can return early) --
@@ -132,6 +133,7 @@ target_include_directories(portlbm_core
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/lbm>
     $<INSTALL_INTERFACE:include>
 )
 
@@ -192,6 +194,13 @@ if(PORTLBM_BUILD_EXECUTABLE)
   endif()
 
   add_sycl_to_target(TARGET parallel_lbm)
+endif()
+
+# ---- Tests -----------------------------------------------------------------
+
+if(PORTLBM_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
 endif()
 
 # ---- Install and export ----------------------------------------------------

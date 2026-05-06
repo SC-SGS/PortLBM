@@ -14,6 +14,7 @@
  *              Execution:
  *                - lbm::execution::AlgorithmHandler      — abstract interface
  *                - lbm::execution::SYCLAlgorithmHandler  — SYCL implementation
+ *                - lbm::create_handler()                 — factory (hides SYCL)
  *
  *              Utilities:
  *                - lbm::file_interaction::*  — JSON ↔ Properties helpers
@@ -42,6 +43,9 @@
 #include "execution/algorithm_handler.hpp"
 #include "execution/sycl_algorithm.hpp"
 #include "execution/sycl_algorithm_handler.hpp"
+
+// Factory — preferred entry point; hides SYCL from call sites
+#include "portlbm_factory.hpp"
 
 // File I/O
 #include "file_interaction/file_interaction.hpp"

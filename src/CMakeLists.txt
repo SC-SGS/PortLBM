@@ -9,6 +9,7 @@ set(portlbm_core_sources
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/exceptions/exceptions.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/file_interaction/file_interaction.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/lbm/core/timer.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/lbm/portlbm_factory.cpp"
 )
 
 if(WITH_VISUALIZATION)

@@ -44,6 +44,10 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DWITH_NAN_PROTECTION=OFF
           -DFORCE_USE_CPU=ON
+          -DPORTLBM_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build build -j $(nproc)
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j $(nproc)

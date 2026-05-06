@@ -27,10 +27,11 @@ set(PORTLBM_SETTINGS_JSON
     "${CMAKE_SOURCE_DIR}/settings/settings.json"
     CACHE FILEPATH "Path to the bundled settings/settings.json used in tests")
 
-# ---- Integration smoke test ------------------------------------------------
+# ---- Integration / regression tests (require SYCL runtime) ----------------
 
 add_executable(portlbm_smoke_tests
   smoke_test.cpp
+  test_regression.cpp
 )
 
 target_link_libraries(portlbm_smoke_tests

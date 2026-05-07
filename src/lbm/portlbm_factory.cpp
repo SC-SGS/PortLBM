@@ -1,8 +1,4 @@
 /**
- * @file        portlbm_factory.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       Implementation of the PortLBM factory functions.
  *
  *              This is the **only** translation unit that includes
@@ -10,11 +6,7 @@
  *              pulls in SYCL headers on behalf of library consumers.  Everything
  *              else in the public API remains SYCL-free.
  *
- * @version     1.0
- *
- * @date        May 2025
- *
- * @copyright   Copyright (c) 2025 Marcel Graf
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #include "lbm/portlbm_factory.hpp"

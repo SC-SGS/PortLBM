@@ -1,18 +1,10 @@
 /**
- * @file        access.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the definitions of classes modelling data layouts for storing distribution
  *              values proposed by Mattila et al, as well as functions for retrieving the indices of nodes and
  *              simulation results for domains with or without decomposition and buffering.
  *
- * @version     2.6
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_ACCESS_HPP

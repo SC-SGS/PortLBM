@@ -1,17 +1,9 @@
 /**
- * @file        simulation.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       This source file contains the definition of crucial functionality of the SYCL lattice Boltzmann
  *              simulations.
  *
- * @version     4.7
- *
- * @date        March 2025 (Phase-1 library refactor: May 2025)
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #include "../../../include/lbm/core/simulation.hpp"
@@ -67,9 +59,7 @@ lbm::core::Properties::Properties(
 
 void lbm::core::Properties::validate() const
 {
-    constexpr static std::array<std::string_view, 4> valid_algorithms = {
-        "gpu-two-lattice", "gpu-two-lattice-linear", "gpu-two-lattice-buffered", "gpu-swap"
-    };
+    constexpr static std::array<std::string_view, 4> valid_algorithms = { "nptl", "lptl", "npol", "nsol" };
     constexpr static std::array<std::string_view, 3> valid_layouts = { "stream", "collision", "bundle" };
     constexpr static std::array<std::string_view, 8> valid_scenarios = {
         "Hagen-Poiseuille", "walls", "circle", "square", "plate", "skyscraper", "wing", "porous"
@@ -117,10 +107,8 @@ void lbm::core::Properties::validate() const
 
     if (!in_list(algorithm, valid_algorithms))
     {
-        throw exceptions::json::PropertyArgumentException(fmt::format(
-            "Unknown algorithm: \"{}\". Valid values: gpu-two-lattice, gpu-two-lattice-linear, "
-            "gpu-two-lattice-buffered, gpu-swap",
-            algorithm));
+        throw exceptions::json::PropertyArgumentException(
+            fmt::format("Unknown algorithm: \"{}\". Valid values: lptl, nptl, npol, nsol", algorithm));
     }
     if (!in_list(data_layout, valid_layouts))
     {
@@ -212,17 +200,17 @@ lbm::core::Domain::Domain(core::Properties &properties) :
            1,
            1)
 {
-    if (properties.algorithm == "gpu-two-lattice")
+    if (properties.algorithm == "nptl")
     {
         setup_for_decomposed_two_lattice(
             properties.horizontal_nodes, properties.vertical_nodes, properties.work_group_size);
     }
-    else if (properties.algorithm == "gpu-two-lattice-buffered")
+    else if (properties.algorithm == "npol")
     {
         setup_for_buffered_two_lattice(
             properties.horizontal_nodes, properties.vertical_nodes, properties.work_group_size);
     }
-    else if (properties.algorithm == "gpu-swap")
+    else if (properties.algorithm == "nsol")
     {
         setup_for_swap(properties.horizontal_nodes,
                        properties.vertical_nodes,
@@ -474,15 +462,15 @@ lbm::core::Simulation::Simulation(sycl::queue &queue, const std::string &setting
 
     domain = std::make_unique<Domain>(*properties);
 
-    if (properties->algorithm == "gpu-two-lattice-linear")
+    if (properties->algorithm == "lptl")
     {
         data = std::make_unique<Data>(properties->total_unexpanded_node_count, queue, true);
     }
-    else if (properties->algorithm == "gpu-two-lattice")
+    else if (properties->algorithm == "nptl")
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
-    else if (properties->algorithm == "gpu-two-lattice-buffered")
+    else if (properties->algorithm == "npol")
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, false);
     }
@@ -513,15 +501,15 @@ lbm::core::Simulation::Simulation(sycl::queue &queue, core::Properties props) :
 
     domain = std::make_unique<Domain>(*properties);
 
-    if (properties->algorithm == "gpu-two-lattice-linear")
+    if (properties->algorithm == "lptl")
     {
         data = std::make_unique<Data>(properties->total_unexpanded_node_count, queue, true);
     }
-    else if (properties->algorithm == "gpu-two-lattice")
+    else if (properties->algorithm == "nptl")
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, true);
     }
-    else if (properties->algorithm == "gpu-two-lattice-buffered")
+    else if (properties->algorithm == "npol")
     {
         data = std::make_unique<Data>(domain->total_node_count, queue, false);
     }

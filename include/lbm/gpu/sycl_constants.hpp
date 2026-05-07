@@ -1,15 +1,7 @@
 /**
- * @file        sycl_constants.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains constants for SYCL functionality used throughout the project.
  *
- * @version     1.0
- *
- * @date        November 2024
- *
- * @copyright Copyright (c) 2024
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef SYCL_CONSTANTS_HPP

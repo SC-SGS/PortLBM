@@ -1,6 +1,6 @@
 {
     "algorithmic": {
-        "algorithm": "gpu-two-lattice",
+        "algorithm": "nptl",
         "dataLayout": "stream",
         "debugMode": false,
         "frameUpdateInterval": 10001,

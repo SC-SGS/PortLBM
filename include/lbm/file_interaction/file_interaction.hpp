@@ -1,16 +1,9 @@
 /**
- * @file        file_interaction.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declarations of two functions for retrieving the properties of a
  *              simulation from a JSON file and for storing properties to a JSON file.
  *
- * @version     1.3
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_FILE_INTERACTION_HPP

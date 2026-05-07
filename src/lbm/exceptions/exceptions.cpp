@@ -1,16 +1,8 @@
 /**
- * @file        exceptions.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       This source file contains the definitions of the LBM exceptions.
  *
- * @version     1.2
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #include "../../../include/lbm/exceptions/exceptions.hpp"

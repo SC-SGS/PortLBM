@@ -1,5 +1,8 @@
 # PortLBM — GPU-accelerated Lattice Boltzmann Simulations
+
 Real-time visualized, GPU-accelerated fluid simulation using the Lattice Boltzmann Method (D2Q9/BGK) with SYCL via AdaptiveCpp.
+
+PortLBM is structured as a C++ library (`portlbm_core`) with an optional driver executable (`run_portlbm`). External projects can link against the library and drive simulations entirely in C++ without touching a JSON file.
 
 ## Getting started
 
@@ -39,39 +42,93 @@ CMake automatically picks up the installation from the build directory — no ad
 ### Building
 
 ```bash
-mkdir build && cd build
-
 # Without GUI
-cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_NAN_PROTECTION=OFF ..
-make
-./parallel_lbm
+cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_NAN_PROTECTION=OFF
+cmake --build build
+./build/run_portlbm
 
 # With GUI
-cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_VISUALIZATION=ON -DWITH_NAN_PROTECTION=ON ..
-make
-./parallel_lbm
+cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_VISUALIZATION=ON -DWITH_NAN_PROTECTION=ON
+cmake --build build
+./build/run_portlbm
 ```
 
-## Compile options in detail
-In the following, the different CMake compilation options are explained in more detail.
+### Running the tests
 
-| Option | Default value | Explanation |
-| ------ | ------------- | ----------- |
-| `-DWITH_VISUALIZATION` | `OFF` | If enabled, the program is built in GUI-mode. |
-| `-DWITH_NAN_PROTECTION`| `ON` | If enabled, density and velocity values are set to zero if they are ever `NaN` or ridiculously large |
-| `-DUSE_FLOAT`          | `OFF` | If enabled, the program uses single-precision floating-point numbers instead of double-precision |
-| `-DFORCE_USE_CPU` | `OFF` | If enabled, the program uses the CPU even if a more performant device is available |
-| `-DBENCHMARK_MODE` | `OFF` | Depending on the value of `WITH_VISUALIZATION`, enables the visualized or non-visualized benchmark |
-| `-DPORTLBM_BUILD_EXECUTABLE` | `ON` | If disabled, only the `portlbm_core` library is built without the `parallel_lbm` driver executable |
+```bash
+cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DFORCE_USE_CPU=ON -DPORTLBM_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+## Using PortLBM as a library
+
+Include `<lbm/portlbm.hpp>` and link against `PortLBM::portlbm_core`. The preferred entry point is the factory function, which hides all SYCL headers from your call site:
+
+```cpp
+#include <lbm/portlbm.hpp>
+
+// Programmatic setup
+lbm::core::Properties props(
+    "lptl",  // algorithm
+    "stream",                  // data layout
+    false,                     // debug mode
+    64,                        // work-group size
+    10000,                     // time steps
+    10000,                     // frame update interval
+    "Hagen-Poiseuille",        // scenario
+    62,                        // inner vertical nodes
+    254,                       // inner horizontal nodes
+    0.0, 0.0, 1.005,           // inlet vx, vy, density
+    0.0, 0.0, 1.0,             // outlet vx, vy, density
+    1.0);                      // relaxation time τ
+
+props.validate();  // throws PropertyArgumentException on bad values
+
+auto handler = lbm::create_handler(props);
+handler->start();
+handler->block_until_finished();
+
+// Results are indexed over the inner domain (ghost rows/cols excluded)
+// index = col + row * inner_horizontal_nodes
+const auto &x_vel = handler->get_x_velocities();
+```
+
+Or load settings from a JSON file:
+
+```cpp
+auto handler = lbm::create_handler("settings/settings.json");
+handler->start();
+handler->block_until_finished();
+```
+
+For CMake consumers after `cmake --install`:
+
+```cmake
+find_package(PortLBM REQUIRED)
+target_link_libraries(myapp PRIVATE PortLBM::portlbm_core)
+```
+
+## Compile options
+
+| Option | Default | Explanation |
+| ------ | ------- | ----------- |
+| `-DWITH_VISUALIZATION` | `OFF` | Build with the ImGui/ImPlot GUI. |
+| `-DWITH_NAN_PROTECTION` | `ON` | Zero out NaN/Inf density and velocity values at each step. |
+| `-DUSE_FLOAT` | `OFF` | Use `float` instead of `double` as `real_type`. Changes the ABI — all targets must agree. |
+| `-DFORCE_USE_CPU` | `OFF` | Use the CPU even when a faster device is available. |
+| `-DBENCHMARK_MODE` | `OFF` | Enable the benchmark driver (requires `PORTLBM_BUILD_EXECUTABLE=ON`). |
+| `-DPORTLBM_BUILD_EXECUTABLE` | `ON` | Build the `run_portlbm` driver executable. |
+| `-DPORTLBM_BUILD_TESTS` | `OFF` | Build the Catch2 unit and integration tests. |
 
 ## Simulation settings
-The settings of a simulation are specified in `settings/settings.json`. 
-A correct file may look like this:
 
-```
+Settings for the `run_portlbm` executable are read from `settings/settings.json`. A complete file looks like this:
+
+```json
 {
     "algorithmic": {
-        "algorithm": "gpu-two-lattice",
+        "algorithm": "nptl",
         "dataLayout": "stream",
         "debugMode": false,
         "frameUpdateInterval": 1,
@@ -85,77 +142,74 @@ A correct file may look like this:
     },
     "physical": {
         "inletDensity": 1.2,
-        "inletVelocity": {
-            "x": 0.0,
-            "y": 0.0
-        },
+        "inletVelocity": { "x": 0.0, "y": 0.0 },
         "outletDensity": 1.0,
-        "outletVelocity": {
-            "x": 0.0,
-            "y": 0.0
-        },
+        "outletVelocity": { "x": 0.0, "y": 0.0 },
         "relaxationTime": 0.6
     }
 }
 ```
 
-The parameter `debugMode` can only be set within this file. Setting it to `true` enables a debug mode in which verbose information about the simulation is printed to the console. Furthermore, velocity absolutes and density values are printed directly into the corresponding plots if the GUI is enabled. This debug mode is only meant for finding and fixing bugs for small (!) simulation domains. For reference, the magnitude for which it is meant to be used is a domain with some 10 x 10 nodes, and a work-group size of 16. Please make sure that the parameter `debugMode` is set to `false` when starting a benchmark.
+Setting `debugMode` to `true` enables verbose per-iteration console output and, when the GUI is active, prints density and velocity values directly into the plots. This is only practical for very small domains (roughly 10×10 nodes with a work-group size of 16). It must be `false` when running benchmarks.
 
-All other parameters can be set from the GUI. In the following, the parameters and possible values are explained more thoroughly.
+All other parameters can also be adjusted from the GUI at runtime.
 
 ### Parameter `"algorithm"`
-This parameter sets the algorithm that is used in the simulation. The following values can be set:
 
-| Value | Explanation |
+| Value | Description |
 | ----- | ----------- |
-| `gpu-two-lattice` | Two-lattice implementation with non-linear indexation, that is, two-dimensional iteration; custom work decomposition |
-| `gpu-two-lattice-linear` | Two-lattice implementation with linear node indexation, that is, one-dimensional iteration; automatic work decomposition by SYCL runtime |
-| `gpu-two-lattice-buffered` | Space-efficient two-lattice implementation with buffers; no second lattice is permanently stored |
-| `gpu-swap` | Swap implementation with non-linear indexation and buffering; uses `local` memory |
+| `nptl` | Non-linear Pull Two-Lattice — two-lattice with 2-D indexation; custom work decomposition. |
+| `lptl` | Linear Pull Two-Lattice — two-lattice with 1-D indexation; work decomposition by the SYCL runtime. |
+| `npol` | Non-linear Pull One-Lattice — space-efficient two-lattice using buffers; no second lattice permanently resident. |
+| `nsol` | Non-linear Swap One-Lattice — swap algorithm with 2-D indexation and `local` memory buffering. Requires work-group size ≥ 6. |
 
 ### Parameter `"dataLayout"`
-This parameter sets the data layout of the distribution values. All data layouts were proposed by [Mattila et al.](https://doi.org/10.1016/j.camwa.2007.08.001). The following values can be set:
 
-| Value | Comment |
-| ----- | ----------- |
-| `stream` | N/A |
-| `collision` | N/A |
-| `bundle` | N/A |
+All three layouts were proposed by [Mattila et al.](https://doi.org/10.1016/j.camwa.2007.08.001):
+
+| Value | Notes |
+| ----- | ----- |
+| `stream` | |
+| `collision` | |
+| `bundle` | |
 
 ### Parameter `"frameUpdateInterval"`
-Every `"frameUpdateInterval"` iterations, the macroscopic observables are updated on the CPU. Only the values present on the CPU are used for visualization. Any value ranging from `1` to `std::numeric_limits<unsigned int>::max()` is possible.
+
+Every `frameUpdateInterval` steps the macroscopic observables (density, velocity) are copied to the CPU. A value larger than `timeSteps` means the copy happens only once at the very end of the run, which avoids PCIe transfer overhead during long simulations.
 
 ### Parameter `"timeSteps"`
-The algorithm will execute this many iterations. Any value ranging from `1` to `std::numeric_limits<unsigned int>::max()` is possible.
+
+Total number of LBM iterations. Any value from `1` to `UINT_MAX` is accepted.
 
 ### Parameter `"workGroupSize"`
-This parameter sets the work-group size for the SYCL algorithms. Except for the swap algorithm, any value between `1` and `queue.get_device().get_info<sycl::info::device::max_work_group_size>()` is possible. The latter value depends on your device. The swap algorithm requires a work-group size of at least `6`.
+
+SYCL work-group size. For all algorithms except `nsol`, any value from `1` up to the device maximum (`sycl::info::device::max_work_group_size`) is valid. `nsol` requires a minimum of `6`.
 
 ### Parameter `"scenario"`
-This parameter sets the solid structures of the domain, creating a certain scenario. All scenarios involve an upper and lower pipe boundary. The following values are possible.
 
-| Value | Comment |
+| Value | Description |
 | ----- | ----------- |
-| `"Hagen-Poiseuille"` | Pipe flow with no inner obstacles |
-| `"walls"` | Pipe flow with an obstacle arrangement resembling cascades / a labyrinth |
-| `"circle"` | Pipe flow with a circular obstacle in the front |
-| `"square"` | Pipe flow with a square obstacle in the front |
-| `"wing"` | Pipe flow around a wing |
-| `"skyscraper"` | Pipe flow around a three-story skyscraper; higher storys are taller and narrower |
-| `"porous"` | Flow through a porous medium that is bounded at the top and bottom; randomized CPU-generated stencil |
-| `"plate"` | Pipe flow with a plate obstacle in the front |
+| `Hagen-Poiseuille` | Pipe flow with no inner obstacles. |
+| `walls` | Pipe flow with a labyrinth-like wall arrangement. |
+| `circle` | Pipe flow with a circular obstacle near the inlet. |
+| `square` | Pipe flow with a square obstacle near the inlet. |
+| `wing` | Pipe flow around a wing profile. |
+| `skyscraper` | Pipe flow around a three-story skyscraper (upper stories are taller and narrower). |
+| `porous` | Flow through a randomised porous medium bounded at top and bottom. |
+| `plate` | Pipe flow with a plate obstacle near the inlet. |
 
 ### Parameter `"relaxationTime"`
-This parameter is related to the viscosity of the fluid. In theory, all values ranging from `0` to `std::numeric_limits<real_type>::max()` are possible. In practice, the simulation is only rarely stable for relaxation times below `0.6` and absurdly high viscosities.
 
-### Parameters  `"horizontalNodes"` and `"verticalNodes"`
-Sets the horizontal and vertical extents of the simulated area. Notice that this is not the size of the expanded domain that the algorithms operate on. The simulation domain is always expanded by an outer layer of ghost nodes, and potentially buffer nodes or dummy nodes to match the work-group size. Any size resulting in a total of at most `std::numeric_limits<unsigned int>::max()` is allowed but the minimum extent in each direction is `1`.
+Controls fluid viscosity (ν = c²ₛ(τ − ½)). Any positive value is accepted, but the simulation is rarely stable below `0.6`.
+
+### Parameters `"horizontalNodes"` and `"verticalNodes"`
+
+Inner domain extents (ghost nodes are added automatically). The minimum inner extent in each direction is `1`; the maximum is whatever keeps the total node count below `UINT_MAX`.
 
 ### Parameters `"inletDensity"` and `"outletDensity"`
-Sets the inlet and outlet density, which is connected to the pressure for the D2Q9I model. For reference: at a standstill equilibrium state, a density of `1.0` is assumed for the fluid. Only positive values are allowed.
+
+Inlet and outlet densities, which drive the pressure gradient. Must be strictly positive. At equilibrium without flow the fluid density is `1.0`.
 
 ### Parameters `"inletVelocity"` and `"outletVelocity"`
-The inlet and outlet velocity each consist of two components, `x` and `y`. In theory, any value in the range `std::numeric_limits<real_type>::min()` and `std::numeric_limits<real_type>::max()` is allowed. However, any absolute close to `1 / sqrt(3)` is unlikely to yield a stable simulation. The outlet velocity is without effect, as the [boundary condition by Zou and He](https://doi.org/10.1063/1.869307) with a specified density is assumed. If it is manually disabled within the code, the outlet boundary condition can be set in the same way as the inlet condition.
 
-## Benchmark settings
-The settings of the non-visualized benchmark series are set in `settings/benchmark.json`. 
+Velocity boundary conditions with `x` and `y` components. Velocities near the lattice speed of sound (|u| ≈ 1/√3) typically destabilize the simulation. The outlet velocity has no effect when the default [Zou–He](https://doi.org/10.1063/1.869307) density boundary condition is active.

@@ -1,6 +1,4 @@
 /**
- * @file        smoke_test.cpp
- *
  * @brief       CPU smoke test for the PortLBM library.
  *
  *              Runs a small Hagen-Poiseuille simulation entirely on the host
@@ -11,6 +9,7 @@
  *              Grid: 30 × 126 inner nodes (stored as 32 × 128 with ghost layers).
  *              This gives 4096 total nodes, which divides evenly by any power-of-two
  *              work-group size up to 4096 — safe for CPU execution.
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #include <catch2/catch_test_macros.hpp>
@@ -45,7 +44,7 @@ TEST_CASE("Hagen-Poiseuille smoke: output is finite and non-trivial", "[smoke]")
     // The Properties constructor adds 2 ghost layers in each direction,
     // giving stored extents of 32 × 128 = 4096 nodes total.
     lbm::core::Properties props(
-        "gpu-two-lattice-linear",  // algorithm
+        "lptl",  // algorithm
         "stream",                  // data layout
         false,                     // debug mode
         64,                        // work-group size

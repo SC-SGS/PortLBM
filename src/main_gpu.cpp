@@ -1,15 +1,8 @@
 /**
- * @file        main_gpu.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       Entry point of the parallel_lbm driver executable.
  *
- * @version     1.7
- *
- * @date        March 2025 (Phase-1 library refactor: May 2025)
- *
- * @copyright   Copyright (c) Marcel Graf
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,4 @@
 /**
- * @file        portlbm.hpp
- *
  * @brief       Umbrella include for the PortLBM library.
  *              Including this single header pulls in the complete public API.
  *
@@ -20,7 +18,8 @@
  *                - lbm::file_interaction::*  — JSON ↔ Properties helpers
  *                - lbm::exceptions::*        — exception hierarchy
  *
- * @copyright   Copyright (c) Marcel Graf
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef PORTLBM_HPP
@@ -29,13 +28,13 @@
 // Version
 #include "version.hpp"
 
-// Core (SYCL-free headers first — safe to include without a device)
+// Core — SYCL-free (safe to include without a device)
+#include "core/access.hpp"
 #include "core/constants.hpp"
 #include "core/domain.hpp"
-#include "core/properties.hpp"
-// Core (SYCL-dependent)
-#include "core/access.hpp"
 #include "core/domain_initialization.hpp"
+#include "core/properties.hpp"
+// Core — SYCL-dependent
 #include "core/simulation.hpp"
 #include "core/timer.hpp"
 

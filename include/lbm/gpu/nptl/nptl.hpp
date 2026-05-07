@@ -1,87 +1,72 @@
 /**
- * @file        linear_gpu_two_lattice.hpp
+ * @brief       In this header, two classes for the GPU-based non-linear two-lattice algorithm are declared. Both
+ *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms.
+ *              The kernel functions are implemented in `nptl_kernels.hpp`.
  *
- * @author      Marcel Graf
- *
- * @brief       In this header, two classes for the GPU-based linear two-lattice algorithm are declared. Both inherit
- *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms. The
- *              kernel functions are implemented in `linear_two_lattice_kernels.hpp`.
- *
- * @version     4.4
- *
- * @date        April 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
-#ifndef LINEAR_GPU_TWO_LATTICE_HPP
-#define LINEAR_GPU_TWO_LATTICE_HPP
+#ifndef NON_LBM_LPTL_HPP
+#define NON_LBM_LPTL_HPP
 
 // Console output
-#include "../../../console/console_output.hpp"
+#include "../../console/console_output.hpp"
 
 // LBM core features
-#include "../../../core/domain_initialization.hpp"
+#include "../../core/domain_initialization.hpp"
 
 // Algorithm
-#include "../../../execution/sycl_algorithm.hpp"
+#include "../../execution/sycl_algorithm.hpp"
 
 // SYCL constants
-#include "../../sycl_constants.hpp"
+#include "../sycl_constants.hpp"
 
 // Kernels
-#include "../../general/non_buffered.hpp"
-#include "linear_two_lattice_kernels.hpp"
+#include "../general/non_buffered.hpp"
+#include "nptl_kernels.hpp"
 
 namespace lbm
 {
 
-/**
- * @brief This namespace contains the GPU implementations of the two-lattice and the swap algorithm.
- */
 namespace gpu
 {
 
 /**
- * @brief This namespace contains the GPU implementations of the two-lattice algorithm.
+ * @brief This namespace contains the NPTL (Non-linear Pull Two-Lattice) algorithm.
  */
-namespace two_lattice
+namespace nptl
 {
 
-/**
- * @brief This namespace contains implementations using linear kernels.
- */
-namespace linear
-{
-
-// PERFORMANCE LINEAR TWO-LATTICE /////////////////////////////////////////////////////////////////////////////////////
+// PERFORMANCE NON-LINEAR TWO-LATTICE /////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief   Class representation of the linear SYCL implementation of the two-lattice algorithm.
+ * @brief Class representation of the linear SYCL implementation of the two-lattice algorithm.
  *
- * @tparam  A   any `core::access::AccessorConcept` from access.hpp
+ * @tparam A any `core::access::AccessorConcept` from access.hpp
  */
 template <core::access::AccessorConcept A>
-class LinearGpuTwoLattice : public execution::SYCLAlgorithm
+class NPTL : public execution::SYCLAlgorithm
 {
   private:
     /**
-     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates the
-     *          macroscopic observables in the process. The latter are copied to the host in regular
-     *          intervals.
+     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
+     *          the macroscopic observables in the process.
      */
     inline void stream_and_collide()
     {
-        auto event = queue->submit(
-            [&](sycl::handler &cgh)
-            {
-                auto kernel = linear::kernels::StreamCollideKernel<A>(*simulation);
-                cgh.parallel_for(
-                    sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes),
-                    kernel);
-            });
-        event.wait();
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = nptl::kernels::StreamCollideKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
+                                                                      simulation->domain->horizontal_nodes - 2),
+                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                                      simulation->domain->subdomain_horizontal_nodes)),
+                                     kernel);
+                })
+            .wait();
 
         if (simulation->control->get_current_iteration() % simulation->properties->frame_update_interval
             == simulation->properties->frame_update_interval - 1)
@@ -91,20 +76,22 @@ class LinearGpuTwoLattice : public execution::SYCLAlgorithm
     }
 
     /**
-     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice
-     *          algorithm.
+     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
      */
     void emplace_bounce_back()
     {
-        auto event = queue->submit(
-            [&](sycl::handler &cgh)
-            {
-                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                cgh.parallel_for(
-                    sycl::range<1>(simulation->properties->vertical_nodes * simulation->properties->horizontal_nodes),
-                    kernel);
-            });
-        event.wait();
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
+                                                                      simulation->domain->horizontal_nodes - 2),
+                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                                      simulation->domain->subdomain_horizontal_nodes)),
+                                     kernel);
+                })
+            .wait();
     }
 
     /**
@@ -112,19 +99,19 @@ class LinearGpuTwoLattice : public execution::SYCLAlgorithm
      */
     void perform_inout_update()
     {
-        auto event = queue->submit(
-            [&](sycl::handler &cgh)
-            {
-                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
-                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
-            });
-        event.wait();
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
+                })
+            .wait();
     }
 
   public:
     /**
-     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last
-     *          iteration.
+     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last iteration.
      */
     inline void execute() override
     {
@@ -153,20 +140,14 @@ class LinearGpuTwoLattice : public execution::SYCLAlgorithm
             });
     }
 
-    /**
-     * @brief   Constructs a `LinearGpuTwoLattice` algorithm object and initializes its domain.
-     *
-     * @param[in]   queue           the SYCL queue used for interaction with the device
-     * @param[in]   settings_path   path to the JSON settings file
-     */
-    explicit LinearGpuTwoLattice(sycl::queue &queue, const std::string &settings_path) :
+    explicit NPTL(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path)
     {
         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
             *simulation, queue);
     }
 
-    explicit LinearGpuTwoLattice(sycl::queue &queue, const core::Properties &props) :
+    explicit NPTL(sycl::queue &queue, const core::Properties &props) :
         SYCLAlgorithm(queue, props)
     {
         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
@@ -174,7 +155,7 @@ class LinearGpuTwoLattice : public execution::SYCLAlgorithm
     }
 };
 
-// DEBUG LINEAR TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////////////
+// DEBUG NON-LINEAR TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief Class representation of the linear SYCL debug implementation of the two-lattice algorithm.
@@ -182,27 +163,16 @@ class LinearGpuTwoLattice : public execution::SYCLAlgorithm
  * @tparam A any `core::access::AccessorConcept` from access.hpp
  */
 template <core::access::AccessorConcept A>
-class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
+class NPTLDebug : public execution::SYCLAlgorithm
 {
   private:
-    // Contains the density values of all nodes during all iterations
     std::unique_ptr<std::vector<real_type>> all_densities;
-
-    // Contains the x velocity components of all nodes during all iterations
     std::unique_ptr<std::vector<real_type>> all_x_velocities;
-
-    // Contains the y velocity components of all nodes during all iterations
     std::unique_ptr<std::vector<real_type>> all_y_velocities;
-
-    // Acts as a buffer for distribution values that are to be printed to the console
     std::unique_ptr<std::vector<real_type>> distribution_values;
-
     std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
-
-    // Contains a copy of the phase information located on the GPU
     std::unique_ptr<std::vector<int8_t>> phase_information;
 
-    // Contains the current iteration of the algorithm
     unsigned int current_iteration;
 
     /**
@@ -214,8 +184,12 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = linear::kernels::StreamKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
+                    auto kernel = nptl::kernels::StreamKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
+                                                                      simulation->domain->horizontal_nodes - 2),
+                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                                      simulation->domain->subdomain_horizontal_nodes)),
+                                     kernel);
                 })
             .wait();
     }
@@ -230,10 +204,16 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
+                    auto kernel = nptl::kernels::MacroscopicObservablesKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
+                                                                      simulation->domain->horizontal_nodes - 2),
+                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                                      simulation->domain->subdomain_horizontal_nodes)),
+                                     kernel);
                 })
             .wait();
+
+        copy_macroscopic_observables_to_cpu();
     }
 
     /**
@@ -246,8 +226,12 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = linear::kernels::CollideKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
+                    auto kernel = nptl::kernels::CollideKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
+                                                                      simulation->domain->horizontal_nodes - 2),
+                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                                      simulation->domain->subdomain_horizontal_nodes)),
+                                     kernel);
                 })
             .wait();
     }
@@ -259,11 +243,10 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
     inline void stream_and_collide()
     {
         stream();
-
         queue
             ->copy(simulation->data->distribution_values_1,
                    distribution_values->data(),
-                   9 * simulation->properties->total_unexpanded_node_count)
+                   9 * simulation->domain->total_node_count)
             .wait();
 
         std::cout << "\033[36mDestination lattice after streaming: \n"
@@ -272,8 +255,6 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
 
         update_macroscopic_observables();
-
-        copy_macroscopic_observables_to_cpu();
 
         std::cout << "Velocities: \n"
                   << "-------------------------------------------------------------------------------\n";
@@ -290,7 +271,7 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         queue
             ->copy(simulation->data->distribution_values_1,
                    distribution_values->data(),
-                   9 * simulation->properties->total_unexpanded_node_count)
+                   9 * simulation->domain->total_node_count)
             .wait();
 
         std::cout << "\033[36mDestination lattice after collision: \n"
@@ -304,18 +285,23 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
      */
     void emplace_bounce_back()
     {
-        auto event = queue->submit(
-            [&](sycl::handler &cgh)
-            {
-                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                cgh.parallel_for(sycl::range<1>(simulation->properties->total_unexpanded_node_count), kernel);
-            });
-        event.wait();
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
+                                                                      simulation->domain->horizontal_nodes - 2),
+                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                                      simulation->domain->subdomain_horizontal_nodes)),
+                                     kernel);
+                })
+            .wait();
 
         queue
             ->copy(simulation->data->distribution_values_0,
                    distribution_values->data(),
-                   9 * simulation->properties->total_unexpanded_node_count)
+                   9 * simulation->domain->total_node_count)
             .wait();
 
         std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
@@ -329,18 +315,19 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
      */
     void perform_inout_update()
     {
-        auto event = queue->submit(
-            [&](sycl::handler &cgh)
-            {
-                auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
-                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
-            });
-        event.wait();
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
+                })
+            .wait();
 
         queue
             ->copy(simulation->data->distribution_values_0,
                    distribution_values->data(),
-                   9 * simulation->properties->total_unexpanded_node_count)
+                   9 * simulation->domain->total_node_count)
             .wait();
 
         std::cout << "\033[36mDestination lattice after updating inlets and outlets: \n"
@@ -351,7 +338,7 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
 
   public:
     /**
-     * @brief   Runs the debug variant of the linear two-lattice algorithm until it is paused or it
+     * @brief   Runs the debug variant of the non-linear two-lattice algorithm until it is paused or it
      *          reaches the last iteration.
      */
     inline void execute() override
@@ -364,13 +351,13 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             queue
                 ->copy(simulation->data->distribution_values_0,
                        distribution_values->data(),
-                       9 * simulation->properties->total_unexpanded_node_count)
+                       9 * simulation->domain->total_node_count)
                 .wait();
 
             queue
                 ->copy(simulation->data->phase_information,
                        phase_information->data(),
-                       simulation->properties->total_unexpanded_node_count)
+                       simulation->domain->total_node_count)
                 .wait();
 
             std::cout << "Initial distribution values: \n";
@@ -381,9 +368,9 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             std::cout << "Phase information: \n";
             std::cout << "-------------------------------------------------------------------------------\n";
 
-            console::print_phase_vector(*phase_information, simulation->properties->horizontal_nodes);
+            console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
 
-            std::cout << "\033[36mNow running linear GPU two-lattice for " << simulation->properties->time_steps
+            std::cout << "\033[36mNow running non-linear GPU two-lattice for " << simulation->properties->time_steps
                       << " iterations.\033[0m\n\n";
 
             std::cout << "Running on " << queue->get_device().get_info<sycl::info::device::name>() << "\n\n";
@@ -463,22 +450,21 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
     }
 
     /**
-     * @brief   Constructs a new `LinearGpuTwoLatticeDebug` algorithm object and initializes its domain.
+     * @brief   Constructs a new `NPTLDebug` algorithm object and initializes its
+     *          domain.
      *
      * @param[in]   queue           the SYCL queue used to allocate the device data
      * @param[in]   settings_path   path to the JSON settings file
      */
-    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path) :
+    explicit NPTLDebug(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
         all_y_velocities(std::make_unique<std::vector<real_type>>()),
-        distribution_values(
-            std::make_unique<std::vector<real_type>>(9 * simulation->properties->total_unexpanded_node_count, 0)),
+        distribution_values(std::make_unique<std::vector<real_type>>(9 * simulation->domain->total_node_count, 0)),
         temp_macroscopic_observables(
             std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
-        phase_information(
-            std::make_unique<std::vector<int8_t>>(simulation->properties->total_unexpanded_node_count, 0)),
+        phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
         current_iteration(0)
     {
         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
@@ -494,20 +480,19 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         all_y_velocities->shrink_to_fit();
 
         distribution_values->shrink_to_fit();
+        temp_macroscopic_observables->shrink_to_fit();
         phase_information->shrink_to_fit();
     }
 
-    explicit LinearGpuTwoLatticeDebug(sycl::queue &queue, const core::Properties &props) :
+    explicit NPTLDebug(sycl::queue &queue, const core::Properties &props) :
         SYCLAlgorithm(queue, props),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
         all_y_velocities(std::make_unique<std::vector<real_type>>()),
-        distribution_values(
-            std::make_unique<std::vector<real_type>>(9 * simulation->properties->total_unexpanded_node_count, 0)),
+        distribution_values(std::make_unique<std::vector<real_type>>(9 * simulation->domain->total_node_count, 0)),
         temp_macroscopic_observables(
             std::make_unique<std::vector<real_type>>(simulation->properties->domain_node_count, 0)),
-        phase_information(
-            std::make_unique<std::vector<int8_t>>(simulation->properties->total_unexpanded_node_count, 0)),
+        phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
         current_iteration(0)
     {
         core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
@@ -523,13 +508,12 @@ class LinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         all_y_velocities->shrink_to_fit();
 
         distribution_values->shrink_to_fit();
+        temp_macroscopic_observables->shrink_to_fit();
         phase_information->shrink_to_fit();
     }
 };
 
-}  // namespace linear
-
-}  // namespace two_lattice
+}  // namespace nptl
 
 }  // namespace gpu
 

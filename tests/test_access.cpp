@@ -1,6 +1,4 @@
 /**
- * @file    test_access.cpp
- *
  * @brief   Unit tests for lbm::core::access (plan item 4.2).
  *
  *          Covers:
@@ -12,6 +10,7 @@
  *            - get_result_index       — three overloads stripping ghost nodes
  *            - power_functions        — is_power_of_4, which_power_of_4,
  *                                       which_power_of_2
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #include <catch2/catch_test_macros.hpp>

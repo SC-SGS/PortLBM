@@ -1,16 +1,8 @@
 /**
- * @file        benchmark.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the definition of benchmark functionality.
  *
- * @version     1.1
- *
- * @date        April 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 // LBM Benchmark
@@ -114,9 +106,9 @@ lbm::benchmark::Benchmark::Benchmark(std::shared_ptr<execution::SYCLAlgorithmHan
 
     if (test_linear_two_lattice)
     {
-        (*optimal_data_layouts)["gpu-two-lattice-linear"] = "stream";
-        (*optimal_work_group_sizes)["gpu-two-lattice-linear"] = 1;
-        (*optimal_total_times)["gpu-two-lattice-linear"] = std::numeric_limits<double>::max();
+        (*optimal_data_layouts)["lptl"] = "stream";
+        (*optimal_work_group_sizes)["lptl"] = 1;
+        (*optimal_total_times)["lptl"] = std::numeric_limits<double>::max();
     }
 }
 
@@ -154,7 +146,7 @@ nlohmann::json lbm::benchmark::Benchmark::prepare_file_data_phase_0_and_1_tl_lin
 {
     nlohmann::json file_data;
     file_data["device"] = device_name;
-    file_data["algorithm"] = "gpu-two-lattice-linear";
+    file_data["algorithm"] = "lptl";
     file_data["verticalNodes"] = properties->vertical_nodes;
     file_data["horizontalNodes"] = properties->horizontal_nodes;
 
@@ -273,9 +265,9 @@ void lbm::benchmark::Benchmark::phase_0_and_1_helper(int phase)
 
     if (test_linear_two_lattice)
     {
-        properties->algorithm = "gpu-two-lattice-linear";
+        properties->algorithm = "lptl";
         std::string ofdir = "../benchmarks/phase" + std::to_string(phase) + "/results_phase" + std::to_string(phase)
-                            + "_gpu-two-lattice-linear_" + device_name + ".json";
+                            + "_lptl_" + device_name + ".json";
 
         nlohmann::json file_data = prepare_file_data_phase_0_and_1_tl_linear();
         phase_0_and_1_inner_loop(phase, 0, ofdir, file_data, progress_phase);
@@ -310,9 +302,9 @@ void lbm::benchmark::Benchmark::phase_1()
 
     if (test_linear_two_lattice)
     {
-        std::cout << "Optimal setup for algorithm gpu-two-lattice-linear:\n";
-        std::cout << "\tData layout: " << (*optimal_data_layouts)["gpu-two-lattice-linear"] << "\n";
-        std::cout << "\tAverage total time: " << (*optimal_total_times)["gpu-two-lattice-linear"] << "\n";
+        std::cout << "Optimal setup for algorithm lptl (Linear Pull Two-Lattice):\n";
+        std::cout << "\tData layout: " << (*optimal_data_layouts)["lptl"] << "\n";
+        std::cout << "\tAverage total time: " << (*optimal_total_times)["lptl"] << "\n";
     }
 
     std::cout << "\n";
@@ -424,9 +416,9 @@ void lbm::benchmark::Benchmark::phase_2()
 
     if (test_linear_two_lattice)
     {
-        properties->algorithm = "gpu-two-lattice-linear";
-        properties->data_layout = (*optimal_data_layouts)["gpu-two-lattice-linear"];
-        properties->work_group_size = (*optimal_work_group_sizes)["gpu-two-lattice-linear"];
+        properties->algorithm = "lptl";
+        properties->data_layout = (*optimal_data_layouts)["lptl"];
+        properties->work_group_size = (*optimal_work_group_sizes)["lptl"];
 
         for (const auto &scenario : *phase_2_scenarios)
         {
@@ -436,8 +428,8 @@ void lbm::benchmark::Benchmark::phase_2()
             lbm::file_interaction::properties_to_json(*properties);
 
             // Create JSON file for algorithm
-            std::string ofdir = "../benchmarks/phase2/phase2_gpu-two-lattice-linear_" + properties->scenario + "_"
-                                + device_name + ".json";
+            std::string ofdir =
+                "../benchmarks/phase2/phase2_lptl_" + properties->scenario + "_" + device_name + ".json";
             nlohmann::json file_data = prepare_file_data_phase_2_tl_linear();
 
             phase_2_inner_loop(ofdir, file_data, progress_phase);

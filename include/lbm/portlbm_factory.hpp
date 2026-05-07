@@ -1,8 +1,4 @@
 /**
- * @file        portlbm_factory.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       Factory functions for creating `AlgorithmHandler` instances.
  *
  *              This header intentionally has **no SYCL dependency**. It exposes
@@ -14,7 +10,7 @@
  *
  *              Typical usage (programmatic):
  *              @code
- *              lbm::core::Properties props("gpu-two-lattice-linear", "stream",
+ *              lbm::core::Properties props("lptl", "stream",
  *                  false, 64, 1000, 10, "Hagen-Poiseuille", 62, 254,
  *                  0.0, 0.0, 1.005, 0.0, 0.0, 1.0, 1.0);
  *              props.validate();
@@ -28,11 +24,7 @@
  *              auto handler = lbm::create_handler("settings/settings.json");
  *              @endcode
  *
- * @version     1.0
- *
- * @date        May 2025
- *
- * @copyright   Copyright (c) 2025 Marcel Graf
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_PORTLBM_FACTORY_HPP

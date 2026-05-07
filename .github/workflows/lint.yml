@@ -7,22 +7,28 @@ on:
   pull_request:
 
 jobs:
-  clang-format:
+  lint:
     runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clang-format
-        run: sudo apt-get install -y -q clang-format-18
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Install clang-format and cmake-format
+        run: |
+          sudo apt-get install -y -q clang-format-18
+          pip3 install cmakelang pyyaml
 
       - name: Configure
         run: >-
           cmake -B build
           -DPORTLBM_FORMAT_ONLY=ON
           -DCLANG_FORMAT_PROGRAM=$(which clang-format-18)
+          -DCMAKE_FORMAT_PROGRAM=$(which cmake-format)
 
-      - name: Check formatting
+      - name: Check clang-format
         id: clangformat
         run: |
           set +e
@@ -35,9 +41,25 @@ jobs:
             exit $status
           fi
 
-      - name: Upload patch
-        if: failure() && steps.clangformat.conclusion == 'failure'
+      - name: Check cmake-format
+        id: cmakeformat
+        if: success() || steps.clangformat.conclusion == 'failure'
+        run: |
+          set +e
+          cmake --build build --target check-cmake-format
+          status=$?
+          if [ $status -ne 0 ]; then
+            echo "CMake formatting errors found. Generating patch..."
+            cmake --build build --target fix-cmake-format
+            git diff > cmake-format.patch
+            exit $status
+          fi
+
+      - name: Upload patches
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: clang-format.patch
-          path: clang-format.patch
+          name: formatting-patches
+          path: |
+            clang-format.patch
+            cmake-format.patch

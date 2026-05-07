@@ -1,16 +1,8 @@
 /**
- * @file        domain_initialization.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       In this header file, functionality for setting up the simulation domain is declared and defined.
  *
- * @version     3.4
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_DOMAIN_INITIALIZATION_HPP
@@ -465,8 +457,7 @@ void setup_domain(Simulation &simulation, sycl::queue &queue)
 
     domain_initialization::set_inout_distribution_values<A, N>(simulation, queue);
 
-    if (simulation.properties->algorithm == "gpu-two-lattice"
-        || simulation.properties->algorithm == "gpu-two-lattice-linear")
+    if (simulation.properties->algorithm == "nptl" || simulation.properties->algorithm == "lptl")
     {
         queue
             .copy(simulation.data->distribution_values_0,

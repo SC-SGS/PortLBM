@@ -1,15 +1,8 @@
 /**
- * @file        sycl_algorithm_handler.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declaration of a SYCL algorithm handler class.
  *
- * @version     1.4
- *
- * @date        March 2025
- *
  * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_SYCL_ALGORITHM_HANDLER_HPP
@@ -24,10 +17,10 @@
 #include "../file_interaction/file_interaction.hpp"
 
 // SYCL-based LBM algorithms
-#include "../gpu/swap/gpu_swap.hpp"
-#include "../gpu/two_lattice/buffered/buffered_gpu_two_lattice.hpp"
-#include "../gpu/two_lattice/linear/linear_gpu_two_lattice.hpp"
-#include "../gpu/two_lattice/non-linear/non_linear_gpu_two_lattice.hpp"
+#include "../gpu/lptl/lptl.hpp"
+#include "../gpu/npol/npol.hpp"
+#include "../gpu/nptl/nptl.hpp"
+#include "../gpu/nsol/nsol.hpp"
 
 #ifdef BENCHMARK_MODE
 #include "../core/timer.hpp"
@@ -81,94 +74,76 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
      */
     inline void initialize_non_debug_algorithm(const core::Properties &properties)
     {
-        if (properties.algorithm == "gpu-two-lattice-linear")
+        if (properties.algorithm == "lptl")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm =
-                    std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::StreamAccessor>>(
-                        *queue, properties);
+                algorithm = std::make_unique<gpu::lptl::LPTL<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm =
-                    std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::CollisionAccessor>>(
-                        *queue, properties);
+                algorithm = std::make_unique<gpu::lptl::LPTL<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm =
-                    std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLattice<core::access::BundleAccessor>>(
-                        *queue, properties);
+                algorithm = std::make_unique<gpu::lptl::LPTL<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
                 throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
             }
         }
-        else if (properties.algorithm == "gpu-two-lattice")
+        else if (properties.algorithm == "nptl")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::StreamAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::nptl::NPTL<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::CollisionAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::nptl::NPTL<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::non_linear::NonLinearGpuTwoLattice<core::access::BundleAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::nptl::NPTL<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
                 throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
             }
         }
-        else if (properties.algorithm == "gpu-two-lattice-buffered")
+        else if (properties.algorithm == "npol")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm =
-                    std::make_unique<gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::StreamAccessor>>(
-                        *queue, properties);
+                algorithm = std::make_unique<gpu::npol::NPOL<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::CollisionAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::npol::NPOL<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm =
-                    std::make_unique<gpu::two_lattice::buffered::BufferedGpuTwoLattice<core::access::BundleAccessor>>(
-                        *queue, properties);
+                algorithm = std::make_unique<gpu::npol::NPOL<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
                 throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
             }
         }
-        else if (properties.algorithm == "gpu-swap")
+        else if (properties.algorithm == "nsol")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::StreamAccessor>>(*queue, properties);
+                algorithm = std::make_unique<gpu::nsol::NSOL<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::CollisionAccessor>>(*queue, properties);
+                algorithm = std::make_unique<gpu::nsol::NSOL<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm = std::make_unique<gpu::swap::GpuSwap<core::access::BundleAccessor>>(*queue, properties);
+                algorithm = std::make_unique<gpu::nsol::NSOL<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
@@ -188,95 +163,76 @@ class SYCLAlgorithmHandler : public AlgorithmHandler
      */
     inline void initialize_debug_algorithm(const core::Properties &properties)
     {
-        if (properties.algorithm == "gpu-two-lattice-linear")
+        if (properties.algorithm == "lptl")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm =
-                    std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::StreamAccessor>>(
-                        *queue, properties);
+                algorithm = std::make_unique<gpu::lptl::LPTLDebug<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::CollisionAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::lptl::LPTLDebug<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm =
-                    std::make_unique<gpu::two_lattice::linear::LinearGpuTwoLatticeDebug<core::access::BundleAccessor>>(
-                        *queue, properties);
+                algorithm = std::make_unique<gpu::lptl::LPTLDebug<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
                 throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
             }
         }
-        else if (properties.algorithm == "gpu-two-lattice")
+        else if (properties.algorithm == "nptl")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::StreamAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::nptl::NPTLDebug<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::CollisionAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::nptl::NPTLDebug<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::non_linear::NonLinearGpuTwoLatticeDebug<core::access::BundleAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::nptl::NPTLDebug<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
                 throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
             }
         }
-        else if (properties.algorithm == "gpu-two-lattice-buffered")
+        else if (properties.algorithm == "npol")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::StreamAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::npol::NPOLDebug<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::CollisionAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::npol::NPOLDebug<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm = std::make_unique<
-                    gpu::two_lattice::buffered::BufferedGpuTwoLatticeDebug<core::access::BundleAccessor>>(
-                    *queue, properties);
+                algorithm = std::make_unique<gpu::npol::NPOLDebug<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {
                 throw exceptions::Exception(fmt::format("Unknown data layout: {}", properties.data_layout));
             }
         }
-        else if (properties.algorithm == "gpu-swap")
+        else if (properties.algorithm == "nsol")
         {
             if (properties.data_layout == "stream")
             {
-                algorithm = std::make_unique<gpu::swap::GpuSwapDebug<core::access::StreamAccessor>>(*queue, properties);
+                algorithm = std::make_unique<gpu::nsol::NSOLDebug<core::access::StreamAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "collision")
             {
-                algorithm =
-                    std::make_unique<gpu::swap::GpuSwapDebug<core::access::CollisionAccessor>>(*queue, properties);
+                algorithm = std::make_unique<gpu::nsol::NSOLDebug<core::access::CollisionAccessor>>(*queue, properties);
             }
             else if (properties.data_layout == "bundle")
             {
-                algorithm = std::make_unique<gpu::swap::GpuSwapDebug<core::access::BundleAccessor>>(*queue, properties);
+                algorithm = std::make_unique<gpu::nsol::NSOLDebug<core::access::BundleAccessor>>(*queue, properties);
             }
             else
             {

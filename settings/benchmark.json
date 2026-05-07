@@ -5,7 +5,7 @@
         "collision", "stream", "bundle"
     ],
     "algorithms": [
-        "gpu-two-lattice", "gpu-two-lattice-buffered", "gpu-swap"
+        "nptl", "npol", "nsol"
     ],
     "phaseTwoScenarios": [
         "plate", "wing", "porous"

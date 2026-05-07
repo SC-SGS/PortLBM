@@ -1,17 +1,9 @@
 /**
- * @file        timer.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declaration of a class for a timer. It is based on elements from
  *              std::chrono.
  *
- * @version     1.2
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_TIMER_HPP

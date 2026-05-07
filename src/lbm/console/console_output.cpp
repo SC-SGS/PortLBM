@@ -1,16 +1,8 @@
 /**
- * @file        console_output.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       This source file contains the definitions of various functions for console outputs.
  *
- * @version     1.7
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #include "../../../include/lbm/console/console_output.hpp"

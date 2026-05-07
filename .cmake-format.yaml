@@ -1,0 +1,17 @@
+# cmake-format configuration for PortLBM
+# Install: pip install cmakelang pyyaml
+# Run:     cmake-format -i CMakeLists.txt
+
+format:
+  line_width: 100
+  tab_size: 2
+  use_tabchars: false
+  command_case: canonical
+  keyword_case: upper
+  dangle_parens: false
+  dangle_align: prefix
+  max_pargs_hwrap: 6
+  max_rows_cmdline: 2
+  separate_ctrl_name_with_space: false
+  separate_fn_name_with_space: false
+  autosort: false

@@ -1,26 +1,18 @@
 /**
- * @file        linear_two_lattice_kernels.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declarations and definitions of kernels for the two-lattice algorithm
  *              with linear work item evaluation.
  *
- * @version     1.4
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
-#ifndef LINEAR_TWO_LATTICE_KERNELS_HPP
-#define LINEAR_TWO_LATTICE_KERNELS_HPP
+#ifndef LBM_LPTL_KERNELS_HPP
+#define LBM_LPTL_KERNELS_HPP
 
 // Dependencies on other LBM core features
-#include "../../../core/access.hpp"
-#include "../../../core/constants.hpp"
-#include "../../../core/simulation.hpp"
+#include "../../core/access.hpp"
+#include "../../core/constants.hpp"
+#include "../../core/simulation.hpp"
 
 // SYCL
 #include <sycl/sycl.hpp>
@@ -34,15 +26,12 @@ namespace lbm
 namespace gpu
 {
 
-namespace two_lattice
-{
-
 /**
  * @brief   This namespace contains all two-lattice kernels that operate on a linear work item layout.
  *          That is, work item indices are assigned linearly, no work group structuring is introduced,
  *          and no padding is applied since none is necessary.
  */
-namespace linear
+namespace lptl
 {
 
 /**
@@ -480,12 +469,10 @@ class EmplaceBounceBackKernel
 
 }  // namespace kernels
 
-}  // namespace linear
-
-}  // namespace two_lattice
+}  // namespace lptl
 
 }  // namespace gpu
 
 }  // namespace lbm
 
-#endif  // ! LINEAR_TWO_LATTICE_KERNELS_HPP
+#endif  // ! LBM_LPTL_KERNELS_HPP

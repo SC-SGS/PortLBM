@@ -1,16 +1,8 @@
 /**
- * @file        properties.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       Simulation parameters. This header has no SYCL dependency and
  *              is safe to include in any context that does not require a device.
  *
- * @version     1.0
- *
- * @date        May 2025
- *
- * @copyright   Copyright (c) 2025 Marcel Graf
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_PROPERTIES_HPP
@@ -42,8 +34,8 @@ struct Properties
     /**
      * @brief   LBM kernel variant.
      *
-     * Valid values: `"gpu-two-lattice"`, `"gpu-two-lattice-linear"`,
-     * `"gpu-two-lattice-buffered"`, `"gpu-swap"`.
+     * Valid values: `"lptl"` (Linear Pull Two-Lattice), `"nptl"` (Non-linear Pull Two-Lattice),
+     * `"npol"` (Non-linear Pull One-Lattice), `"nsol"` (Non-linear Swap One-Lattice).
      */
     std::string algorithm;
 

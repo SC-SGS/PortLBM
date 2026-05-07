@@ -1,6 +1,4 @@
 /**
- * @file    test_properties.cpp
- *
  * @brief   Unit tests for lbm::core::Properties (plan item 4.4).
  *
  *          Covers:
@@ -12,6 +10,7 @@
  *
  *          The path to the settings file is injected at compile time via the
  *          PORTLBM_SETTINGS_JSON_PATH macro (defined in tests/CMakeLists.txt).
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #include <catch2/catch_test_macros.hpp>
@@ -30,7 +29,7 @@
 static lbm::core::Properties valid_props()
 {
     return lbm::core::Properties(
-        "gpu-two-lattice-linear", "stream", false,
+        "lptl", "stream", false,
         /*work_group_size=*/64,
         /*time_steps=*/100, /*frame_interval=*/100,
         "Hagen-Poiseuille",
@@ -48,7 +47,7 @@ TEST_CASE("Properties constructor: field storage and ghost-layer accounting",
     auto p = valid_props();
 
     // Strings are stored as-is
-    CHECK(p.algorithm   == "gpu-two-lattice-linear");
+    CHECK(p.algorithm   == "lptl");
     CHECK(p.data_layout == "stream");
     CHECK(p.scenario    == "Hagen-Poiseuille");
     CHECK(p.debug_mode  == false);
@@ -80,8 +79,8 @@ TEST_CASE("Properties::validate(): valid inputs do not throw", "[properties][val
 {
     SECTION("all four algorithms")
     {
-        for (const auto &alg : {"gpu-two-lattice", "gpu-two-lattice-linear",
-                                "gpu-two-lattice-buffered", "gpu-swap"})
+        for (const auto &alg : {"nptl", "lptl",
+                                "npol", "nsol"})
         {
             auto p = valid_props();
             p.algorithm = alg;
@@ -114,7 +113,7 @@ TEST_CASE("Properties::validate(): valid inputs do not throw", "[properties][val
     {
         // Re-construct so ghost accounting is correct
         lbm::core::Properties p(
-            "gpu-two-lattice-linear", "stream", false, 1, 1, 1,
+            "lptl", "stream", false, 1, 1, 1,
             "Hagen-Poiseuille", 2, 2, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.5);
         CHECK_NOTHROW(p.validate());
     }
@@ -132,7 +131,7 @@ TEST_CASE("Properties::validate(): invalid inputs throw PropertyArgumentExceptio
     SECTION("vertical_nodes below minimum (inner = 1 → stored = 3 < 4)")
     {
         lbm::core::Properties p(
-            "gpu-two-lattice-linear", "stream", false, 64, 100, 100,
+            "lptl", "stream", false, 64, 100, 100,
             "Hagen-Poiseuille", 1, 30, 0.0, 0.0, 1.3, 0.0, 0.0, 1.0, 0.6);
         CHECK_THROWS_AS(p.validate(), Exc);
     }
@@ -140,7 +139,7 @@ TEST_CASE("Properties::validate(): invalid inputs throw PropertyArgumentExceptio
     SECTION("horizontal_nodes below minimum (inner = 1 → stored = 3 < 4)")
     {
         lbm::core::Properties p(
-            "gpu-two-lattice-linear", "stream", false, 64, 100, 100,
+            "lptl", "stream", false, 64, 100, 100,
             "Hagen-Poiseuille", 30, 1, 0.0, 0.0, 1.3, 0.0, 0.0, 1.0, 0.6);
         CHECK_THROWS_AS(p.validate(), Exc);
     }
@@ -221,7 +220,7 @@ TEST_CASE("json_to_properties: parses bundled settings/settings.json",
 
     lbm::core::Properties p = lbm::file_interaction::json_to_properties(path);
 
-    CHECK(p.algorithm        == "gpu-two-lattice");
+    CHECK(p.algorithm        == "nptl");
     CHECK(p.data_layout      == "stream");
     CHECK(p.scenario         == "Hagen-Poiseuille");
     CHECK(p.debug_mode       == false);

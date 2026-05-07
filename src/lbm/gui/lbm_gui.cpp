@@ -1,16 +1,8 @@
 /**
- * @file        lbm_gui.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       This file contains implementations for GUI-related structs declared in lbm_gui.hpp.
  *
- * @version     2.7
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #include "../../../include/lbm/gui/lbm_gui.hpp"

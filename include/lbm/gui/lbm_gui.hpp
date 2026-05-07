@@ -1,17 +1,9 @@
 /**
- * @file        lbm_gui.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains all declarations and some implementations of the GUI for the lattice
  *              Boltzmann simulation developed in my Bachelor thesis.
  *
- * @version     2.8
- *
- * @date        April 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_GUI_HPP

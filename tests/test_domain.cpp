@@ -1,20 +1,18 @@
 /**
- * @file    test_domain.cpp
- *
  * @brief   Unit tests for lbm::core::Domain (plan item 4.3).
  *
  *          Covers the domain-layout math for each algorithm variant:
- *            - gpu-two-lattice-linear  — no decomposition; exact node counts
- *            - gpu-two-lattice         — decomposed layout; structural invariants
- *            - gpu-two-lattice-buffered — buffered layout; structural invariants
- *            - gpu-swap                — swap layout; structural invariants
+ *            - lptl (Linear Pull Two-Lattice)       — no decomposition; exact node counts
+ *            - nptl (Non-linear Pull Two-Lattice)   — decomposed layout; structural invariants
+ *            - npol (Non-linear Pull One-Lattice)   — buffered layout; structural invariants
+ *            - nsol (Non-linear Swap One-Lattice)   — swap layout; structural invariants
  *
  *          For the decomposed/buffered/swap algorithms the exact expanded
  *          extents depend on subdomain arithmetic that is sensitive to grid
  *          size and work-group size, so we verify structural invariants
  *          (total == h * v, domain not smaller than requested) rather than
- *          hard-coded values.  For the linear variant (no expansion) we can
- *          assert exact values.
+ *          hard-coded values.  For lptl (no expansion) we can assert exact values.
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #include <catch2/catch_test_macros.hpp>
@@ -40,17 +38,17 @@ static lbm::core::Properties make_props(const std::string &algorithm,
 }
 
 // ---------------------------------------------------------------------------
-// gpu-two-lattice-linear  (no subdomain decomposition)
+// lptl — Linear Pull Two-Lattice  (no subdomain decomposition)
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Domain: gpu-two-lattice-linear preserves ghost-extended extents",
+TEST_CASE("Domain: lptl preserves ghost-extended extents",
           "[domain][linear]")
 {
     // The linear algorithm does not call any setup_for_* method, so Domain
     // stores the ghost-extended extents from Properties directly.
     //
     // inner_v=10, inner_h=6  →  stored_v=12, stored_h=8
-    auto props = make_props("gpu-two-lattice-linear", 10, 6, 64);
+    auto props = make_props("lptl", 10, 6, 64);
 
     lbm::core::Domain dom(props);
 
@@ -66,15 +64,15 @@ TEST_CASE("Domain: gpu-two-lattice-linear preserves ghost-extended extents",
 }
 
 // ---------------------------------------------------------------------------
-// gpu-two-lattice  (decomposed, non-buffered)
+// nptl — Non-linear Pull Two-Lattice  (decomposed, non-buffered)
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Domain: gpu-two-lattice structural invariants", "[domain][decomposed]")
+TEST_CASE("Domain: nptl structural invariants", "[domain][decomposed]")
 {
     SECTION("work-group size 4 (power of 4 → square 2×2 subdomains)")
     {
         // inner 10×10 → stored 12×12
-        auto props = make_props("gpu-two-lattice", 10, 10, 4);
+        auto props = make_props("nptl", 10, 10, 4);
         lbm::core::Domain dom(props);
 
         CHECK(dom.total_node_count == dom.horizontal_nodes * dom.vertical_nodes);
@@ -86,7 +84,7 @@ TEST_CASE("Domain: gpu-two-lattice structural invariants", "[domain][decomposed]
 
     SECTION("work-group size 8 (power of 2, not 4 → rectangular 2×4 subdomains)")
     {
-        auto props = make_props("gpu-two-lattice", 10, 10, 8);
+        auto props = make_props("nptl", 10, 10, 8);
         lbm::core::Domain dom(props);
 
         CHECK(dom.total_node_count == dom.horizontal_nodes * dom.vertical_nodes);
@@ -98,7 +96,7 @@ TEST_CASE("Domain: gpu-two-lattice structural invariants", "[domain][decomposed]
 
     SECTION("work-group size 7 (odd → stripe subdomains 1×7)")
     {
-        auto props = make_props("gpu-two-lattice", 10, 10, 7);
+        auto props = make_props("nptl", 10, 10, 7);
         lbm::core::Domain dom(props);
 
         CHECK(dom.total_node_count == dom.horizontal_nodes * dom.vertical_nodes);
@@ -108,14 +106,14 @@ TEST_CASE("Domain: gpu-two-lattice structural invariants", "[domain][decomposed]
 }
 
 // ---------------------------------------------------------------------------
-// gpu-two-lattice-buffered
+// npol — Non-linear Pull One-Lattice
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Domain: gpu-two-lattice-buffered structural invariants", "[domain][buffered]")
+TEST_CASE("Domain: npol structural invariants", "[domain][buffered]")
 {
     SECTION("work-group size 4")
     {
-        auto props = make_props("gpu-two-lattice-buffered", 10, 10, 4);
+        auto props = make_props("npol", 10, 10, 4);
         lbm::core::Domain dom(props);
 
         CHECK(dom.total_node_count == dom.horizontal_nodes * dom.vertical_nodes);
@@ -126,7 +124,7 @@ TEST_CASE("Domain: gpu-two-lattice-buffered structural invariants", "[domain][bu
 
     SECTION("work-group size 16 (power of 4 → square 4×4 subdomains)")
     {
-        auto props = make_props("gpu-two-lattice-buffered", 20, 20, 16);
+        auto props = make_props("npol", 20, 20, 16);
         lbm::core::Domain dom(props);
 
         CHECK(dom.total_node_count == dom.horizontal_nodes * dom.vertical_nodes);
@@ -136,15 +134,15 @@ TEST_CASE("Domain: gpu-two-lattice-buffered structural invariants", "[domain][bu
 }
 
 // ---------------------------------------------------------------------------
-// gpu-swap
+// nsol — Non-linear Swap One-Lattice
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Domain: gpu-swap structural invariants", "[domain][swap]")
+TEST_CASE("Domain: nsol structural invariants", "[domain][swap]")
 {
     // wg must be >= 6 to avoid the JSON-correction branch
     SECTION("work-group size 8")
     {
-        auto props = make_props("gpu-swap", 10, 10, 8);
+        auto props = make_props("nsol", 10, 10, 8);
         lbm::core::Domain dom(props);
 
         CHECK(dom.total_node_count == dom.horizontal_nodes * dom.vertical_nodes);
@@ -154,7 +152,7 @@ TEST_CASE("Domain: gpu-swap structural invariants", "[domain][swap]")
 
     SECTION("work-group size 64")
     {
-        auto props = make_props("gpu-swap", 30, 30, 64);
+        auto props = make_props("nsol", 30, 30, 64);
         lbm::core::Domain dom(props);
 
         CHECK(dom.total_node_count == dom.horizontal_nodes * dom.vertical_nodes);

@@ -1,26 +1,18 @@
 /**
- * @file        optimized_two_lattice_kernels.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declarations and definitions of kernels for the buffered two-lattice
  *              algorithm.
  *
- * @version     1.4
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
-#ifndef BUFFERED_TWO_LATTICE_KERNELS_HPP
-#define BUFFERED_TWO_LATTICE_KERNELS_HPP
+#ifndef LBM_NPOL_KERNELS_HPP
+#define LBM_NPOL_KERNELS_HPP
 
 // Dependencies on other LBM core features
-#include "../../../core/access.hpp"
-#include "../../../core/constants.hpp"
-#include "../../../core/simulation.hpp"
+#include "../../core/access.hpp"
+#include "../../core/constants.hpp"
+#include "../../core/simulation.hpp"
 
 // SYCL
 #include <sycl/sycl.hpp>
@@ -34,10 +26,7 @@ namespace lbm
 namespace gpu
 {
 
-namespace two_lattice
-{
-
-namespace buffered
+namespace npol
 {
 
 /**
@@ -266,12 +255,10 @@ class EmplaceBounceBackKernel
 
 }  // namespace kernels
 
-}  // namespace buffered
-
-}  // namespace two_lattice
+}  // namespace npol
 
 }  // namespace gpu
 
 }  // namespace lbm
 
-#endif  // ! BUFFERED_TWO_LATTICE_KERNELS_HPP
+#endif  // ! LBM_NPOL_KERNELS_HPP

@@ -1,17 +1,9 @@
 /**
- * @file        general_non_buffered.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This namespace contains kernels that can be used in multiple non-buffered lattice Boltzmann
  *              implementations.
  *
- * @version     1.3
- *
- * @date        April 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_GENERAL_NON_BUFFERED_HPP

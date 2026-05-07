@@ -1,16 +1,8 @@
 /**
- * @file        benchmark.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declaration of benchmark functionality.
  *
- * @version     1.0
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_BENCHMARK_HPP

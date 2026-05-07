@@ -1,15 +1,8 @@
 /**
- * @file        gui_constants.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains constants for the GUI.
  *
- * @version     1.5
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_GUI_CONSTANTS_HPP

@@ -1,16 +1,8 @@
 /**
- * @file        domain.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       Simulation domain dimensions, derived from Properties. No SYCL
  *              dependency — safe to include anywhere Properties is available.
  *
- * @version     1.0
- *
- * @date        May 2025
- *
- * @copyright   Copyright (c) 2025 Marcel Graf
+ * @copyright   Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_DOMAIN_HPP

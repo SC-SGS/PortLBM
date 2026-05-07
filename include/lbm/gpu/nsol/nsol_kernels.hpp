@@ -1,16 +1,8 @@
 /**
- * @file        swap_kernels.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declarations and definitions of kernels for the swap algorithm.
  *
- * @version     1.5
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_SWAP_KERNELS_HPP
@@ -33,7 +25,7 @@ namespace lbm
 namespace gpu
 {
 
-namespace swap
+namespace nsol
 {
 
 /**
@@ -344,7 +336,7 @@ class StreamCollideKernel
 
 }  // namespace kernels
 
-}  // namespace swap
+}  // namespace nsol
 
 }  // namespace gpu
 

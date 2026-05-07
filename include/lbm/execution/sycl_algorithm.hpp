@@ -1,17 +1,9 @@
 /**
- * @file        sycl_algorithm.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       In this header file, an abstract class for algorithms is defined.
  *              All algorithms inherit from this this base class and implement the execute methods.
  *
- * @version     1.2
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_SYCL_ALGORITHM_HPP

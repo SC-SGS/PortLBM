@@ -1,69 +1,54 @@
 /**
- * @file        non_linear_gpu_two_lattice.hpp
+ * @brief       In this header, classes for the GPU-based buffered two-lattice algorithm are declared. Both inherit
+ *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms.
+ *              The kernel functions are implemented in `npol_kernels.hpp`.
  *
- * @author      Marcel Graf
- *
- * @brief       In this header, two classes for the GPU-based non-linear two-lattice algorithm are declared. Both
- *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms.
- *              The kernel functions are implemented in `non_linear_two_lattice_kernels.hpp`.
- *
- * @version     4.6
- *
- * @date        April 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
-#ifndef NON_LINEAR_GPU_TWO_LATTICE_HPP
-#define NON_LINEAR_GPU_TWO_LATTICE_HPP
+#ifndef LBM_NPOL_HPP
+#define LBM_NPOL_HPP
 
 // Console output
-#include "../../../console/console_output.hpp"
+#include "../../console/console_output.hpp"
 
 // LBM core features
-#include "../../../core/domain_initialization.hpp"
+#include "../../core/access.hpp"
+#include "../../core/domain_initialization.hpp"
+#include "../../core/simulation.hpp"
 
 // Algorithm
-#include "../../../execution/sycl_algorithm.hpp"
+#include "../../execution/sycl_algorithm.hpp"
 
 // SYCL constants
-#include "../../sycl_constants.hpp"
+#include "../sycl_constants.hpp"
 
 // Kernels
-#include "../../general/non_buffered.hpp"
-#include "non_linear_two_lattice_kernels.hpp"
+#include "../general/buffered.hpp"
+#include "npol_kernels.hpp"
 
 namespace lbm
 {
 
-/**
- * @brief This namespace contains the GPU implementations of the two-lattice and the swap algorithm.
- */
 namespace gpu
 {
 
 /**
- * @brief This namespace contains the GPU implementations of the two-lattice algorithm.
+ * @brief This namespace contains the NPOL (Non-linear Pull One-Lattice) algorithm.
  */
-namespace two_lattice
+namespace npol
 {
 
-/**
- * @brief This namespace contains implementations using non-linear kernels.
- */
-namespace non_linear
-{
-
-// PERFORMANCE NON-LINEAR TWO-LATTICE /////////////////////////////////////////////////////////////////////////////////
+// PERFORMANCE BUFFERED TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Class representation of the linear SYCL implementation of the two-lattice algorithm.
+ * @brief Class representation of the buffered SYCL implementation of the two-lattice algorithm.
  *
  * @tparam A any `core::access::AccessorConcept` from access.hpp
  */
 template <core::access::AccessorConcept A>
-class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
+class NPOL : public execution::SYCLAlgorithm
 {
   private:
     /**
@@ -76,12 +61,15 @@ class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = non_linear::kernels::StreamCollideKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
-                                                                      simulation->domain->horizontal_nodes - 2),
-                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                                      simulation->domain->subdomain_horizontal_nodes)),
-                                     kernel);
+                    auto kernel = npol::kernels::StreamCollideKernel<A>(*simulation);
+                    cgh.parallel_for(
+                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
+                                                             * simulation->domain->subdomain_count_vertical,
+                                                         simulation->domain->subdomain_horizontal_nodes
+                                                             * simulation->domain->subdomain_count_horizontal),
+                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                         simulation->domain->subdomain_horizontal_nodes)),
+                        kernel);
                 })
             .wait();
 
@@ -93,22 +81,81 @@ class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
     }
 
     /**
-     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
+     * @brief   Updates the horizontal buffers by copying adjacent values above and below.
      */
-    void emplace_bounce_back()
+    void update_horizontal_buffers()
     {
         queue
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
-                                                                      simulation->domain->horizontal_nodes - 2),
-                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                                      simulation->domain->subdomain_horizontal_nodes)),
+                    auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<2>(simulation->domain->subdomain_count_vertical - 1,
+                                                    simulation->domain->horizontal_nodes),
                                      kernel);
                 })
             .wait();
+    }
+
+    /**
+     * @brief   Updates the vertical buffers by copying adjacent values left and right.
+     *
+     */
+    void update_vertical_buffers()
+    {
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<2>(simulation->domain->vertical_nodes,
+                                                    simulation->domain->subdomain_count_horizontal - 1),
+                                     kernel);
+                })
+            .wait();
+    }
+
+    /**
+     * @brief   Emplaces the values as preparation for the bounce-back scheme for the buffered
+     *          two-lattice algorithm.
+     */
+    void emplace_bounce_back()
+    {
+        if (simulation->domain->subdomain_count_vertical > 1)
+        {
+            update_horizontal_buffers();
+        }
+
+        if (simulation->domain->subdomain_count_horizontal > 1)
+        {
+            update_vertical_buffers();
+        }
+
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                    cgh.parallel_for(
+                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
+                                                             * simulation->domain->subdomain_count_vertical,
+                                                         simulation->domain->subdomain_horizontal_nodes
+                                                             * simulation->domain->subdomain_count_horizontal),
+                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                         simulation->domain->subdomain_horizontal_nodes)),
+                        kernel);
+                })
+            .wait();
+
+        if (simulation->domain->subdomain_count_vertical > 1)
+        {
+            update_horizontal_buffers();
+        }
+
+        if (simulation->domain->subdomain_count_horizontal > 1)
+        {
+            update_vertical_buffers();
+        }
     }
 
     /**
@@ -120,7 +167,7 @@ class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
+                    auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
                     cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
                 })
             .wait();
@@ -128,7 +175,7 @@ class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
 
   public:
     /**
-     * @brief   Runs the linear two-lattice algorithm until it is paused or it reaches the last iteration.
+     * @brief   Runs the buffered two-lattice algorithm until it is paused or it reaches the last iteration.
      */
     inline void execute() override
     {
@@ -143,10 +190,6 @@ class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
                     perform_inout_update();
                     stream_and_collide();
 
-                    real_type *tmp = simulation->data->distribution_values_1;
-                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
-                    simulation->data->distribution_values_0 = tmp;
-
                     simulation->control->finalize_iteration();
                 }
 
@@ -157,30 +200,29 @@ class NonLinearGpuTwoLattice : public execution::SYCLAlgorithm
             });
     }
 
-    explicit NonLinearGpuTwoLattice(sycl::queue &queue, const std::string &settings_path) :
+    explicit NPOL(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path)
     {
-        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
-            *simulation, queue);
+        core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
     }
 
-    explicit NonLinearGpuTwoLattice(sycl::queue &queue, const core::Properties &props) :
+    explicit NPOL(sycl::queue &queue, const core::Properties &props) :
         SYCLAlgorithm(queue, props)
     {
-        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
-            *simulation, queue);
+        core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
     }
 };
 
-// DEBUG NON-LINEAR TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////////
+// DEBUG BUFFERED TWO-LATTICE /////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Class representation of the linear SYCL debug implementation of the two-lattice algorithm.
+ * @brief   Class representation of the buffered SYCL debug implementation of the two-lattice
+ *          algorithm.
  *
- * @tparam A any `core::access::AccessorConcept` from access.hpp
+ * @tparam  A   any `core::access::AccessorConcept` from access.hpp
  */
 template <core::access::AccessorConcept A>
-class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
+class NPOLDebug : public execution::SYCLAlgorithm
 {
   private:
     std::unique_ptr<std::vector<real_type>> all_densities;
@@ -193,85 +235,39 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
     unsigned int current_iteration;
 
     /**
-     * @brief   Performs the streaming step of the two-lattice algorithm.
-     */
-    void stream()
-    {
-        queue
-            ->submit(
-                [&](sycl::handler &cgh)
-                {
-                    auto kernel = non_linear::kernels::StreamKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
-                                                                      simulation->domain->horizontal_nodes - 2),
-                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                                      simulation->domain->subdomain_horizontal_nodes)),
-                                     kernel);
-                })
-            .wait();
-    }
-
-    /**
-     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
-     *          the macroscopic observables in the process.
-     */
-    void update_macroscopic_observables()
-    {
-        queue
-            ->submit(
-                [&](sycl::handler &cgh)
-                {
-                    auto kernel = non_linear::kernels::MacroscopicObservablesKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
-                                                                      simulation->domain->horizontal_nodes - 2),
-                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                                      simulation->domain->subdomain_horizontal_nodes)),
-                                     kernel);
-                })
-            .wait();
-
-        copy_macroscopic_observables_to_cpu();
-    }
-
-    /**
-     * @brief   Performs the collision step of the two-lattice algorithm.
-     *
-     */
-    void collide()
-    {
-        queue
-            ->submit(
-                [&](sycl::handler &cgh)
-                {
-                    auto kernel = non_linear::kernels::CollideKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
-                                                                      simulation->domain->horizontal_nodes - 2),
-                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                                      simulation->domain->subdomain_horizontal_nodes)),
-                                     kernel);
-                })
-            .wait();
-    }
-
-    /**
      * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
      *          the macroscopic observables in the process.
      */
     inline void stream_and_collide()
     {
-        stream();
         queue
-            ->copy(simulation->data->distribution_values_1,
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = npol::kernels::StreamCollideKernel<A>(*simulation);
+                    cgh.parallel_for(
+                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
+                                                             * simulation->domain->subdomain_count_vertical,
+                                                         simulation->domain->subdomain_horizontal_nodes
+                                                             * simulation->domain->subdomain_count_horizontal),
+                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                         simulation->domain->subdomain_horizontal_nodes)),
+                        kernel);
+                })
+            .wait();
+
+        queue
+            ->copy(simulation->data->distribution_values_0,
                    distribution_values->data(),
                    9 * simulation->domain->total_node_count)
             .wait();
 
-        std::cout << "\033[36mDestination lattice after streaming: \n"
+        copy_macroscopic_observables_to_cpu();
+
+        std::cout << "\033[36mDestination lattice after stream and collide: \n"
                   << "-------------------------------------------------------------------------------\n\033[0m";
 
         console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
-
-        update_macroscopic_observables();
 
         std::cout << "Velocities: \n"
                   << "-------------------------------------------------------------------------------\n";
@@ -282,19 +278,41 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         std::cout << "Densities: \n"
                   << "-------------------------------------------------------------------------------\n";
         lbm::console::print_densities(*simulation->properties, *simulation->results->densities_cpu, 0);
+    }
 
-        collide();
-
+    /**
+     * @brief   Updates the horizontal buffers by copying adjacent values above and below.
+     */
+    void update_horizontal_buffers()
+    {
         queue
-            ->copy(simulation->data->distribution_values_1,
-                   distribution_values->data(),
-                   9 * simulation->domain->total_node_count)
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = general::buffered::HorizontalCopyToBufferKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<2>(simulation->domain->subdomain_count_vertical - 1,
+                                                    simulation->domain->horizontal_nodes),
+                                     kernel);
+                })
             .wait();
+    }
 
-        std::cout << "\033[36mDestination lattice after collision: \n"
-                  << "-------------------------------------------------------------------------------\n\033[0m";
-
-        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
+    /**
+     * @brief   Updates the vertical buffers by copying adjacent values left and right.
+     *
+     */
+    void update_vertical_buffers()
+    {
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = general::buffered::VerticalCopyToBufferKernel<A>(*simulation);
+                    cgh.parallel_for(sycl::range<2>(simulation->domain->vertical_nodes,
+                                                    simulation->domain->subdomain_count_horizontal - 1),
+                                     kernel);
+                })
+            .wait();
     }
 
     /**
@@ -302,18 +320,39 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
      */
     void emplace_bounce_back()
     {
-        queue
-            ->submit(
-                [&](sycl::handler &cgh)
-                {
-                    auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 2,
-                                                                      simulation->domain->horizontal_nodes - 2),
-                                                       sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                                      simulation->domain->subdomain_horizontal_nodes)),
-                                     kernel);
-                })
-            .wait();
+        if (simulation->domain->subdomain_count_vertical > 1)
+        {
+            update_horizontal_buffers();
+        }
+
+        if (simulation->domain->subdomain_count_horizontal > 1)
+        {
+            update_vertical_buffers();
+        }
+
+        auto event = queue->submit(
+            [&](sycl::handler &cgh)
+            {
+                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
+                                                                      * simulation->domain->subdomain_count_vertical,
+                                                                  simulation->domain->subdomain_horizontal_nodes
+                                                                      * simulation->domain->subdomain_count_horizontal),
+                                                   sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                                  simulation->domain->subdomain_horizontal_nodes)),
+                                 kernel);
+            });
+        event.wait();
+
+        if (simulation->domain->subdomain_count_vertical > 1)
+        {
+            update_horizontal_buffers();
+        }
+
+        if (simulation->domain->subdomain_count_horizontal > 1)
+        {
+            update_vertical_buffers();
+        }
 
         queue
             ->copy(simulation->data->distribution_values_0,
@@ -336,8 +375,9 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = general::non_buffered::OutletUpdateKernel<A>(*simulation);
+                    auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
                     cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
+                    // set to simulation->properties->vertical_nodes - 2 to also treat corners
                 })
             .wait();
 
@@ -355,7 +395,7 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
 
   public:
     /**
-     * @brief   Runs the debug variant of the non-linear two-lattice algorithm until it is paused or it
+     * @brief   Runs the debug variant of the buffered two-lattice algorithm until it is paused or it
      *          reaches the last iteration.
      */
     inline void execute() override
@@ -387,7 +427,7 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
 
             console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
 
-            std::cout << "\033[36mNow running non-linear GPU two-lattice for " << simulation->properties->time_steps
+            std::cout << "\033[36mNow running buffered GPU two-lattice for " << simulation->properties->time_steps
                       << " iterations.\033[0m\n\n";
 
             std::cout << "Running on " << queue->get_device().get_info<sycl::info::device::name>() << "\n\n";
@@ -415,10 +455,6 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
                     stream_and_collide();
 
                     current_iteration++;
-
-                    real_type *tmp = simulation->data->distribution_values_1;
-                    simulation->data->distribution_values_1 = simulation->data->distribution_values_0;
-                    simulation->data->distribution_values_0 = tmp;
 
                     queue
                         ->copy(simulation->results->x_velocities_gpu,
@@ -466,14 +502,7 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             });
     }
 
-    /**
-     * @brief   Constructs a new `NonLinearGpuTwoLatticeDebug` algorithm object and initializes its
-     *          domain.
-     *
-     * @param[in]   queue           the SYCL queue used to allocate the device data
-     * @param[in]   settings_path   path to the JSON settings file
-     */
-    explicit NonLinearGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path) :
+    explicit NPOLDebug(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
@@ -484,8 +513,7 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
         current_iteration(0)
     {
-        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
-            *simulation, queue);
+        core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
 
         all_densities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
         all_densities->shrink_to_fit();
@@ -501,7 +529,7 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         phase_information->shrink_to_fit();
     }
 
-    explicit NonLinearGpuTwoLatticeDebug(sycl::queue &queue, const core::Properties &props) :
+    explicit NPOLDebug(sycl::queue &queue, const core::Properties &props) :
         SYCLAlgorithm(queue, props),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
@@ -512,8 +540,7 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         phase_information(std::make_unique<std::vector<int8_t>>(simulation->domain->total_node_count, 0)),
         current_iteration(0)
     {
-        core::domain_initialization::setup_domain<A, core::access::decomposed::NonBufferedNodeAccess>(
-            *simulation, queue);
+        core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
 
         all_densities->reserve(simulation->properties->time_steps * simulation->properties->domain_node_count);
         all_densities->shrink_to_fit();
@@ -530,12 +557,10 @@ class NonLinearGpuTwoLatticeDebug : public execution::SYCLAlgorithm
     }
 };
 
-}  // namespace non_linear
-
-}  // namespace two_lattice
+}  // namespace npol
 
 }  // namespace gpu
 
 }  // namespace lbm
 
-#endif  // ! GPU_TWO_LATTICE_HPP
+#endif  // ! LBM_NPOL_HPP

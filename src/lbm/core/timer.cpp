@@ -1,16 +1,8 @@
 /**
- * @file        timer.cpp
- *
- * @author      Marcel Graf
- *
  * @brief       This source file contains the implementation of the timer class defined in timer.hpp.
  *
- * @version     1.2
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #include "../../../include/lbm/core/timer.hpp"

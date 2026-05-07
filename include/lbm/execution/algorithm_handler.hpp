@@ -1,27 +1,17 @@
 /**
- * @file        algorithm_handler.hpp
+ * @brief       Abstract interface for LBM algorithm handlers.
  *
- * @author      Marcel Graf
+ *              An `AlgorithmHandler` owns the full lifecycle of one simulation
+ *              run: initialisation, async execution, progress queries, and
+ *              result retrieval.  The concrete type is `SYCLAlgorithmHandler`;
+ *              prefer constructing one via `lbm::create_handler()` so that call
+ *              sites remain independent of SYCL headers.
  *
- * @brief       This header file contains the declaration of an abstract class for an algorithm handler. The GUI is
- *              designed to be compatible with various backends. To ensure compatibility, it is widely isolated from
- *              the implementation, and any interaction with the backend happens through specific handlers. They are
- *              used to launch the simulation and to retrieve the results. In principle, an algorithm handler can be
- *              used "synchronously" in the sense that iteration launches are synchronized with the GUI, or
- *              "asynchronously", that is, the simulation can run independently from the GUI.
+ *              Derived classes add backend-specific state.  The interface
+ *              intentionally carries no GUI dependency.
  *
- *              For convenience reasons, algorithm handlers are also used in the non-GUI version.
- *
- *              Algorithm handlers for all supported implementations are supposed to inherit from the abstract class
- *              declared here. Any additional values that may be necessary for custom executioners should be added in
- *              their own classes.
- *
- * @version     1.4
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_ALGORITHM_HANDLER_HPP
@@ -42,17 +32,16 @@ namespace lbm
 namespace execution
 {
 /**
- * @brief   This abstract class defines the minimum public interface of an LBM algorithm handler that isolates
- *          the GUI or any outside applications from the LBM implementation.
+ * @brief   Abstract base class for LBM algorithm handlers.
+ *
+ * Isolates callers from the concrete SYCL implementation.  Use
+ * `lbm::create_handler()` to obtain an instance.
  */
 class AlgorithmHandler
 {
   public:
-    /**
-     * @brief   Allows to specify a constraint on the maximum number of processing elements. This variable is
-     *          present here such that it is available to the GUI, where the number of processing elements is
-     *          potentially adjusted in some way.
-     */
+    /// Optional upper bound on the number of processing elements used by the
+    /// algorithm.  Set before calling `initialize()` if needed.
     size_t processing_element_constraint;
 
     /**

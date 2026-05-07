@@ -1,76 +1,62 @@
 /**
- * @file        buffered_gpu_two_lattice.hpp
+ * @brief       In this header, a debug and a performance class for the GPU-based swap algorithm are declared. Both
+ *              inherit from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms.
+ *              The kernel functions are implemented in `nsol_kernels.hpp`.
  *
- * @author      Marcel Graf
- *
- * @brief       In this header, classes for the GPU-based buffered two-lattice algorithm are declared. Both inherit
- *              from the `lbm::execution::SYCLAlgorithm` class which defines the interface of all algorithms.
- *              The kernel functions are implemented in `buffered_two_lattice_kernels.hpp`.
- *
- * @version     1.4
- *
- * @date        April 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
-#ifndef BUFFERED_GPU_TWO_LATTICE_HPP
-#define BUFFERED_GPU_TWO_LATTICE_HPP
+#ifndef LBM_GPU_SWAP_HPP
+#define LBM_GPU_SWAP_HPP
 
 // Console output
-#include "../../../console/console_output.hpp"
+#include "../../console/console_output.hpp"
 
 // LBM core features
-#include "../../../core/access.hpp"
-#include "../../../core/domain_initialization.hpp"
-#include "../../../core/simulation.hpp"
+#include "../../core/domain_initialization.hpp"
 
 // Algorithm
-#include "../../../execution/sycl_algorithm.hpp"
+#include "../../execution/sycl_algorithm.hpp"
 
 // SYCL constants
-#include "../../sycl_constants.hpp"
+#include "../sycl_constants.hpp"
 
 // Kernels
-#include "../../general/buffered.hpp"
-#include "buffered_two_lattice_kernels.hpp"
+#include "../general/buffered.hpp"
+#include "nsol_kernels.hpp"
 
 namespace lbm
 {
 
 /**
- * @brief This namespace contains the GPU implementations of the two-lattice and the swap algorithm.
+ * @brief This namespace contains the GPU implementations of the swap and the swap algorithm.
  */
 namespace gpu
 {
 
 /**
- * @brief This namespace contains the GPU implementation of the two-lattice algorithm.
+ * @brief This namespace contains the GPU implementation of the swap algorithm.
  */
-namespace two_lattice
+namespace nsol
 {
 
-/**
- * @brief This namespace contains the implementation of the buffered two-lattice algorithms.
- */
-namespace buffered
-{
-
-// PERFORMANCE BUFFERED TWO-LATTICE ///////////////////////////////////////////////////////////////////////////////////
+// PERFORMANCE SWAP ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Class representation of the buffered SYCL implementation of the two-lattice algorithm.
+ * @brief   Class representation of the SYCL implementation of the swap algorithm.
  *
- * @tparam A any `core::access::AccessorConcept` from access.hpp
+ * @tparam  A   any `core::access::AccessorConcept` from access.hpp
  */
 template <core::access::AccessorConcept A>
-class BufferedGpuTwoLattice : public execution::SYCLAlgorithm
+class NSOL : public execution::SYCLAlgorithm
 {
   private:
+    real_type inlet_values[9];
+
     /**
-     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
-     *          the macroscopic observables in the process.
+     * @brief   Performs the combined streaming and collision step of the swap algorithm and updates the
+     *          macroscopic observables in the process.
      */
     inline void stream_and_collide()
     {
@@ -78,14 +64,15 @@ class BufferedGpuTwoLattice : public execution::SYCLAlgorithm
             ->submit(
                 [&](sycl::handler &cgh)
                 {
-                    auto kernel = buffered::kernels::StreamCollideKernel<A>(*simulation);
+                    auto kernel = nsol::kernels::StreamCollideKernel<A>(
+                        *simulation, cgh, simulation->properties->work_group_size);
+
                     cgh.parallel_for(
-                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
-                                                             * simulation->domain->subdomain_count_vertical,
-                                                         simulation->domain->subdomain_horizontal_nodes
-                                                             * simulation->domain->subdomain_count_horizontal),
-                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                         simulation->domain->subdomain_horizontal_nodes)),
+                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 1,
+                                                         simulation->domain->subdomain_count_horizontal
+                                                             * (simulation->domain->subdomain_horizontal_nodes + 2)),
+                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes + 1,
+                                                         simulation->domain->subdomain_horizontal_nodes + 2)),
                         kernel);
                 })
             .wait();
@@ -133,8 +120,8 @@ class BufferedGpuTwoLattice : public execution::SYCLAlgorithm
     }
 
     /**
-     * @brief   Emplaces the values as preparation for the bounce-back scheme for the buffered
-     *          two-lattice algorithm.
+     * @brief   Emplaces the distribution values as preparation for the bounce-back scheme for the swap
+     *          algorithm.
      */
     void emplace_bounce_back()
     {
@@ -154,10 +141,10 @@ class BufferedGpuTwoLattice : public execution::SYCLAlgorithm
                 {
                     auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
                     cgh.parallel_for(
-                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
-                                                             * simulation->domain->subdomain_count_vertical,
-                                                         simulation->domain->subdomain_horizontal_nodes
-                                                             * simulation->domain->subdomain_count_horizontal),
+                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_count_vertical
+                                                             * simulation->domain->subdomain_vertical_nodes,
+                                                         simulation->domain->subdomain_count_horizontal
+                                                             * simulation->domain->subdomain_horizontal_nodes),
                                           sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
                                                          simulation->domain->subdomain_horizontal_nodes)),
                         kernel);
@@ -176,7 +163,7 @@ class BufferedGpuTwoLattice : public execution::SYCLAlgorithm
     }
 
     /**
-     * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
+     * @brief   Updates the inlets and outlets as preparation for the swap algorithm.
      */
     void perform_inout_update()
     {
@@ -192,7 +179,7 @@ class BufferedGpuTwoLattice : public execution::SYCLAlgorithm
 
   public:
     /**
-     * @brief   Runs the buffered two-lattice algorithm until it is paused or it reaches the last iteration.
+     * @brief   Runs the swap algorithm until it is paused or reaches the last iteration.
      */
     inline void execute() override
     {
@@ -217,29 +204,46 @@ class BufferedGpuTwoLattice : public execution::SYCLAlgorithm
             });
     }
 
-    explicit BufferedGpuTwoLattice(sycl::queue &queue, const std::string &settings_path) :
+    /**
+     * @brief   Constructs a new `NSOL` algorithm object and initializes its domain.
+     *
+     * @param[in]   queue           the SYCL queue used to allocate the device data
+     * @param[in]   settings_path   path to the JSON settings file
+     */
+    explicit NSOL(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path)
     {
+        core::maxwell_boltzmann_distribution(
+            simulation->properties->inlet_velocity_x,
+            simulation->properties->inlet_velocity_y,
+            simulation->properties->inlet_density,
+            inlet_values);
+
         core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
     }
 
-    explicit BufferedGpuTwoLattice(sycl::queue &queue, const core::Properties &props) :
+    explicit NSOL(sycl::queue &queue, const core::Properties &props) :
         SYCLAlgorithm(queue, props)
     {
+        core::maxwell_boltzmann_distribution(
+            simulation->properties->inlet_velocity_x,
+            simulation->properties->inlet_velocity_y,
+            simulation->properties->inlet_density,
+            inlet_values);
+
         core::domain_initialization::setup_domain<A, core::access::decomposed::BufferedNodeAccess>(*simulation, queue);
     }
 };
 
-// DEBUG BUFFERED TWO-LATTICE /////////////////////////////////////////////////////////////////////////////////////////
+// DEBUG SWAP /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief   Class representation of the buffered SYCL debug implementation of the two-lattice
- *          algorithm.
+ * @brief Class representation of the SYCL debug implementation of the swap algorithm.
  *
- * @tparam  A   any `core::access::AccessorConcept` from access.hpp
+ * @tparam A any `core::access::AccessorConcept` from access.hpp
  */
 template <core::access::AccessorConcept A>
-class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
+class NSOLDebug : public execution::SYCLAlgorithm
 {
   private:
     std::unique_ptr<std::vector<real_type>> all_densities;
@@ -249,53 +253,9 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
     std::unique_ptr<std::vector<real_type>> temp_macroscopic_observables;
     std::unique_ptr<std::vector<int8_t>> phase_information;
 
+    real_type inlet_values[9];
+
     unsigned int current_iteration;
-
-    /**
-     * @brief   Performs the streaming and collision step of the two-lattice algorithm and updates
-     *          the macroscopic observables in the process.
-     */
-    inline void stream_and_collide()
-    {
-        queue
-            ->submit(
-                [&](sycl::handler &cgh)
-                {
-                    auto kernel = buffered::kernels::StreamCollideKernel<A>(*simulation);
-                    cgh.parallel_for(
-                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
-                                                             * simulation->domain->subdomain_count_vertical,
-                                                         simulation->domain->subdomain_horizontal_nodes
-                                                             * simulation->domain->subdomain_count_horizontal),
-                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                         simulation->domain->subdomain_horizontal_nodes)),
-                        kernel);
-                })
-            .wait();
-
-        queue
-            ->copy(simulation->data->distribution_values_0,
-                   distribution_values->data(),
-                   9 * simulation->domain->total_node_count)
-            .wait();
-
-        copy_macroscopic_observables_to_cpu();
-
-        std::cout << "\033[36mDestination lattice after stream and collide: \n"
-                  << "-------------------------------------------------------------------------------\n\033[0m";
-
-        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
-
-        std::cout << "Velocities: \n"
-                  << "-------------------------------------------------------------------------------\n";
-
-        lbm::console::print_velocities(
-            *simulation->properties, *simulation->results->x_velocities_cpu, *simulation->results->y_velocities_cpu, 0);
-
-        std::cout << "Densities: \n"
-                  << "-------------------------------------------------------------------------------\n";
-        lbm::console::print_densities(*simulation->properties, *simulation->results->densities_cpu, 0);
-    }
 
     /**
      * @brief   Updates the horizontal buffers by copying adjacent values above and below.
@@ -333,7 +293,54 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
     }
 
     /**
-     * @brief   Emplaces the values as preparation for the bounce-back scheme for the two-lattice algorithm.
+     * @brief   Performs the streaming and collision step of the swap algorithm and updates the macroscopic
+     *          observables in the process.
+     */
+    inline void stream_and_collide()
+    {
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = nsol::kernels::StreamCollideKernel<A>(
+                        *simulation, cgh, simulation->properties->work_group_size);
+
+                    cgh.parallel_for(
+                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->vertical_nodes - 1,
+                                                         simulation->domain->subdomain_count_horizontal
+                                                             * (simulation->domain->subdomain_horizontal_nodes + 2)),
+                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes + 1,
+                                                         simulation->domain->subdomain_horizontal_nodes + 2)),
+                        kernel);
+                })
+            .wait();
+
+        copy_macroscopic_observables_to_cpu();
+
+        queue
+            ->copy(simulation->data->distribution_values_0,
+                   distribution_values->data(),
+                   9 * simulation->domain->total_node_count)
+            .wait();
+
+        std::cout << "\033[36mLattice after combined stream and collide: \n"
+                  << "-------------------------------------------------------------------------------\n\033[0m";
+
+        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
+
+        std::cout << "Velocities: \n"
+                  << "-------------------------------------------------------------------------------\n";
+
+        lbm::console::print_velocities(
+            *simulation->properties, *simulation->results->x_velocities_cpu, *simulation->results->y_velocities_cpu, 0);
+
+        std::cout << "Densities: \n"
+                  << "-------------------------------------------------------------------------------\n";
+        lbm::console::print_densities(*simulation->properties, *simulation->results->densities_cpu, 0);
+    }
+
+    /**
+     * @brief   Emplaces the values as preparation for the bounce-back scheme for the swap algorithm.
      */
     void emplace_bounce_back()
     {
@@ -347,19 +354,43 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             update_vertical_buffers();
         }
 
-        auto event = queue->submit(
-            [&](sycl::handler &cgh)
-            {
-                auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
-                cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_vertical_nodes
-                                                                      * simulation->domain->subdomain_count_vertical,
-                                                                  simulation->domain->subdomain_horizontal_nodes
-                                                                      * simulation->domain->subdomain_count_horizontal),
-                                                   sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
-                                                                  simulation->domain->subdomain_horizontal_nodes)),
-                                 kernel);
-            });
-        event.wait();
+        queue
+            ->copy(simulation->data->distribution_values_0,
+                   distribution_values->data(),
+                   9 * simulation->domain->total_node_count)
+            .wait();
+
+        std::cout << "\033[36mLattice after performing copy to buffers: \n"
+                  << "-------------------------------------------------------------------------------\033[0m\n";
+
+        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
+
+        queue
+            ->submit(
+                [&](sycl::handler &cgh)
+                {
+                    auto kernel = kernels::EmplaceBounceBackKernel<A>(*simulation);
+                    cgh.parallel_for(
+                        sycl::nd_range<2>(sycl::range<2>(simulation->domain->subdomain_count_vertical
+                                                             * simulation->domain->subdomain_vertical_nodes,
+                                                         simulation->domain->subdomain_count_horizontal
+                                                             * simulation->domain->subdomain_horizontal_nodes),
+                                          sycl::range<2>(simulation->domain->subdomain_vertical_nodes,
+                                                         simulation->domain->subdomain_horizontal_nodes)),
+                        kernel);
+                })
+            .wait();
+
+        queue
+            ->copy(simulation->data->distribution_values_0,
+                   distribution_values->data(),
+                   9 * simulation->domain->total_node_count)
+            .wait();
+
+        std::cout << "\033[36mLattice after emplacing bounce-back values: \n"
+                  << "-------------------------------------------------------------------------------\033[0m\n";
+
+        console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
 
         if (simulation->domain->subdomain_count_vertical > 1)
         {
@@ -377,26 +408,24 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
                    9 * simulation->domain->total_node_count)
             .wait();
 
-        std::cout << "\033[36mSource lattice after emplacing bounce-back values: \n"
+        std::cout << "\033[36mLattice after performing copy to buffers: \n"
                   << "-------------------------------------------------------------------------------\033[0m\n";
 
         console::print_distribution_values<A>(*distribution_values, *phase_information, *simulation);
     }
 
     /**
-     * @brief   Updates the inlets and outlets as preparation for the two-lattice algorithm.
+     * @brief   Updates the inlets and outlets as preparation for the swap algorithm.
      */
     void perform_inout_update()
     {
-        queue
-            ->submit(
-                [&](sycl::handler &cgh)
-                {
-                    auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
-                    cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
-                    // set to simulation->properties->vertical_nodes - 2 to also treat corners
-                })
-            .wait();
+        auto outlet_event = queue->submit(
+            [&](sycl::handler &cgh)
+            {
+                auto kernel = general::buffered::OutletUpdateKernel<A>(*simulation);
+                cgh.parallel_for(sycl::range<1>(simulation->properties->vertical_nodes - 4), kernel);
+            });
+        outlet_event.wait();
 
         queue
             ->copy(simulation->data->distribution_values_0,
@@ -412,8 +441,8 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
 
   public:
     /**
-     * @brief   Runs the debug variant of the buffered two-lattice algorithm until it is paused or it
-     *          reaches the last iteration.
+     * @brief   Runs the debug variant of the swap algorithm until it is paused or it reaches the last
+     *          iteration.
      */
     inline void execute() override
     {
@@ -444,7 +473,7 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
 
             console::print_phase_vector(*phase_information, simulation->domain->horizontal_nodes);
 
-            std::cout << "\033[36mNow running buffered GPU two-lattice for " << simulation->properties->time_steps
+            std::cout << "\033[36mNow running GPU swap for " << simulation->properties->time_steps
                       << " iterations.\033[0m\n\n";
 
             std::cout << "Running on " << queue->get_device().get_info<sycl::info::device::name>() << "\n\n";
@@ -519,7 +548,13 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
             });
     }
 
-    explicit BufferedGpuTwoLatticeDebug(sycl::queue &queue, const std::string &settings_path) :
+    /**
+     * @brief   Constructs a new `NSOLDebug` algorithm object and initializes its domain.
+     *
+     * @param[in]   queue           the SYCL queue used to allocate the device data
+     * @param[in]   settings_path   path to the JSON settings file
+     */
+    explicit NSOLDebug(sycl::queue &queue, const std::string &settings_path) :
         SYCLAlgorithm(queue, settings_path),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
@@ -544,9 +579,15 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         distribution_values->shrink_to_fit();
         temp_macroscopic_observables->shrink_to_fit();
         phase_information->shrink_to_fit();
+
+        core::maxwell_boltzmann_distribution(
+            simulation->properties->inlet_velocity_x,
+            simulation->properties->inlet_velocity_y,
+            simulation->properties->inlet_density,
+            inlet_values);
     }
 
-    explicit BufferedGpuTwoLatticeDebug(sycl::queue &queue, const core::Properties &props) :
+    explicit NSOLDebug(sycl::queue &queue, const core::Properties &props) :
         SYCLAlgorithm(queue, props),
         all_densities(std::make_unique<std::vector<real_type>>()),
         all_x_velocities(std::make_unique<std::vector<real_type>>()),
@@ -571,15 +612,19 @@ class BufferedGpuTwoLatticeDebug : public execution::SYCLAlgorithm
         distribution_values->shrink_to_fit();
         temp_macroscopic_observables->shrink_to_fit();
         phase_information->shrink_to_fit();
+
+        core::maxwell_boltzmann_distribution(
+            simulation->properties->inlet_velocity_x,
+            simulation->properties->inlet_velocity_y,
+            simulation->properties->inlet_density,
+            inlet_values);
     }
 };
 
-}  // namespace buffered
-
-}  // namespace two_lattice
+}  // namespace nsol
 
 }  // namespace gpu
 
 }  // namespace lbm
 
-#endif  // ! BUFFERED_GPU_TWO_LATTICE_HPP
+#endif  // ! LBM_GPU_SWAP_HPP

@@ -1,17 +1,9 @@
 /**
- * @file        exceptions.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declaration of several exceptions for the lattice Boltzmann
  *              implementation.
  *
- * @version     1.4
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_EXCEPTIONS_HPP

@@ -1,16 +1,8 @@
 /**
- * @file        console_output.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declarations of various functions for console outputs.
  *
- * @version     1.6
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_CONSOLE_OUTPUT_HPP

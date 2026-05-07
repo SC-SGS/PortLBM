@@ -1,26 +1,18 @@
 /**
- * @file        non_linear_two_lattice_kernels.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declarations and definitions of kernels for the two-lattice algorithm
  *              with non-linear work item evaluation.
  *
- * @version     1.3
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
-#ifndef NON_LINEAR_TWO_LATTICE_KERNELS_HPP
-#define NON_LINEAR_TWO_LATTICE_KERNELS_HPP
+#ifndef NON_LBM_LPTL_KERNELS_HPP
+#define NON_LBM_LPTL_KERNELS_HPP
 
 // Dependencies on other LBM core features
-#include "../../../core/access.hpp"
-#include "../../../core/constants.hpp"
-#include "../../../core/simulation.hpp"
+#include "../../core/access.hpp"
+#include "../../core/constants.hpp"
+#include "../../core/simulation.hpp"
 
 // SYCL
 #include <sycl/sycl.hpp>
@@ -34,13 +26,10 @@ namespace lbm
 namespace gpu
 {
 
-namespace two_lattice
-{
-
 /**
  * @brief   This namespace contains all two-lattice kernels that operate on a non-linear work item layout.
  */
-namespace non_linear
+namespace nptl
 {
 
 /**
@@ -504,12 +493,10 @@ class EmplaceBounceBackKernel
 
 }  // namespace kernels
 
-}  // namespace non_linear
-
-}  // namespace two_lattice
+}  // namespace nptl
 
 }  // namespace gpu
 
 }  // namespace lbm
 
-#endif  // ! NON_LINEAR_TWO_LATTICE_KERNELS_HPP
+#endif  // ! NON_LBM_LPTL_KERNELS_HPP

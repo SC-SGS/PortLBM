@@ -1,17 +1,9 @@
 /**
- * @file        simulation.hpp
- *
- * @author      Marcel Graf
- *
  * @brief       This header file contains the declaration of crucial functionality of the SYCL lattice Boltzmann
  *              simulations.
  *
- * @version     4.8
- *
- * @date        March 2025
- *
- * @copyright   Copyright (c) Marcel Graf
- *
+ * @copyright   Copyright (c) 2025 Marcel Graf
+ *              Copyright (c) 2026 Alexander Strack
  */
 
 #ifndef LBM_SIMULATION_HPP
@@ -30,7 +22,6 @@
 #include "timer.hpp"
 
 // Standard library
-#include <complex>
 #include <memory>
 
 // Format

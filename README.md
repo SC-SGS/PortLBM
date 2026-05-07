@@ -2,8 +2,6 @@
 
 Real-time visualized, GPU-accelerated fluid simulation using the Lattice Boltzmann Method (D2Q9/BGK) with SYCL via AdaptiveCpp.
 
-PortLBM is structured as a C++ library (`portlbm_core`) with an optional driver executable (`run_portlbm`). External projects can link against the library and drive simulations entirely in C++ without touching a JSON file.
-
 ## Getting started
 
 ### Dependencies
@@ -59,54 +57,6 @@ cmake --build build
 cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DFORCE_USE_CPU=ON -DPORTLBM_BUILD_TESTS=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
-```
-
-## Using PortLBM as a library
-
-Include `<lbm/portlbm.hpp>` and link against `PortLBM::portlbm_core`. The preferred entry point is the factory function, which hides all SYCL headers from your call site:
-
-```cpp
-#include <lbm/portlbm.hpp>
-
-// Programmatic setup
-lbm::core::Properties props(
-    "lptl",  // algorithm
-    "stream",                  // data layout
-    false,                     // debug mode
-    64,                        // work-group size
-    10000,                     // time steps
-    10000,                     // frame update interval
-    "Hagen-Poiseuille",        // scenario
-    62,                        // inner vertical nodes
-    254,                       // inner horizontal nodes
-    0.0, 0.0, 1.005,           // inlet vx, vy, density
-    0.0, 0.0, 1.0,             // outlet vx, vy, density
-    1.0);                      // relaxation time τ
-
-props.validate();  // throws PropertyArgumentException on bad values
-
-auto handler = lbm::create_handler(props);
-handler->start();
-handler->block_until_finished();
-
-// Results are indexed over the inner domain (ghost rows/cols excluded)
-// index = col + row * inner_horizontal_nodes
-const auto &x_vel = handler->get_x_velocities();
-```
-
-Or load settings from a JSON file:
-
-```cpp
-auto handler = lbm::create_handler("settings/settings.json");
-handler->start();
-handler->block_until_finished();
-```
-
-For CMake consumers after `cmake --install`:
-
-```cmake
-find_package(PortLBM REQUIRED)
-target_link_libraries(myapp PRIVATE PortLBM::portlbm_core)
 ```
 
 ## Compile options

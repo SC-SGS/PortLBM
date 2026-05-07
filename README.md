@@ -213,3 +213,14 @@ Inlet and outlet densities, which drive the pressure gradient. Must be strictly 
 ### Parameters `"inletVelocity"` and `"outletVelocity"`
 
 Velocity boundary conditions with `x` and `y` components. Velocities near the lattice speed of sound (|u| ≈ 1/√3) typically destabilize the simulation. The outlet velocity has no effect when the default [Zou–He](https://doi.org/10.1063/1.869307) density boundary condition is active.
+
+## How To Cite
+
+```
+@misc{PortLBM2026,
+  author = {Strack, Alexander and Graf, Marcel and Van Craen, Alexander and Pflüger, Dirk},
+  title  = {{PortLBM: A Portable Lattice Boltzmann Tool Leveraging SYCL on AMD, NVIDIA, and Intel GPUs}},
+  year   = {2026},
+  note   = {Unpublished}
+}
+```

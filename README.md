@@ -2,6 +2,15 @@
 
 Real-time visualized, GPU-accelerated fluid simulation using the Lattice Boltzmann Method (D2Q9/BGK) with SYCL via AdaptiveCpp.
 
+## Example Scenarios
+
+| | | |
+|:---:|:---:|:---:|
+| ![Hagen-Poiseuille](images/hagen-poiseuille.png) | ![Circle](images/circle.png) | ![Wing](images/wing.png) |
+| `Hagen-Poiseuille` | `circle` | `wing` |
+| ![Walls](images/walls.png) | ![Skyscraper](images/skyscraper.png) | ![Porous](images/porous.png) |
+| `walls` | `skyscraper` | `porous` |
+
 ## Getting started
 
 ### Dependencies

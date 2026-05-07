@@ -341,7 +341,7 @@ void lbm::core::Domain::setup_for_swap(const unsigned int unexpanded_horizontal_
 
         properties.work_group_size = 6;
 
-        lbm::file_interaction::properties_to_json(properties, settings_path);
+        lbm::file_interaction::properties_to_json(properties);
 
         throw lbm::exceptions::json::PropertyArgumentException(fmt::format(
             "Detected illegal work group size of {} that is below the minimum work-group size of {} of the "
@@ -449,8 +449,7 @@ lbm::core::Simulation::Simulation(sycl::queue &queue, const std::string &setting
         properties->horizontal_nodes -= 2;
         properties->vertical_nodes -= 2;
 
-        // Use the path stored in properties (set by json_to_properties above)
-        lbm::file_interaction::properties_to_json(*properties, properties->settings_path);
+        lbm::file_interaction::properties_to_json(*properties);
 
         throw lbm::exceptions::json::PropertyArgumentException(fmt::format(
             "Detected illegal work group size of {} that exceeds the maximum work group size of {}. "

@@ -170,6 +170,7 @@ if(WITH_VISUALIZATION)
         OFF
         CACHE INTERNAL "")
     FetchContent_MakeAvailable(glfw)
+    set(PORTLBM_GLFW_FETCHED TRUE)
   endif()
 endif()
 
@@ -211,7 +212,11 @@ target_compile_definitions(
          $<$<BOOL:${WITH_VISUALIZATION}>:WITH_VISUALIZATION>)
 
 if(WITH_VISUALIZATION)
-  target_link_libraries(portlbm_core PUBLIC glfw OpenGL::GL)
+  if(PORTLBM_GLFW_FETCHED)
+    target_link_libraries(portlbm_core PUBLIC $<BUILD_INTERFACE:glfw> OpenGL::GL)
+  else()
+    target_link_libraries(portlbm_core PUBLIC glfw OpenGL::GL)
+  endif()
 endif()
 
 # PUBLIC so SYCL compile options propagate to the executable's kernel templates.

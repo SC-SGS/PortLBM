@@ -359,7 +359,7 @@ class Gui
             if (!simulation_control->is_simulation_active)
             {
                 simulation_control->is_simulation_active = true;
-                file_interaction::properties_to_json(*properties_gui, settings_path_);
+                file_interaction::properties_to_json(*properties_gui);
 
                 properties_gui.reset();
 
@@ -959,7 +959,7 @@ class Gui
                 {
                     windows->show_debug_window = false;
                     properties_gui->debug_mode = false;
-                    lbm::file_interaction::properties_to_json(*properties_gui, settings_path_);
+                    lbm::file_interaction::properties_to_json(*properties_gui);
                     windows->node_content = nullptr;
                 }
                 ImGui::SameLine();

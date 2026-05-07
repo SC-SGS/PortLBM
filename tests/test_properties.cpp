@@ -246,7 +246,7 @@ TEST_CASE("json round-trip: properties_to_json → json_to_properties",
     const auto tmp = std::filesystem::temp_directory_path() / "portlbm_test_roundtrip.json";
     orig.settings_path = tmp.string();
 
-    lbm::file_interaction::properties_to_json(orig, tmp.string());
+    lbm::file_interaction::properties_to_json(orig);
     REQUIRE(std::filesystem::exists(tmp));
 
     // Read back with offset=0 (the stored node counts already include ghosts;

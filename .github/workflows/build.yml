@@ -10,6 +10,33 @@ jobs:
   build:
     runs-on: ubuntu-24.04
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tests
+            cmake_flags: >-
+              -DWITH_NAN_PROTECTION=OFF
+              -DFORCE_USE_CPU=ON
+              -DPORTLBM_BUILD_TESTS=ON
+            run_tests: true
+
+          - name: benchmark
+            cmake_flags: >-
+              -DWITH_NAN_PROTECTION=OFF
+              -DFORCE_USE_CPU=ON
+              -DBENCHMARK_MODE=ON
+            run_tests: false
+
+          - name: visualization
+            cmake_flags: >-
+              -DWITH_NAN_PROTECTION=OFF
+              -DFORCE_USE_CPU=ON
+              -DWITH_VISUALIZATION=ON
+            run_tests: false
+
+    name: Build (${{ matrix.name }})
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +47,13 @@ jobs:
             clang-18 llvm-18 libclang-18-dev libclang-cpp18-dev llvm-18-dev \
             libomp-18-dev \
             libboost-fiber-dev libboost-context-dev
+
+      - name: Install visualization dependencies
+        if: matrix.name == 'visualization'
+        run: |
+          sudo apt-get install -y -q \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libgl-dev
 
       - name: Set compiler env
         run: |
@@ -42,12 +76,11 @@ jobs:
           cmake -B build
           -DCMAKE_CXX_COMPILER=clang++-18
           -DCMAKE_BUILD_TYPE=Release
-          -DWITH_NAN_PROTECTION=OFF
-          -DFORCE_USE_CPU=ON
-          -DPORTLBM_BUILD_TESTS=ON
+          ${{ matrix.cmake_flags }}
 
       - name: Build
         run: cmake --build build -j $(nproc)
 
       - name: Test
+        if: matrix.run_tests
         run: ctest --test-dir build --output-on-failure -j $(nproc)

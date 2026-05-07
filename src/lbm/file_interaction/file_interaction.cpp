@@ -8,7 +8,7 @@
 
 #include "../../../include/lbm/file_interaction/file_interaction.hpp"
 
-void lbm::file_interaction::properties_to_json(const lbm::core::Properties &properties, const std::string &path)
+void lbm::file_interaction::properties_to_json(const lbm::core::Properties &properties)
 {
     nlohmann::json file_data;
 
@@ -31,7 +31,7 @@ void lbm::file_interaction::properties_to_json(const lbm::core::Properties &prop
     file_data["physical"]["outletDensity"] = properties.outlet_density;
     file_data["physical"]["relaxationTime"] = properties.relaxation_time;
 
-    std::ofstream file(path);
+    std::ofstream file(properties.settings_path);
     file << std::setw(4) << file_data;
     file.close();
 }

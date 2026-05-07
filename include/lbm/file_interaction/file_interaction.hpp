@@ -27,14 +27,13 @@ namespace lbm
 namespace file_interaction
 {
 /**
- * @brief   Outputs a JSON file to the specified path based on the specified `Properties` object.
- *          The path must be supplied explicitly. Use `properties.settings_path` when the
- *          object was originally loaded via `json_to_properties`.
+ * @brief   Writes a `Properties` object back to the JSON file it was loaded from.
+ *          The destination path is taken from `properties.settings_path`, which is
+ *          set automatically by `json_to_properties()`.
  *
  * @param[in]   properties  source of the values written to the file
- * @param[in]   path        destination path for the JSON file (required)
  */
-void properties_to_json(const core::Properties &properties, const std::string &path);
+void properties_to_json(const core::Properties &properties);
 
 /**
  * @brief   Creates a `core::Properties` object from an input JSON file.

@@ -236,8 +236,7 @@ if(PORTLBM_BUILD_EXECUTABLE)
 
   # benchmark.cpp is application-level; not compiled into the library.
   if(BENCHMARK_MODE)
-    target_sources(portlbm
-                   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/lbm/benchmark/benchmark.cpp")
+    target_sources(portlbm PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/lbm/benchmark/benchmark.cpp")
     target_compile_definitions(portlbm PRIVATE BENCHMARK_MODE)
   endif()
 

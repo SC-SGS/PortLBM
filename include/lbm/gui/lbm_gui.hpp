@@ -271,6 +271,7 @@ class Gui
     // ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     std::string settings_path_;
+    std::filesystem::path project_root_;
 
     std::unique_ptr<core::Properties> properties_gui;
     std::unique_ptr<Windows> windows;
@@ -290,6 +291,9 @@ class Gui
     GLFWwindow *glfw_window;
 
     bool properties_changed;
+
+    // Set to true when the domain changes so both plots refit their axes on the next frame.
+    bool refit_plots;
 
     double fps_update_time;
 
@@ -370,6 +374,7 @@ class Gui
                 properties_changed = false;
                 algorithm_handler->pause();
                 algorithm_handler->initialize();
+                refit_plots = true;
 
                 colormaps->density_colormap_lower_scale =
                     std::min({ algorithm_handler->get_inlet_density(), algorithm_handler->get_outlet_density() });
@@ -1071,6 +1076,11 @@ class Gui
 
                 ImPlot::PushColormap(colormaps->density_colormap);
 
+                if (refit_plots)
+                {
+                    ImPlot::SetNextAxesToFit();
+                }
+
                 if (ImPlot::BeginPlot(
                         "Density",
                         ImVec2(ImGui::GetContentRegionAvail().x - monitor->monitor_x_scale * 100
@@ -1189,6 +1199,11 @@ class Gui
                 { }
 
                 ImPlot::PushColormap(colormaps->velocity_colormap);
+
+                if (refit_plots)
+                {
+                    ImPlot::SetNextAxesToFit();
+                }
 
                 if (ImPlot::BeginPlot(
                         "Velocity",
@@ -1349,6 +1364,7 @@ class Gui
   public:
     explicit Gui(const std::string &&window_title, const std::string &settings_path) :
         settings_path_(settings_path),
+        project_root_(std::filesystem::path(settings_path_).parent_path().parent_path()),
         simulation_control(std::make_unique<SimulationControl>()),
         progress(std::make_unique<Progress>()),
         colormaps(std::make_unique<Colormaps>()),
@@ -1358,6 +1374,7 @@ class Gui
         velocity_quiver_data(std::make_unique<VelocityQuiverData>(2 * properties_gui->domain_node_count)),
         window_title(std::make_unique<std::string>(window_title)),
         properties_changed(false),
+        refit_plots(false),
         fps_buffer(std::make_unique<FPSBuffer>(2000)),
         algorithm_handler(std::make_unique<A>(settings_path_))
     {
@@ -1407,8 +1424,7 @@ class Gui
         // IO
         ImGuiIO &io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        const std::string font_path =
-            (std::filesystem::path(settings_path_).parent_path().parent_path() / "fonts" / "DroidSans.ttf").string();
+        const std::string font_path = (project_root_ / "fonts" / "DroidSans.ttf").string();
         io.Fonts->AddFontFromFileTTF(
             font_path.c_str(), 2 * sqrt(monitor->monitor_x_scale * monitor->monitor_x_scale) * 9.0f);
 
@@ -1494,6 +1510,7 @@ class Gui
 
             density_window();
             velocity_window();
+            refit_plots = false;
             debug_message();
             render();
 

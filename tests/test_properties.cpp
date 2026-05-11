@@ -220,11 +220,11 @@ TEST_CASE("json_to_properties: parses bundled settings/settings.json",
 
     lbm::core::Properties p = lbm::file_interaction::json_to_properties(path);
 
-    CHECK(p.algorithm        == "nptl");
-    CHECK(p.data_layout      == "stream");
-    CHECK(p.scenario         == "Hagen-Poiseuille");
+    CHECK(p.algorithm        == "lptl");
+    CHECK(p.data_layout      == "bundle");
+    CHECK(p.scenario         == "circle");
     CHECK(p.debug_mode       == false);
-    CHECK(p.time_steps       == 10000u);
+    CHECK(p.time_steps       == 1000000u);
     CHECK(p.work_group_size  == 1024u);
     CHECK(p.inlet_density    > 0.0);
     CHECK(p.outlet_density   > 0.0);

@@ -249,10 +249,10 @@ void lbm::benchmark::Benchmark::phase_0_and_1_helper(int phase)
         properties->algorithm = algorithm;
 
         // Create JSON file for algorithm
-        std::string ofdir = (project_root_ / "benchmarks" / ("phase" + std::to_string(phase))
-                             / ("results_phase" + std::to_string(phase) + "_" + std::string{algorithm} + "_"
-                                + device_name + ".json"))
-                                .string();
+        std::string ofdir =
+            (project_root_ / "benchmarks" / ("phase" + std::to_string(phase))
+             / ("results_phase" + std::to_string(phase) + "_" + std::string{ algorithm } + "_" + device_name + ".json"))
+                .string();
 
         nlohmann::json file_data = prepare_file_data_phase_0_and_1(algorithm);
 
@@ -412,7 +412,7 @@ void lbm::benchmark::Benchmark::phase_2()
             // Create JSON file for algorithm
             std::string ofdir =
                 (project_root_ / "benchmarks" / "phase2"
-                 / ("phase2_" + std::string{algorithm} + "_" + properties->scenario + "_" + device_name + ".json"))
+                 / ("phase2_" + std::string{ algorithm } + "_" + properties->scenario + "_" + device_name + ".json"))
                     .string();
             nlohmann::json file_data = prepare_file_data_phase_2();
 
@@ -434,10 +434,9 @@ void lbm::benchmark::Benchmark::phase_2()
             lbm::file_interaction::properties_to_json(*properties);
 
             // Create JSON file for algorithm
-            std::string ofdir =
-                (project_root_ / "benchmarks" / "phase2"
-                 / ("phase2_lptl_" + properties->scenario + "_" + device_name + ".json"))
-                    .string();
+            std::string ofdir = (project_root_ / "benchmarks" / "phase2"
+                                 / ("phase2_lptl_" + properties->scenario + "_" + device_name + ".json"))
+                                    .string();
             nlohmann::json file_data = prepare_file_data_phase_2_tl_linear();
 
             phase_2_inner_loop(ofdir, file_data, progress_phase);

@@ -1,6 +1,6 @@
-# PortLBM — GPU-accelerated Lattice Boltzmann Simulations
-
-Real-time visualized, GPU-accelerated fluid simulation using the Lattice Boltzmann Method (D2Q9/BGK) with SYCL via AdaptiveCpp.
+# PortLBM: Portable GPU-accelerated Lattice Boltzmann Method Simulations
+<img align="right" width="12%" src="/images/beaverick_portlbm.jpeg">
+PortLBM is a GPU-accelerated 2D fluid simulator based on the Lattice Boltzmann Method (D2Q9 lattice, BGK collision operator). It implements four LBM algorithms across three data layouts, and targets AMD, NVIDIA, and Intel GPUs through a single SYCL codebase. An optional ImGui/ImPlot interface enables real-time visualization and interactive parameter control.
 
 ## Example Scenarios
 

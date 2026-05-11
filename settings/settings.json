@@ -3,7 +3,7 @@
         "algorithm": "nptl",
         "dataLayout": "stream",
         "debugMode": false,
-        "frameUpdateInterval": 10001,
+        "frameUpdateInterval": 1,
         "timeSteps": 10000,
         "workGroupSize": 1024
     },

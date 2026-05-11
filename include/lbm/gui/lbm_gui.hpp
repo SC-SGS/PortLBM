@@ -21,6 +21,7 @@
 #include "gui_constants.hpp"
 
 // Standard library
+#include <filesystem>
 #include <memory>
 
 // ImGui
@@ -1401,13 +1402,15 @@ class Gui
         ImGui_ImplGlfw_InitForOpenGL(glfw_window, true);
         ImGui_ImplOpenGL3_Init(glsl_version);
 
-        set_light_style();
+        set_dark_style();
 
         // IO
         ImGuiIO &io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        const std::string font_path =
+            (std::filesystem::path(settings_path_).parent_path().parent_path() / "fonts" / "DroidSans.ttf").string();
         io.Fonts->AddFontFromFileTTF(
-            "../fonts/DroidSans.ttf", 2 * sqrt(monitor->monitor_x_scale * monitor->monitor_x_scale) * 9.0f);
+            font_path.c_str(), 2 * sqrt(monitor->monitor_x_scale * monitor->monitor_x_scale) * 9.0f);
 
         // ImPlot style
         ImPlotStyle &implot_style = ImPlot::GetStyle();

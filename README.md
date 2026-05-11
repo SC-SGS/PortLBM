@@ -54,12 +54,22 @@ CMake automatically picks up the installation from the build directory — no ad
 # Without GUI
 cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_NAN_PROTECTION=OFF
 cmake --build build
-./build/run_portlbm
 
 # With GUI
 cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_VISUALIZATION=ON -DWITH_NAN_PROTECTION=ON
 cmake --build build
-./build/run_portlbm
+```
+
+### Running
+
+The executable locates `settings/settings.json` relative to itself, so it can be invoked from any working directory:
+
+```bash
+./build/portlbm                        # from the project root
+/absolute/path/to/build/portlbm        # absolute path
+
+# Use a custom settings file
+./portlbm /path/to/settings.json
 ```
 
 ### Running the tests
@@ -79,12 +89,12 @@ ctest --test-dir build --output-on-failure
 | `-DUSE_FLOAT` | `OFF` | Use `float` instead of `double` as `real_type`. Changes the ABI — all targets must agree. |
 | `-DFORCE_USE_CPU` | `OFF` | Use the CPU even when a faster device is available. |
 | `-DBENCHMARK_MODE` | `OFF` | Enable the benchmark driver (requires `PORTLBM_BUILD_EXECUTABLE=ON`). |
-| `-DPORTLBM_BUILD_EXECUTABLE` | `ON` | Build the `run_portlbm` driver executable. |
+| `-DPORTLBM_BUILD_EXECUTABLE` | `ON` | Build the `portlbm` driver executable. |
 | `-DPORTLBM_BUILD_TESTS` | `OFF` | Build the Catch2 unit and integration tests. |
 
 ## Simulation settings
 
-Settings for the `run_portlbm` executable are read from `settings/settings.json`. A complete file looks like this:
+Settings for the `portlbm` executable are read from `settings/settings.json`. A complete file looks like this:
 
 ```json
 {

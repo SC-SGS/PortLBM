@@ -63,6 +63,7 @@ std::vector<size_t> lbm::benchmark::Benchmark::get_work_group_sizes(size_t max_w
 
 lbm::benchmark::Benchmark::Benchmark(std::shared_ptr<execution::SYCLAlgorithmHandler> &sycl_algorithm_handler) :
     sycl_algorithm_handler(sycl_algorithm_handler),
+    project_root_(std::filesystem::path(sycl_algorithm_handler->get_settings_path()).parent_path().parent_path()),
     properties(std::make_unique<core::Properties>(
         file_interaction::json_to_properties(sycl_algorithm_handler->get_settings_path(), -2))),
     runtime_timer(std::make_unique<core::Timer>()),
@@ -80,7 +81,7 @@ lbm::benchmark::Benchmark::Benchmark(std::shared_ptr<execution::SYCLAlgorithmHan
     properties->scenario = "Hagen-Poiseuille";
 
     // Read benchmark settings
-    std::ifstream benchmark_settings_file("../settings/benchmark.json");
+    std::ifstream benchmark_settings_file((project_root_ / "settings" / "benchmark.json").string());
     nlohmann::json benchmark_settings = nlohmann::json::parse(benchmark_settings_file);
     benchmark_settings_file.close();
 
@@ -248,8 +249,10 @@ void lbm::benchmark::Benchmark::phase_0_and_1_helper(int phase)
         properties->algorithm = algorithm;
 
         // Create JSON file for algorithm
-        std::string ofdir = "../benchmarks/phase" + std::to_string(phase) + "/results_phase" + std::to_string(phase)
-                            + "_" + std::string{ algorithm } + "_" + device_name + ".json";
+        std::string ofdir = (project_root_ / "benchmarks" / ("phase" + std::to_string(phase))
+                             / ("results_phase" + std::to_string(phase) + "_" + std::string{algorithm} + "_"
+                                + device_name + ".json"))
+                                .string();
 
         nlohmann::json file_data = prepare_file_data_phase_0_and_1(algorithm);
 
@@ -266,8 +269,9 @@ void lbm::benchmark::Benchmark::phase_0_and_1_helper(int phase)
     if (test_linear_two_lattice)
     {
         properties->algorithm = "lptl";
-        std::string ofdir = "../benchmarks/phase" + std::to_string(phase) + "/results_phase" + std::to_string(phase)
-                            + "_lptl_" + device_name + ".json";
+        std::string ofdir = (project_root_ / "benchmarks" / ("phase" + std::to_string(phase))
+                             / ("results_phase" + std::to_string(phase) + "_lptl_" + device_name + ".json"))
+                                .string();
 
         nlohmann::json file_data = prepare_file_data_phase_0_and_1_tl_linear();
         phase_0_and_1_inner_loop(phase, 0, ofdir, file_data, progress_phase);
@@ -406,8 +410,10 @@ void lbm::benchmark::Benchmark::phase_2()
             lbm::file_interaction::properties_to_json(*properties);
 
             // Create JSON file for algorithm
-            std::string ofdir = "../benchmarks/phase2/phase2_" + std::string{ algorithm } + "_" + properties->scenario
-                                + "_" + device_name + ".json";
+            std::string ofdir =
+                (project_root_ / "benchmarks" / "phase2"
+                 / ("phase2_" + std::string{algorithm} + "_" + properties->scenario + "_" + device_name + ".json"))
+                    .string();
             nlohmann::json file_data = prepare_file_data_phase_2();
 
             phase_2_inner_loop(ofdir, file_data, progress_phase);
@@ -429,7 +435,9 @@ void lbm::benchmark::Benchmark::phase_2()
 
             // Create JSON file for algorithm
             std::string ofdir =
-                "../benchmarks/phase2/phase2_lptl_" + properties->scenario + "_" + device_name + ".json";
+                (project_root_ / "benchmarks" / "phase2"
+                 / ("phase2_lptl_" + properties->scenario + "_" + device_name + ".json"))
+                    .string();
             nlohmann::json file_data = prepare_file_data_phase_2_tl_linear();
 
             phase_2_inner_loop(ofdir, file_data, progress_phase);

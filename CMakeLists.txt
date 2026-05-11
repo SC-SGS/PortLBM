@@ -29,7 +29,7 @@ option(WITH_NAN_PROTECTION "Guard against NaN/Inf in macroscopic variables" ON)
 option(USE_FLOAT "Use float instead of double as real_type" OFF)
 option(FORCE_USE_CPU "Force host execution even when a GPU is available" OFF)
 option(BENCHMARK_MODE "Build the benchmark driver" OFF)
-option(PORTLBM_BUILD_EXECUTABLE "Build the run_portlbm driver executable" ON)
+option(PORTLBM_BUILD_EXECUTABLE "Build the portlbm driver executable" ON)
 option(PORTLBM_BUILD_TESTS "Build the Catch2 unit and integration tests" OFF)
 option(PORTLBM_FORMAT_ONLY
        "Configure formatting targets only — skips all dependencies and compilation" OFF)
@@ -152,7 +152,7 @@ if(WITH_VISUALIZATION)
     FetchContent_Declare(
       glfw
       GIT_REPOSITORY https://github.com/glfw/glfw.git
-      GIT_TAG 3.4
+      GIT_TAG 3.3.8
       GIT_SHALLOW TRUE)
     set(GLFW_BUILD_DOCS
         OFF
@@ -231,17 +231,16 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/lbm/version.hpp.in"
 # ---- Executable target -----------------------------------------------------
 
 if(PORTLBM_BUILD_EXECUTABLE)
-  add_executable(run_portlbm src/main_gpu.cpp)
-  target_link_libraries(run_portlbm PRIVATE portlbm_core)
+  add_executable(portlbm src/main_gpu.cpp)
+  target_link_libraries(portlbm PRIVATE portlbm_core)
 
   # benchmark.cpp is application-level; not compiled into the library.
   if(BENCHMARK_MODE)
-    target_sources(run_portlbm
-                   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/lbm/benchmark/benchmark.cpp")
-    target_compile_definitions(run_portlbm PRIVATE BENCHMARK_MODE)
+    target_sources(portlbm PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/lbm/benchmark/benchmark.cpp")
+    target_compile_definitions(portlbm PRIVATE BENCHMARK_MODE)
   endif()
 
-  add_sycl_to_target(TARGET run_portlbm)
+  add_sycl_to_target(TARGET portlbm)
 endif()
 
 # ---- Tests -----------------------------------------------------------------

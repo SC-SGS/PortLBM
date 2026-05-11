@@ -20,6 +20,7 @@
 
 // Standard library
 #include <array>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -80,6 +81,9 @@ class Benchmark
 {
   private:
     std::shared_ptr<execution::SYCLAlgorithmHandler> sycl_algorithm_handler;
+
+    // Project root derived from the settings path — used for all relative I/O.
+    std::filesystem::path project_root_;
 
     std::string device_name;
 

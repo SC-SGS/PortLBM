@@ -39,7 +39,7 @@ lbm::gui::Colormaps::Colormaps() :
     density_colormap(ImPlotColormap_Viridis),
     density_colormap_lower_scale(0.0f),
     density_colormap_upper_scale(0.0f),
-    velocity_colormap(ImPlotColormap_Hot),
+    velocity_colormap(ImPlotColormap_Jet),
     velocity_colormap_lower_scale(0.0),
     velocity_colormap_upper_scale(0.0f){};
 

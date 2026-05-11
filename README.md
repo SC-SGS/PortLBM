@@ -17,14 +17,16 @@ PortLBM is a GPU-accelerated 2D fluid simulator based on the Lattice Boltzmann M
 
 Only two dependencies must be installed manually. Everything else is either auto-fetched by CMake or installed via the provided script.
 
-| Software | Version | How to obtain |
-| -------- | ------- | ------------- |
-| [llvm](https://github.com/llvm/llvm-project) | 18.1.8 | `spack install llvm@18.1.8 +llvm_dylib -gold +clang` |
-| [glfw](https://github.com/glfw/glfw) | any | Only required with `-DWITH_VISUALIZATION=ON`. Auto-fetched by CMake if not found, but requires X11 dev headers (`sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`). Alternatively: `spack install glfw` |
+| Software | Version | Manual install | Spack command |
+| -------- | ------- | :------------: | -------------- |
+| [llvm](https://github.com/llvm/llvm-project) | 18.1.8 | yes | `spack install llvm@18.1.8 +llvm_dylib -gold +clang` |
+| [boost](https://www.boost.org) | 1.85.0 | yes | `spack install boost@1.85.0 +fiber +context +atomic +filesystem` |
+| [AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp) | v24.10 | no | — |
+| [glfw](https://github.com/glfw/glfw) | 3.3.8 | no | `spack install glfw@3.3.8` |
 
 > **Note:** Building LLVM with Spack can take more than one hour depending on your machine.
 
-[nlohmann/json](https://github.com/nlohmann/json) and [fmt](https://github.com/fmtlib/fmt) are fetched automatically by CMake if not found on the system.
+AdaptiveCpp is installed automatically by the provided `install_adaptivecpp.sh` script (see below). GLFW is auto-fetched by CMake if not found on the system, but requires X11 dev headers (`sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`); alternatively install via Spack. [nlohmann/json](https://github.com/nlohmann/json) and [fmt](https://github.com/fmtlib/fmt) are also fetched automatically by CMake.
 
 ### Installing AdaptiveCpp
 
@@ -52,12 +54,22 @@ CMake automatically picks up the installation from the build directory — no ad
 # Without GUI
 cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_NAN_PROTECTION=OFF
 cmake --build build
-./build/run_portlbm
 
 # With GUI
 cmake -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DWITH_VISUALIZATION=ON -DWITH_NAN_PROTECTION=ON
 cmake --build build
-./build/run_portlbm
+```
+
+### Running
+
+The executable locates `settings/settings.json` relative to itself, so it can be invoked from any working directory:
+
+```bash
+./build/portlbm                        # from the project root
+/absolute/path/to/build/portlbm        # absolute path
+
+# Use a custom settings file
+./portlbm /path/to/settings.json
 ```
 
 ### Running the tests
@@ -77,12 +89,12 @@ ctest --test-dir build --output-on-failure
 | `-DUSE_FLOAT` | `OFF` | Use `float` instead of `double` as `real_type`. Changes the ABI — all targets must agree. |
 | `-DFORCE_USE_CPU` | `OFF` | Use the CPU even when a faster device is available. |
 | `-DBENCHMARK_MODE` | `OFF` | Enable the benchmark driver (requires `PORTLBM_BUILD_EXECUTABLE=ON`). |
-| `-DPORTLBM_BUILD_EXECUTABLE` | `ON` | Build the `run_portlbm` driver executable. |
+| `-DPORTLBM_BUILD_EXECUTABLE` | `ON` | Build the `portlbm` driver executable. |
 | `-DPORTLBM_BUILD_TESTS` | `OFF` | Build the Catch2 unit and integration tests. |
 
 ## Simulation settings
 
-Settings for the `run_portlbm` executable are read from `settings/settings.json`. A complete file looks like this:
+Settings for the `portlbm` executable are read from `settings/settings.json`. A complete file looks like this:
 
 ```json
 {

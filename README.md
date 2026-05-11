@@ -126,11 +126,11 @@ All other parameters can also be adjusted from the GUI at runtime.
 
 All three layouts were proposed by [Mattila et al.](https://doi.org/10.1016/j.camwa.2007.08.001):
 
-| Value | Notes |
-| ----- | ----- |
-| `stream` | |
-| `collision` | |
-| `bundle` | |
+| Value | Description |
+| ----- | ----------- |
+| `stream` | Stores each distribution function contiguously across all nodes (Structure of Arrays). Optimises the streaming step: neighbours of the same direction are adjacent in memory. |
+| `collision` | Stores all nine distribution functions for each node contiguously (Array of Structures). Optimises the collision step: all values needed for a single node update are co-located. |
+| `bundle` | Interleaves pairs of opposite directions node by node. Reduces the working set during fused streaming–collision and can improve cache utilisation on some hardware. |
 
 ### Parameter `"frameUpdateInterval"`
 

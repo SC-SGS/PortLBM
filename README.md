@@ -1,6 +1,6 @@
-# PortLBM — GPU-accelerated Lattice Boltzmann Simulations
-
-Real-time visualized, GPU-accelerated fluid simulation using the Lattice Boltzmann Method (D2Q9/BGK) with SYCL via AdaptiveCpp.
+# PortLBM: Portable GPU-accelerated Lattice Boltzmann Method Simulations
+<img align="right" width="12%" src="/images/beaverick_portlbm.jpeg">
+PortLBM is a GPU-accelerated 2D fluid simulator based on the Lattice Boltzmann Method (D2Q9 lattice, BGK collision operator). It implements four LBM algorithms across three data layouts, and targets AMD, NVIDIA, and Intel GPUs through a single SYCL codebase. An optional ImGui/ImPlot interface enables real-time visualization and interactive parameter control.
 
 ## Example Scenarios
 
@@ -126,11 +126,11 @@ All other parameters can also be adjusted from the GUI at runtime.
 
 All three layouts were proposed by [Mattila et al.](https://doi.org/10.1016/j.camwa.2007.08.001):
 
-| Value | Notes |
-| ----- | ----- |
-| `stream` | |
-| `collision` | |
-| `bundle` | |
+| Value | Description |
+| ----- | ----------- |
+| `stream` | Stores each distribution function contiguously across all nodes (Structure of Arrays). Optimises the streaming step: neighbours of the same direction are adjacent in memory. |
+| `collision` | Stores all nine distribution functions for each node contiguously (Array of Structures). Optimises the collision step: all values needed for a single node update are co-located. |
+| `bundle` | Interleaves pairs of opposite directions node by node. Reduces the working set during fused streaming–collision and can improve cache utilisation on some hardware. |
 
 ### Parameter `"frameUpdateInterval"`
 

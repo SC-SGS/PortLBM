@@ -152,7 +152,7 @@ if(WITH_VISUALIZATION)
     FetchContent_Declare(
       glfw
       GIT_REPOSITORY https://github.com/glfw/glfw.git
-      GIT_TAG 3.4
+      GIT_TAG 3.3.8
       GIT_SHALLOW TRUE)
     set(GLFW_BUILD_DOCS
         OFF

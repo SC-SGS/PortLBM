@@ -17,14 +17,16 @@ PortLBM is a GPU-accelerated 2D fluid simulator based on the Lattice Boltzmann M
 
 Only two dependencies must be installed manually. Everything else is either auto-fetched by CMake or installed via the provided script.
 
-| Software | Version | How to obtain |
-| -------- | ------- | ------------- |
-| [llvm](https://github.com/llvm/llvm-project) | 18.1.8 | `spack install llvm@18.1.8 +llvm_dylib -gold +clang` |
-| [glfw](https://github.com/glfw/glfw) | any | Only required with `-DWITH_VISUALIZATION=ON`. Auto-fetched by CMake if not found, but requires X11 dev headers (`sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`). Alternatively: `spack install glfw` |
+| Software | Version | Manual install | Spack command |
+| -------- | ------- | :------------: | -------------- |
+| [llvm](https://github.com/llvm/llvm-project) | 18.1.8 | yes | `spack install llvm@18.1.8 +llvm_dylib -gold +clang` |
+| [boost](https://www.boost.org) | 1.85.0 | yes | `spack install boost@1.85.0 +fiber +context +atomic +filesystem` |
+| [AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp) | v24.10 | no | — |
+| [glfw](https://github.com/glfw/glfw) | 3.3.8 | no | `spack install glfw@3.3.8` |
 
 > **Note:** Building LLVM with Spack can take more than one hour depending on your machine.
 
-[nlohmann/json](https://github.com/nlohmann/json) and [fmt](https://github.com/fmtlib/fmt) are fetched automatically by CMake if not found on the system.
+AdaptiveCpp is installed automatically by the provided `install_adaptivecpp.sh` script (see below). GLFW is auto-fetched by CMake if not found on the system, but requires X11 dev headers (`sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`); alternatively install via Spack. [nlohmann/json](https://github.com/nlohmann/json) and [fmt](https://github.com/fmtlib/fmt) are also fetched automatically by CMake.
 
 ### Installing AdaptiveCpp
 

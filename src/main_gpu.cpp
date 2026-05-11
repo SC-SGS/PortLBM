@@ -45,7 +45,7 @@ static const std::string SETTINGS_PATH = "../settings/settings.json";
 
         try
         {
-            lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("SYCL Lattice Boltzmann", SETTINGS_PATH);
+            lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("PortLBM", SETTINGS_PATH);
             gui.run();
         }
         catch(const lbm::exceptions::Exception &exception)
@@ -62,7 +62,7 @@ static const std::string SETTINGS_PATH = "../settings/settings.json";
     {
         try
         {
-            lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("SYCL Lattice Boltzmann", SETTINGS_PATH);
+            lbm::gui::Gui<lbm::execution::SYCLAlgorithmHandler> gui("PortLBM", SETTINGS_PATH);
             gui.run();
         }
         catch(const lbm::exceptions::Exception &exception)

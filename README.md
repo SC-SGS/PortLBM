@@ -189,9 +189,8 @@ Velocity boundary conditions with `x` and `y` components. Velocities near the la
 
 ```
 @misc{PortLBM2026,
-  author = {Strack, Alexander and Graf, Marcel and Van Craen, Alexander and Pflüger, Dirk},
-  title  = {{PortLBM: A Portable Lattice Boltzmann Tool Leveraging SYCL on AMD, NVIDIA, and Intel GPUs}},
+  author = {Strack, Alexander and Graf, Marcel and Van Craen, Alexander and Pfl{\"u}ger, Dirk},
+  title  = {{PortLBM}: A Portable Lattice {Boltzmann} Tool Leveraging {SYCL} on {AMD}, {NVIDIA}, and {Intel GPUs}},
   year   = {2026},
-  note   = {Unpublished}
+  note   = {To appear in Euro-Par 2026: Parallel Processing Workshops}
 }
-```
